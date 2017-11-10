@@ -1,0 +1,194 @@
+/**
+ *  \file tilemap.h
+ */
+
+#ifndef _TILEMAP_H
+#define _TILEMAP_H
+
+#include "image.h"
+
+
+/**
+ *  \struct tile_t
+ *
+ *  Represents a single square in the tilemap.
+ *
+ *  \field tilex and \field tiley represent the coordinates of the square's 
+ *  image within a tile set and can be passed to image_draw_tile.
+ *
+ *  \field flags is a mask with various flags to do with how the tile is drawn
+ *  and how objects interact with it. See the flags enum for details.
+ */
+typedef struct tile_t {
+    uint8_t tilex;  /**< tile image x */
+    uint8_t tiley;  /**< tile image y */
+    uint16_t flags; /**< tile flags */
+} tile_t;
+
+
+/**
+ *  \struct tilemap_t
+ *
+ *  Stores tiles as layers of 2D arrays.
+ */
+typedef struct tilemap_t {
+    size_t w;           /**< map width (tiles) */
+    size_t h;           /**< map height (tiles) */
+    size_t  nlayers;    /**< number of layers */
+    tile_t** tiles;     /**< tile data */
+} tilemap_t;
+
+
+enum {
+    TILEMAP_ANIM_COUNT_MASK =     0x1   /**< number (log2) of animated frames for the tile */
+                                | 0x2,
+    TILEMAP_ANIM_PERIOD_MASK =    0x4   /**< number (again log2) of redraw cycles each animation frame lasts for */
+                                | 0x8,
+    TILEMAP_UNUSED_MASK =         0x10  /**< unused bits */
+                                | 0x20
+                                | 0x40,
+    TILEMAP_ACTION_MASK =         0x80,     /**< indicates that the tile fires an interaction event */
+    TILEMAP_BUMP_SOUTH_MASK =     0x100,    /**< objects can't enter the square from the south */
+    TILEMAP_BUMP_WEST_MASK =      0x200,    /**< objects can't enter from the west */
+    TILEMAP_BUMP_NORTH_MASK =     0x400,    /**< objects can't enter from the north */
+    TILEMAP_BUMP_EAST_MASK =      0x800     /**< objects can't enter from the east */
+};
+
+
+/**
+ *  Frees memory held by the tilemap for the tile arrays.
+ *  
+ *  \param t    tilemap pointer
+ */
+void tilemap_deinit(tilemap_t * t);
+
+
+/**
+ *  Initializes a tilemap by allocating memory for \param nlayers tile layers
+ *  each of size \param w by \param h.
+ *
+ *  \param t    tilemap pointer
+ *  \param nlayers  number of tile layers to allocate
+ *  \param w    width (tiles) of each map layer
+ *  \param h    height (tiles) of each map layer
+ *  
+ *  \return 1 on success, 0 on failure
+ */
+int tilemap_init(tilemap_t * t, size_t nlayers, size_t w, size_t h);
+
+
+/**
+ *  Create a tilemap_t with malloc and initialize it.
+ *
+ *  \sa tilemap_init
+ *
+ *  \param nlayers  number of tile layers to allocate
+ *  \param w    width (tiles) of each map layer
+ *  \param h    height (tiles) of each map layer
+ *
+ *  \return pointer to newly created tilemap
+ */
+tilemap_t * tilemap_create(size_t nlayers, size_t w, size_t h);
+
+
+/**
+ *  Deinitialize and free a tilemap_t created with tilemap_create.
+ *
+ *  \param t    tilemap pointer
+ */
+void tilemap_destroy(tilemap_t * t);
+
+
+/**
+ *  Gets the address of the tile at (\param layer, \param x, \param y).
+ *
+ *  \param t    tilemap pointer
+ *  \param layer    layer index
+ *  \param x    map square x
+ *  \param y    map square y
+ *  
+ *  \return address of the tile at (layer, x, y), or NULL if that position isn't
+ *  on the map.
+ */
+tile_t * tilemap_get_tile_address(const tilemap_t* t, size_t layer, size_t x, size_t y);
+
+
+/**
+ *  Sets the image to be used for the tile at (layer, x, y).
+ *
+ *  \param t    tilemap pointer
+ *  \param layer    layer index
+ *  \param x    x location of tile
+ *  \param y    y location of tile
+ *  \param tilex    x index of tile in image
+ *  \param tiley    y index of tile in image
+ */
+void tilemap_set_tile(tilemap_t* t, size_t layer, size_t x, size_t y, int tilex, int tiley);
+
+
+/**
+ *  Given the pixel dimensions of the renderer and a location on the map in
+ *  pixels, draws a layer of the map to the renderer.
+ *
+ *  \param t    tilemap pointer
+ *  \param i    tile image
+ *  \param l    index of map layer to draw
+ *  \param px   pixel x offset of left edge of visible area of the map
+ *  \param py   pixel y offset of top edge of the visible area of the map
+ *  \param pw   pixel width of the view
+ *  \param ph   pixel height of the view
+ */
+void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph);
+
+
+/**
+ *  Create a copy of tile data from all layers within a rectangular region.
+ *
+ *  \param t    tilemap pointer
+ *  \param x    x position of the left edge of the region to copy
+ *  \param y    y position of the top edge of the region to copy
+ *  \param w    width (map squares) of region
+ *  \param h    height (map squares) of region
+ *
+ *  \return tile array
+ */
+tile_t* tilemap_export_slice(const tilemap_t* t, int x, int y, int w, int h);
+
+
+/**
+ *  Copy tiles from \param patch into a region of tilemap \param t.
+ *
+ *  \param t    tilemap pointer
+ *  \param patch    tile array as produced by tilemap_export_slice
+ *  \param x    x position (map squares)
+ *  \param y    y position (map squares)
+ *  \param w    width
+ *  \param h    height
+ */
+void tilemap_patch(tilemap_t* t, tile_t* patch, int x, int y, int w, int h);
+
+
+/**
+ *  Reads a tilemap file and initializes \param t with its contents.
+ *
+ *  \param t    tilemap pointer
+ *  \param path path to map file to load
+ *
+ *  \return 1 on success, 0 on failure
+ */
+int tilemap_read_from_file(tilemap_t * t, const char * path);
+
+
+/**
+ *  Writes the tilemap at \param t to a file.
+ *
+ *  \param t    tilemap pointer
+ *  \param path path to file to be written
+ *
+ *  \return 1 on success, 0 on failure
+ */
+int tilemap_write_to_file(const tilemap_t * t, const char * path);
+
+
+#endif
+

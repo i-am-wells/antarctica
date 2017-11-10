@@ -1,0 +1,12 @@
+# Ignore compiled things
+*.o
+antarctica
+
+# Ignore doxygen output
+html
+latex
+
+# other
+res
+*.map
+

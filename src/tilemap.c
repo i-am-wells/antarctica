@@ -1,0 +1,388 @@
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include <SDL.h>
+
+#include "tilemap.h"
+#include "image.h"
+#include "engine.h"
+
+
+tilemap_t * tilemap_create(size_t nlayers, size_t w, size_t h) {
+    // Try to allocate a tilemap_t
+    tilemap_t * t = (tilemap_t*)malloc(sizeof(tilemap_t));
+    if(!t)
+        return NULL;
+
+    // Initialize
+    if(!tilemap_init(t, w, h, nlayers)) {
+        free(t);
+        return NULL;
+    }
+
+    return t;
+}
+
+
+void tilemap_destroy(tilemap_t * t) {
+    // Deinitialize and free
+    tilemap_deinit(t);
+    free(t);
+}
+
+
+void tilemap_deinit(tilemap_t* t) {
+    if(t) {
+        // Free tiles arrays
+        if(t->tiles) {
+            for(size_t i = 0; i < t->nlayers; i++) {
+                free(t->tiles[i]);
+                t->tiles[i] = NULL;
+            }
+
+            free(t->tiles);
+            t->tiles = NULL;
+        }
+    }
+}
+
+
+int tilemap_init(tilemap_t * t, size_t nlayers, size_t w, size_t h) {
+    assert(t);
+    assert((w * h * nlayers) > 0);
+
+    // Allocate layers array
+    t->tiles = (tile_t**)calloc(1, nlayers * sizeof(tile_t*));
+    if(!t->tiles)
+        return 0;
+
+    // Allocate each layer
+    tile_t** maplayers = t->tiles;
+    for(size_t i = 0; i < nlayers; i++) {
+        maplayers[i] = (tile_t*)calloc(w * h, sizeof(tile_t));
+        if(!(maplayers[i])) {
+            tilemap_destroy(t);
+            return 0;
+        }
+    }
+
+    t->w = w;
+    t->h = h;
+    t->nlayers = nlayers;
+    return 1;
+}
+
+
+tile_t * tilemap_get_tile_address(const tilemap_t * t, size_t layer, size_t x, size_t y) {
+    assert(t);
+    if((layer < t->nlayers)
+            && (x < t->w)
+            && (y < t->h)) {
+        return t->tiles[layer] + y * t->w + x;
+    }
+
+    // Return NULL if (layer, x, y) isn't on the map.
+    return NULL;
+}
+
+
+void tilemap_set_tile(tilemap_t* t, size_t layer, size_t x, size_t y, int tilex, int tiley) {
+    assert(t);
+
+    // Set the image to be used for this map square
+    tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
+    if(tileptr) {
+        tileptr->tilex = tilex & 0xff;
+        tileptr->tiley = tiley & 0xff;
+    }
+}
+
+
+void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph) {
+    // Get the starting position and dimensions for drawing in map square coordinates
+    int startx = (px / i->tw);
+    int starty = (py / i->th);
+    int nx = (pw / i->tw) + 2;
+    int ny = (ph / i->th) + 2;
+
+    // Allow for drawing tiles offset from map square boundaries
+    int offx = px % i->tw;
+    int offy = py % i->th;
+
+    // get tile tile array for the layer we're drawing
+    tile_t* layer = t->tiles[l];
+
+    // For each map square within our view, draw the corresponding tile
+    for(int y = 0; y < ny; y++) {
+        int drawy = starty + y; // map square y to draw
+
+        // are we on the map vertically?
+        if((drawy > -1) && (drawy < t->h)) {
+            for(int x = 0; x < nx; x++) {
+                int drawx = startx + x; // map square x to draw
+
+                // are we on the map horizontally?
+                if((drawx > -1) && (drawx < t->w)) {
+
+                    // draw the tile at (layer, drawx, drawy)
+                    tile_t* tile = layer + drawy * t->w + drawx;
+                    image_draw_tile(i, tile->tilex, tile->tiley, x * i->tw - offx, y * i->th - offy);
+                }
+            } // loop x
+        }
+    } // loop y
+}
+
+
+void tilemap_draw_layer_flags(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph) {
+    // see tilemap_draw_layer
+    int startx = (px / i->tw);
+    int starty = (py / i->th);
+    int nx = (pw / i->tw) + 2;
+    int ny = (ph / i->th) + 2;
+
+    int offx = px % i->tw;
+    int offy = py % i->th;
+
+    tile_t* layer = t->tiles[l];
+
+    int thickness = 2;
+    SDL_Rect dst;
+
+    // save current drawing color
+    Uint8 or, og, ob, oa;
+    SDL_GetRenderDrawColor(i->renderer, &or, &og, &ob, &oa);
+
+    for(int y = 0; y < ny; y++) {
+        int drawy = starty + y;
+        if((drawy > -1) && (drawy < t->h)) {
+            for(int x = 0; x < nx; x++) {
+                int drawx = startx + x;
+                if((drawx > -1) && (drawx < t->w)) {
+                    tile_t* tile = layer + drawy * t->w + drawx;
+                    
+                    int x0 = x * i->tw - offx;
+                    int x1 = x0 + i->tw - thickness;
+                    int y0 = y * i->th - offy;
+                    int y1 = y0 + i->th - thickness;
+
+
+                    // draw map square borders in red to show directional bump flags
+                    SDL_SetRenderDrawColor(i->renderer, 255, 0, 0, SDL_ALPHA_OPAQUE);
+                    if(tile->flags & TILEMAP_BUMP_EAST_MASK) {
+                        dst.x = x1;
+                        dst.y = y0;
+                        dst.w = thickness;
+                        dst.h = i->th;
+                        SDL_RenderFillRect(i->renderer, &dst);
+                    }
+                    if(tile->flags & TILEMAP_BUMP_NORTH_MASK) {
+                        dst.x = x0;
+                        dst.y = y0;
+                        dst.w = i->tw;
+                        dst.h = thickness;
+                        SDL_RenderFillRect(i->renderer, &dst);
+                    }
+                    if(tile->flags & TILEMAP_BUMP_WEST_MASK) {
+                        dst.x = x0;
+                        dst.y = y0;
+                        dst.w = thickness;
+                        dst.h = i->th;
+                        SDL_RenderFillRect(i->renderer, &dst);
+                    }
+                    if(tile->flags & TILEMAP_BUMP_SOUTH_MASK) {
+                        dst.x = x0;
+                        dst.y = y1;
+                        dst.w = i->tw;
+                        dst.h = thickness;
+                        SDL_RenderFillRect(i->renderer, &dst);
+                    }
+                    
+                    // draw a green rectangle in the center of map squares with
+                    // the "action" flag set
+                    SDL_SetRenderDrawColor(i->renderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
+                    if(tile->flags & TILEMAP_ACTION_MASK) {
+                        dst.x = x0 + i->tw / 4;
+                        dst.y = y0 + i->th / 4;
+                        dst.w = i->tw / 2;
+                        dst.h = i->th / 2;
+                        SDL_RenderFillRect(i->renderer, &dst);
+                    }
+                    //image_draw_tile(i, tile->tilex, tile->tiley, x * i->tw - offx, y * i->th - offy);
+                }
+            }
+        }
+    }
+
+    // restore original drawing color
+    SDL_SetRenderDrawColor(i->renderer, or, og, ob, oa);
+}
+
+
+tile_t* tilemap_export_slice(const tilemap_t* t, int x, int y, int w, int h) {
+    assert(t);
+    assert((x > -1) && (x < t->w) && ((x+w) < t->w));
+    assert((y > -1) && (y < t->h) && ((y+h) < t->h));
+
+    tile_t* slice = (tile_t*)malloc(t->nlayers * w * h * sizeof(tile_t));
+    if(!slice)
+        return NULL;
+
+    size_t rowsize = w * sizeof(tile_t);
+
+    for(size_t l = 0; l < t->nlayers; l++) {
+        tile_t* destlayer = slice + l * w * h;
+        tile_t* srclayer = t->tiles[l];
+
+        for(int yy = 0; yy < h; yy++) {
+            // Copy map rows
+            memcpy(destlayer + yy * w, srclayer + (y + yy) * t->w + x, rowsize);
+        }
+    }
+
+    return slice;
+}
+
+
+void tilemap_patch(tilemap_t* t, tile_t* patch, int x, int y, int w, int h) {
+    assert(t);
+    assert(patch);
+    assert((x > -1) && (x < t->w) && ((x+w) < t->w));
+    assert((y > -1) && (y < t->h) && ((y+h) < t->h));
+    
+    size_t rowsize = w * sizeof(tile_t);
+
+    // For each layer, copy rows of the patch array into the map
+    for(int l = 0; l < t->nlayers; l++) {
+        tile_t* layer = t->tiles[l];
+        tile_t* patchlayer = patch + (l * w * h);
+
+        for(int my = 0; my < h; my++) {
+            for(int mx = 0; mx < w; mx++) {
+                memcpy(layer + (y + my) * t->w + x, patchlayer + my * w + mx, rowsize);
+            }
+        }
+    }
+}
+
+
+int tilemap_read_from_file(tilemap_t * t, const char * path) {
+    assert(t);
+    
+    FILE * f = fopen(path, "rb");
+    if(!f)
+        return 0;
+
+    // Read map file header (magic(2) + version(2) + nlayers(1) + w(2) + h(2) = 9 bytes)
+    char buffer[32];
+    int nread = fread(buffer, 9, 1, f);
+    if(nread != 1) {
+        fclose(f);
+        return 0;
+    }
+
+    if(!((buffer[0] == (char)0xac) && (buffer[1] == (char)0xc0))) {
+        fclose(f);
+        return 0;
+    }
+
+    //int majversion = buffer[2];
+    //int minversion = buffer[3];
+
+    // TODO check version?
+    //
+    
+    // Get dimensions
+    t->nlayers = buffer[4];
+    t->w = (buffer[5] << 8) | buffer[6];
+    t->h = (buffer[7] << 8) | buffer[8];
+
+    t->tiles = (tile_t**)malloc(t->nlayers * sizeof(tile_t*));
+    if(!t->tiles) {
+        fclose(f);
+        return 0;
+    }
+
+    // Read each layer
+    for(size_t i = 0; i < t->nlayers; i++) {
+    
+        // Allocate layer
+        size_t layer_bytes_size = t->w * t->h * sizeof(tile_t);
+        t->tiles[i] = (tile_t*)malloc(layer_bytes_size);
+        if(!t->tiles[i])
+            goto tilemap_read_fail;
+
+        // Read layer
+        if(fread(t->tiles[i], layer_bytes_size, 1, f) != 1) {
+            fprintf(stderr, "couldn't load %s: file ends unexpectedly\n", path);
+            goto tilemap_read_fail;
+        }
+    }
+
+    // Success
+    fclose(f);
+    return 1;
+
+tilemap_read_fail:
+    tilemap_deinit(t);
+    fclose(f);
+    return 0;
+}
+
+
+int tilemap_write_to_file(const tilemap_t * t, const char * path) {
+    assert(t);
+    
+    FILE * f = fopen(path, "wb");
+    if(!f)
+        return 0;
+
+    // Map file header (magic(2) + version(2) + nlayers(1) + w(2) + h(2) = 9 bytes)
+    char buffer[32];
+    // magic bytes
+    buffer[0] = 0xac;
+    buffer[1] = 0xc0;
+    
+    // version info
+    buffer[2] = 0;
+    buffer[3] = 0;
+
+    // number of layers
+    buffer[4] = t->nlayers;
+    
+    // width
+    buffer[5] = (t->w >> 8) & 0xff;
+    buffer[6] = t->w & 0xff;
+
+    // height
+    buffer[7] = (t->h >> 8) & 0xff;
+    buffer[8] = t->h & 0xff;
+
+    if(fwrite(buffer, 9, 1, f) != 1) {
+        goto tilemap_write_fail;
+    }
+
+    // Write each layer
+    size_t layer_bytes_size = t->w * t->h * sizeof(tile_t);
+    for(size_t i = 0; i < t->nlayers; i++) {
+        if(t->tiles[i]) {
+            if(fwrite(t->tiles[i], layer_bytes_size, 1, f) != 1)
+                goto tilemap_write_fail;
+        } else {
+            goto tilemap_write_fail;
+        }
+    }
+
+    // Success
+    fclose(f);
+    return 1;
+
+tilemap_write_fail:
+    fclose(f);
+    return 0;
+}
+
+
+
