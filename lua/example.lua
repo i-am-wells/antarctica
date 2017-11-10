@@ -1,7 +1,5 @@
 -- Example script
 
---local acc = require('accursed')
-
 local Engine = require 'engine'
 local Image = require 'image'
 

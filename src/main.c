@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
     const char* cur_path = lua_tostring(L, -1); // get value of "package.path"
     lua_pop(L, 1);
 
-    lua_pushfstring(L, "%s;%s", cur_path, antarctica_dir);
+    lua_pushfstring(L, "%s;%s/?.lua", cur_path, antarctica_dir);
     lua_setfield(L, -2, "path"); // set "package.path"
 
     lua_pop(L, 1); // pop "package"

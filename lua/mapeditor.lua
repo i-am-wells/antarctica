@@ -1,5 +1,5 @@
 
-local acc = require 'accursed'
+local ant = require 'antarctica'
 local Tilemap = require 'tilemap'
 local Image = require 'image'
 
@@ -20,7 +20,7 @@ local editor = function(map, tilefile, filename)
         title='map editor - '..filename,
         w = windowW,
         h = windowH,
-        windowflags = 0 -- acc.engine.fullscreen
+        windowflags = 0 -- ant.engine.fullscreen
     }
     if err then
         return error(err)

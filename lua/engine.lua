@@ -1,7 +1,7 @@
 
 local class = require 'class'
 
-local acc = require 'accursed'
+local ant = require 'antarctica'
 
 -- TODO define these in C library loader since we're trying to hide SDL details
 local eventkeymap = {
@@ -37,7 +37,7 @@ local Engine = class.base()
 
 -- Engine constructor
 function Engine:init(...)
-    self._engine = acc.engine.create(...)
+    self._engine = ant.engine.create(...)
     if not self._engine then
         return 'failed to create engine'
     end
@@ -49,9 +49,9 @@ function Engine:on(tbl)
         if type(value) == 'function' then
             local sdlevent_type = eventkeymap[key]
             if sdlevent_type then
-                acc.engine.sethandler(self._engine, sdlevent_type, value);
+                ant.engine.sethandler(self._engine, sdlevent_type, value);
             elseif key == 'redraw' then
-                acc.engine.setredraw(self._engine, value);
+                ant.engine.setredraw(self._engine, value);
             else
                 error('unknown event type "'..key..'"')
             end
@@ -67,45 +67,45 @@ function Engine:run(logic)
         self:on(logic)
     end
 
-    acc.engine.run(self._engine)
+    ant.engine.run(self._engine)
 end
 
 
 function Engine:stop()
-    acc.engine.stop(self._engine)
+    ant.engine.stop(self._engine)
 end
 
 
 function Engine:drawpoint(x, y)
-    acc.engine.drawpoint(self._engine, x, y)
+    ant.engine.drawpoint(self._engine, x, y)
 end
 
 
 function Engine:drawline(x0, y0, x1, y1)
-    acc.engine.drawline(self._engine, x0, y0, x1, y1)
+    ant.engine.drawline(self._engine, x0, y0, x1, y1)
 end
 
 
 function Engine:drawrect(x, y, w, h)
-    acc.engine.drawrect(self._engine, x, y, w, h)
+    ant.engine.drawrect(self._engine, x, y, w, h)
 end
 
 function Engine:fillrect(x, y, w, h)
-    acc.engine.fillrect(self._engine, x, y, w, h)
+    ant.engine.fillrect(self._engine, x, y, w, h)
 end
 
 
 function Engine:clear()
-    acc.engine.clear(self._engine)
+    ant.engine.clear(self._engine)
 end
 
 
 function Engine:setcolor(r, g, b, a)
-    acc.engine.setcolor(self._engine, r, g, b, a)
+    ant.engine.setcolor(self._engine, r, g, b, a)
 end
 
 function Engine:getcolor()
-    return acc.engine.getcolor(self._engine)
+    return ant.engine.getcolor(self._engine)
 end
 
 
