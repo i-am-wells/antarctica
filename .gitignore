@@ -9,4 +9,5 @@ latex
 # other
 res
 *.map
+*.swp
 
