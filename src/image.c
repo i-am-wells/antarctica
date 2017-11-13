@@ -108,6 +108,76 @@ void image_draw_whole(const image_t* i, int dx, int dy) {
 }
 
 
+void image_draw_ascii_char(const image_t* i, char c, int dx, int dy) {
+    image_draw_tile(i, c % 16, c / 16, dx, dy);
+}
+
+
+void image_draw_text_line(const image_t* i, const char* text, int dx, int dy) {
+    while(*text) {
+        image_draw_ascii_char(i, *text, dx, dy);
+        dx += i->tw;
+        text++;
+    }
+}
+
+
+void image_draw_text_word(const image_t* i, const char* text, size_t n, int dx, int dy) {
+    for(size_t j = 0; j < n; j++) {
+        image_draw_ascii_char(i, text[j], j * i->tw + dx, dy);
+    }
+}
+
+
+void image_draw_text(const image_t* i, const char* text, int dx, int dy, int wrapw) {
+    int linec = wrapw / i->tw;
+
+    int firstword = 1;
+    int drawx = dx;
+    int linepos = 0;
+
+    // for each line:
+    do { 
+        // seek to end of word
+        char* wordend = text;
+        while(*wordend && (*wordend != ' '))
+            wordend++;
+
+        size_t wordlen = wordend - text;
+
+        if(wordlen + linepos > linec) {
+            if(firstword) {
+                // draw word, advance line
+                image_draw_text_word(i, text, wordlen, drawx, dy);
+                drawx = dx;
+                dy += i->th;
+                linepos = 0;
+            } else {
+                // advance line, draw word
+                drawx = dx;
+                dy += i->th;
+                linepos = 0;
+                image_draw_text_word(i, text, wordlen, drawx, dy);
+                firstword = 1;
+            }
+        } else {
+            // TODO draw word, move forward
+            image_draw_text_word(i, text, wordlen, drawx, dy);
+            linepos += wordlen;
+            drawx += i->tw * wordlen;
+            if(firstword)
+                firstword = 0;
+        }
+
+        if(*wordend) {
+            text = wordend + 1;
+        } else {
+            text = wordend;
+        }
+    } while(*text);
+}
+
+
 void image_get_size(const image_t* i, int* w, int* h) {
     SDL_QueryTexture(i->texture, NULL, NULL, w, h);
 }
