@@ -27,7 +27,52 @@ local tests = {
 
     end,
 
-    -- TODO more tests
+    load_image = function()
+        local engine = Engine{}
+
+        local image = Image{file='res/terrain.png'}
+
+        assert(image._image ~= nil, 'failed to load image')
+    end,
+
+    draw_image = function()
+        local engine = Engine{}
+
+        local image = Image{file='res/terrain.png'}
+
+        -- TODO draw image and compare engine output with another image
+    end,
+
+    create_map = function()
+        local tilemap = Tilemap{nlayers=1, w=1,h=1}
+
+        assert(tilemap._tilemap ~= nil, 'failed to create tile map')
+        assert(tilemap.nlayers == 1, 'wrong number of layers')
+        assert(tilemap.w == 1, 'wrong width')
+        assert(tilemap.h == 1, 'wrong height')
+    end,
+
+    save_and_load_map = function()
+        local tilemap = Tilemap{nlayers=1, w=1,h=1}
+        
+        tilemap:write('/tmp/testmapfile.map');
+        
+        local newtilemap = Tilemap{filename='/tmp/testmapfile.map'}
+
+        assert(tilemap._tilemap ~= nil, 'failed to load map file')
+        assert(tilemap.nlayers == 1, 'wrong number of layers')
+        assert(tilemap.w == 1, 'wrong width')
+        assert(tilemap.h == 1, 'wrong height')
+    end,
+
+    draw_map = function()
+        -- TODO
+    end,
+
+    modify_map_tile = function()
+        local tilemap = Tilemap{nlayers=1, w=1,h=1}
+
+
 }
 
 for name, fn in pairs(tests) do
