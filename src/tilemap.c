@@ -8,6 +8,9 @@
 #include "tilemap.h"
 #include "image.h"
 #include "engine.h"
+#include "object.h"
+
+#include "vec.h"
 
 
 tilemap_t * tilemap_create(size_t nlayers, size_t w, size_t h) {
@@ -68,6 +71,9 @@ int tilemap_init(tilemap_t * t, size_t nlayers, size_t w, size_t h) {
         }
     }
 
+    // Create object vector
+    vec_init(&(t->objectvec), 8);
+
     t->w = w;
     t->h = h;
     t->nlayers = nlayers;
@@ -96,6 +102,52 @@ void tilemap_set_tile(tilemap_t* t, size_t layer, size_t x, size_t y, int tilex,
     if(tileptr) {
         tileptr->tilex = tilex & 0xff;
         tileptr->tiley = tiley & 0xff;
+    }
+}
+
+
+int tilemap_get_flags(tilemap_t* t, size_t layer, size_t x, size_t y) {
+    assert(t);
+
+    // set the image to be used for this map square
+    tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
+    if(tileptr) {
+        return tileptr->flags;
+    }
+
+    return 0;
+}
+
+
+void tilemap_set_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mask) {
+    assert(t);
+
+    // set the image to be used for this map square
+    tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
+    if(tileptr) {
+        tileptr->flags |= (mask & 0xffff);
+    }
+}
+
+
+void tilemap_clear_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mask) {
+    assert(t);
+
+    // Set the image to be used for this map square
+    tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
+    if(tileptr) {
+        tileptr->flags &= ~(mask & 0xffff);
+    }
+}
+
+
+void tilemap_overwrite_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mask) {
+    assert(t);
+
+    // Set the image to be used for this map square
+    tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
+    if(tileptr) {
+        tileptr->flags = (mask & 0xffff);
     }
 }
 
@@ -167,7 +219,8 @@ void tilemap_draw_layer_flags(const tilemap_t* t, const image_t* i, int l, int p
                     int x1 = x0 + i->tw - thickness;
                     int y0 = y * i->th - offy;
                     int y1 = y0 + i->th - thickness;
-
+                    
+                    image_draw_tile(i, tile->tilex, tile->tiley, x * i->tw - offx, y * i->th - offy);
 
                     // draw map square borders in red to show directional bump flags
                     SDL_SetRenderDrawColor(i->renderer, 255, 0, 0, SDL_ALPHA_OPAQUE);
@@ -210,7 +263,6 @@ void tilemap_draw_layer_flags(const tilemap_t* t, const image_t* i, int l, int p
                         dst.h = i->th / 2;
                         SDL_RenderFillRect(i->renderer, &dst);
                     }
-                    //image_draw_tile(i, tile->tilex, tile->tiley, x * i->tw - offx, y * i->th - offy);
                 }
             }
         }
@@ -219,6 +271,143 @@ void tilemap_draw_layer_flags(const tilemap_t* t, const image_t* i, int l, int p
     // restore original drawing color
     SDL_SetRenderDrawColor(i->renderer, or, og, ob, oa);
 }
+
+
+#define OBJECT_AT(ovec, i) ((object_t*)(ovec.data[(i)]))
+
+static size_t tilemap_binary_search_objects(const tilemap_t* t, int q, size_t first, size_t last) {
+    if(last == -1)
+        return -1;
+
+    while((last - first) > 1) {
+        size_t mid = (first + last) / 2;
+
+        int midval = OBJECT_AT(t->objectvec, mid)->y;
+
+        if(midval == q) {
+            first = last = mid;
+        } else if(midval > q) {
+            last = mid;
+        } else if(midval < q) {
+            first = mid;
+        }
+    }
+
+    return first;
+}
+
+
+void tilemap_move_object_relative(tilemap_t* t, size_t object_idx, int dx, int dy) {
+    assert(object_idx < t->objectvec.size);
+
+    size_t dest_idx = object_idx;
+    
+    object_t* o = OBJECT_AT(t->objectvec, object_idx);
+    int next_y = o->y + dy;
+
+
+    // Search linearly for new y index
+    if(dy > 0) {
+        while((dest_idx < t->objectvec.size) && (OBJECT_AT(t->objectvec, dest_idx)->y < next_y))
+            dest_idx++;
+
+        dest_idx--;
+    } else if(dy < 0) {
+        while((dest_idx > 0) && (OBJECT_AT(t->objectvec, dest_idx - 1)->y > next_y))
+            dest_idx--;
+    }
+
+    // Move object in objects vector
+    vec_move(&(t->objectvec), dest_idx, object_idx);
+    for(size_t i = 0; i < t->objectvec.size; i++)
+        OBJECT_AT(t->objectvec, i)->index = i;
+
+    // Update object's coordinates on map
+    o->x += dx;
+    o->y += dy;
+}
+
+
+void tilemap_add_object(tilemap_t* t, object_t* o) {
+    size_t index = tilemap_binary_search_objects(t, o->y, 0, t->objectvec.size - 1);
+    index++;
+
+    vec_insert(&(t->objectvec), index, o);
+    o->index = index;
+}
+
+
+void tilemap_remove_object(tilemap_t* t, object_t* o) {
+    vec_remove(&(t->objectvec), o->index, 1);
+}
+
+
+void tilemap_move_object_absolute(tilemap_t* t, object_t* o, int x, int y) {
+    tilemap_remove_object(t, o);
+    o->x = x;
+    o->y = y;
+    tilemap_add_object(t, o);
+}
+
+
+// draw objects from one map layer
+void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw, int ph) {
+
+    // Find range of objects to draw
+    size_t idx0, idx1;
+    //if(t->objectvec_orientation == 0) {
+        //idx0 = tilemap_binary_search_objects(t, px, 0, t->objectvec.size - 1);
+        //idx1 = tilemap_binary_search_objects(t, px + pw, idx0, t->objectvec.size - 1);
+    //} else if(t->objectvec_orientation == 1) {
+        idx0 = tilemap_binary_search_objects(t, py, 0, t->objectvec.size - 1);
+        idx1 = tilemap_binary_search_objects(t, py + ph, idx0, t->objectvec.size - 1);
+        idx1++;
+        //}
+
+    for(size_t i = idx0; i <= idx1; i++) {
+        object_t* obj = OBJECT_AT(t->objectvec, i);
+        
+        if((obj->layer == layer)
+                && (obj->x < px + pw)
+                && (obj->y < py + ph)
+                && (obj->x + obj->tw > px)
+                && (obj->y + obj->th > py)) {
+            object_draw(obj, px, py);
+        }
+    }
+}
+
+
+/*
+int tilemap_insert_object(tilemap_t* t, object_t* o) {
+    // Find where the object belongs
+    size_t idx;
+    //if(t->objectvec_orienation == 0) {
+        //idx = tilemap_binary_search_objects(t, o->x, 0, t->objectvec.size - 1);
+    //} else if(t->objectvec_orientation == 1) {
+        idx = tilemap_binary_search_objects(t, o->y, 0, t->objectvec.size - 1);
+    //}
+
+    vec_insert(&(t->objectvec), idx, o);
+    return 1;
+}
+*/
+
+
+/*
+int tilemap_remove_object(tilemap_t* t, object_t* o) {
+    // Find the object
+    size_t idx;
+    if(t->objectvec_orienation == 0) {
+        idx = tilemap_binary_search_objects(t, o->x, 0, t->objectvec.size - 1);
+    } else if(t->objectvec_orientation == 1) {
+        idx = tilemap_binary_search_objects(t, o->y, 0, t->objectvec.size - 1);
+    }
+
+    vec_insert(&(t->objectvec), idx, 1);
+    return 1;
+}
+*/
 
 
 tile_t* tilemap_export_slice(const tilemap_t* t, int x, int y, int w, int h) {
@@ -320,6 +509,9 @@ int tilemap_read_from_file(tilemap_t * t, const char * path) {
             goto tilemap_read_fail;
         }
     }
+
+    // TODO check
+    vec_init(&(t->objectvec), 8);
 
     // Success
     fclose(f);

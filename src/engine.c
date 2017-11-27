@@ -137,6 +137,11 @@ void engine_clear(engine_t* e) {
 }
 
 
+void engine_set_render_logical_size(engine_t* e, int w, int h) {
+    SDL_RenderSetLogicalSize(e->renderer, w, h);
+}
+
+
 // For each event received by SDL, check if a handler exists and run it.
 // Returns SDL_QUIT if a quit event was received, or 0 otherwise.
 static int engine_run_event_handlers(engine_t* e, lua_State* L) {
@@ -267,6 +272,8 @@ void engine_run(engine_t * e, lua_State* L) {
     e->running = 1;
     uint32_t tick1 = 0, elapsed;
 
+    int counter = 0;
+
     // Event loop
     while(e->running) {
         // Clear the renderer every time we redraw (necessary because of some
@@ -278,11 +285,11 @@ void engine_run(engine_t * e, lua_State* L) {
         lua_gettable(L, LUA_REGISTRYINDEX);
         lua_pushinteger(L, tick1);
         lua_pushinteger(L, elapsed);
-        lua_call(L, 2, 0);
+        lua_pushinteger(L, counter);
+        lua_call(L, 3, 0);
 
         // Show the buffer
         SDL_RenderPresent(e->renderer);
-
 
         // Run event handlers
         if(engine_run_event_handlers(e, L) == SDL_QUIT)
@@ -297,6 +304,10 @@ void engine_run(engine_t * e, lua_State* L) {
             //SDL_Delay(16 - elapsed);
         //tick0 = tick1;
         tick1 = SDL_GetTicks();
+
+        counter++;
+        if(counter == 256)
+            counter = 0;
     }
 
     // Pop event handler table and redrawer

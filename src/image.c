@@ -139,7 +139,7 @@ void image_draw_text(const image_t* i, const char* text, int dx, int dy, int wra
     // for each line:
     do { 
         // seek to end of word
-        char* wordend = text;
+        char* wordend = (char*)text;
         while(*wordend && (*wordend != ' '))
             wordend++;
 

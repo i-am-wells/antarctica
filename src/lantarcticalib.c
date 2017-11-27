@@ -10,6 +10,7 @@
 #include "engine.h"
 #include "image.h"
 #include "tilemap.h"
+#include "object.h"
 
 #include "lantarcticalib.h"
 
@@ -215,10 +216,18 @@ int l_engine_get_draw_color(lua_State* L) {
     lua_pushinteger(L, g);
     lua_pushinteger(L, b);
     lua_pushinteger(L, a);
-    return 0;
+    return 4;
 }
 
 
+int l_engine_set_logical_size(lua_State* L) {
+    engine_t* e = (engine_t*)luaL_checkudata(L, 1, "engine_t");
+    int w = luaL_checkinteger(L, 2);
+    int h = luaL_checkinteger(L, 3);
+
+    engine_set_render_logical_size(e, w, h);
+    return 0;
+}
 
 
 static const luaL_Reg enginelib[] = {
@@ -235,6 +244,7 @@ static const luaL_Reg enginelib[] = {
     {"clear", l_engine_clear},
     {"setcolor", l_engine_set_draw_color},
     {"getcolor", l_engine_get_draw_color},
+    {"setlogicalsize", l_engine_set_logical_size},
     {NULL, NULL}
 };
 
@@ -478,6 +488,7 @@ int l_tilemap_write(lua_State* L) {
     return 1;
 }
 
+// TODO make layer, flags, etc. options to one function
 
 int l_tilemap_draw_layer(lua_State* L) {
     tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
@@ -494,6 +505,35 @@ int l_tilemap_draw_layer(lua_State* L) {
 }
 
 
+int l_tilemap_draw_layer_flags(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    image_t* i = (image_t*)luaL_checkudata(L, 2, "image_t");
+    int layer = luaL_checkinteger(L, 3);
+    int px = luaL_checkinteger(L, 4);
+    int py = luaL_checkinteger(L, 5);
+    int pw = luaL_checkinteger(L, 6);
+    int ph = luaL_checkinteger(L, 7);
+    
+    tilemap_draw_layer_flags(t, i, layer, px, py, pw, ph);
+
+    return 0;
+}
+
+
+int l_tilemap_draw_layer_objects(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    int layer = luaL_checkinteger(L, 2);
+    int px = luaL_checkinteger(L, 3);
+    int py = luaL_checkinteger(L, 4);
+    int pw = luaL_checkinteger(L, 5);
+    int ph = luaL_checkinteger(L, 6);
+    
+    tilemap_draw_objects(t, layer, px, py, pw, ph);
+
+    return 0;
+}
+
+
 int l_tilemap_set_tile(lua_State* L) {
     tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
     int layer = luaL_checkinteger(L, 2);
@@ -504,6 +544,52 @@ int l_tilemap_set_tile(lua_State* L) {
     
     tilemap_set_tile(t, layer, x, y, tx, ty);
 
+    return 0;
+}
+
+
+int l_tilemap_get_flags(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    int layer = luaL_checkinteger(L, 2);
+    int x = luaL_checkinteger(L, 3);
+    int y = luaL_checkinteger(L, 4);
+    
+    int flags = tilemap_get_flags(t, layer, x, y);
+    
+    lua_pushinteger(L, flags);
+    return 1;
+}
+
+int l_tilemap_set_flags(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    int layer = luaL_checkinteger(L, 2);
+    int x = luaL_checkinteger(L, 3);
+    int y = luaL_checkinteger(L, 4);
+    int mask = luaL_checkinteger(L, 5);
+    
+    tilemap_set_flags(t, layer, x, y, mask);
+    return 0;
+}
+
+int l_tilemap_clear_flags(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    int layer = luaL_checkinteger(L, 2);
+    int x = luaL_checkinteger(L, 3);
+    int y = luaL_checkinteger(L, 4);
+    int mask = luaL_checkinteger(L, 5);
+    
+    tilemap_clear_flags(t, layer, x, y, mask);
+    return 0;
+}
+
+int l_tilemap_overwrite_flags(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    int layer = luaL_checkinteger(L, 2);
+    int x = luaL_checkinteger(L, 3);
+    int y = luaL_checkinteger(L, 4);
+    int mask = luaL_checkinteger(L, 5);
+    
+    tilemap_overwrite_flags(t, layer, x, y, mask);
     return 0;
 }
 
@@ -590,15 +676,131 @@ int l_tilemap_get(lua_State* L) {
 }
 
 
+int l_tilemap_add_object(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    object_t* o = (object_t*)luaL_checkudata(L, 2, "object_t");
+
+    tilemap_add_object(t, o);
+    
+    return 0;
+}
+
+
+int l_tilemap_remove_object(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    object_t* o = (object_t*)luaL_checkudata(L, 2, "object_t");
+
+    tilemap_remove_object(t, o);
+    
+    return 0;
+}
+
+
+
 static const luaL_Reg tilemaplib[] = {
     {"read", l_tilemap_read},
     {"write", l_tilemap_write},
     {"create_empty", l_tilemap_create_empty},
     {"draw_layer", l_tilemap_draw_layer},
+    {"draw_layer_flags", l_tilemap_draw_layer_flags},
+    {"draw_layer_objects", l_tilemap_draw_layer_objects},
     {"set_tile", l_tilemap_set_tile},
+    {"get_flags", l_tilemap_get_flags},
+    {"set_flags", l_tilemap_set_flags},
+    {"clear_flags", l_tilemap_clear_flags},
+    {"overwrite_flags", l_tilemap_overwrite_flags},
     {"export_slice", l_tilemap_export_slice},
     {"patch", l_tilemap_patch},
     {"get", l_tilemap_get},
+    {"addobject", l_tilemap_add_object},
+    {"removeobject", l_tilemap_remove_object},
+    {NULL, NULL}
+};
+
+
+// object_t methods
+
+int l_object_deinit(lua_State* L) {
+    object_t* o = (object_t*)luaL_checkudata(L, 1, "object_t");
+    object_deinit(o);
+
+    return 0;
+}
+
+int l_object_create(lua_State* L) {
+    image_t* image = (image_t*)luaL_checkudata(L, 1, "image_t");
+    int x = luaL_checkinteger(L, 2);
+    int y = luaL_checkinteger(L, 3);
+    int layer = luaL_checkinteger(L, 4);
+    int tx = luaL_checkinteger(L, 5);
+    int ty = luaL_checkinteger(L, 6);
+    int tw = luaL_checkinteger(L, 7);
+    int th = luaL_checkinteger(L, 8);
+    int acount = luaL_checkinteger(L, 9);
+    int aperiod = luaL_checkinteger(L, 10);
+        /*
+        options.image._image,
+        options.x,
+        options.y,
+        options.layer,
+        options.tx,
+        options.ty,
+        options.animation_count,
+        options.animation_period
+    */
+
+    object_t* o = (object_t*)lua_newuserdata(L, sizeof(object_t));
+    
+    object_init(o, image, tx, ty, tw, th, aperiod, acount, x, y, layer);
+
+    set_gc_metamethod(L, "object_t", l_object_deinit);
+
+    return 1;
+}
+
+
+int l_object_move_relative(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    object_t* o = (object_t*)luaL_checkudata(L, 2, "object_t");
+    
+    int dx = luaL_checkinteger(L, 3);
+    int dy = luaL_checkinteger(L, 4);
+
+    tilemap_move_object_relative(t, o->index, dx, dy);
+    return 0;
+}
+
+
+int l_object_move_absolute(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    object_t* o = (object_t*)luaL_checkudata(L, 2, "object_t");
+    
+    int x = luaL_checkinteger(L, 3);
+    int y = luaL_checkinteger(L, 4);
+
+    tilemap_move_object_absolute(t, o, x, y);
+    return 0;
+}
+
+
+int l_object_set_sprite(lua_State* L) {
+    object_t* o = (object_t*)luaL_checkudata(L, 1, "object_t");
+    
+    int tx = luaL_checkinteger(L, 2);
+    int ty = luaL_checkinteger(L, 3);
+    int acount = luaL_checkinteger(L, 4);
+    int aperiod = luaL_checkinteger(L, 5);
+
+    object_set_sprite(o, tx, ty, acount, aperiod);
+    return 0;
+}
+
+
+static const luaL_Reg objectlib[] = {
+    {"create", l_object_create},
+    {"set_sprite", l_object_set_sprite},
+    {"move_relative", l_object_move_relative},
+    {"move_absolute", l_object_move_absolute},
     {NULL, NULL}
 };
 
@@ -618,6 +820,8 @@ int luaopen_antarctica(lua_State * L) {
     luaL_newlib(L, antarcticalib);
 
     // Load submodules
+    
+    // engine
     luaL_newlib(L, enginelib);
     
     // window flags
@@ -645,11 +849,22 @@ int luaopen_antarctica(lua_State * L) {
 
     lua_setfield(L, -2, "engine");
 
-    luaL_newlib(L, imagelib);
+    // image
+    luaL_newlib(L, imagelib); 
     lua_setfield(L, -2, "image");
 
+    // tilemap
     luaL_newlib(L, tilemaplib);
+    set_int_field(L, "actionflag", TILEMAP_ACTION_MASK);
+    set_int_field(L, "bumpeastflag", TILEMAP_BUMP_EAST_MASK);
+    set_int_field(L, "bumpnorthflag", TILEMAP_BUMP_NORTH_MASK);
+    set_int_field(L, "bumpwestflag", TILEMAP_BUMP_WEST_MASK);
+    set_int_field(L, "bumpsouthflag", TILEMAP_BUMP_SOUTH_MASK);
     lua_setfield(L, -2, "tilemap");
+
+    // object
+    luaL_newlib(L, objectlib);
+    lua_setfield(L, -2, "object");
 
     return 1;
 }

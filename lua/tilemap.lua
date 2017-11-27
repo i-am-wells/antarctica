@@ -45,6 +45,14 @@ function Tilemap:draw_layer(image, layer, px, py, pw, ph)
     ant.tilemap.draw_layer(self._tilemap, image._image, layer, px, py, pw, ph)
 end
 
+function Tilemap:draw_layer_flags(image, layer, px, py, pw, ph)
+    ant.tilemap.draw_layer_flags(self._tilemap, image._image, layer, px, py, pw, ph)
+end
+
+function Tilemap:draw_layer_objects(layer, px, py, pw, ph)
+    ant.tilemap.draw_layer_objects(self._tilemap, layer, px, py, pw, ph)
+end
+
 --[[
 -- TODO
 
@@ -57,6 +65,21 @@ function Tilemap:set_tile(layer, x, y, tilex, tiley)
     ant.tilemap.set_tile(self._tilemap, layer, x, y, tilex, tiley)
 end
 
+function Tilemap:get_flags(layer, x, y)
+    return ant.tilemap.get_flags(self._tilemap, layer, x, y)
+end
+
+function Tilemap:set_flags(layer, x, y, mask)
+    ant.tilemap.set_flags(self._tilemap, layer, x, y, mask)
+end
+
+function Tilemap:clear_flags(layer, x, y, mask)
+    ant.tilemap.clear_flags(self._tilemap, layer, x, y, mask)
+end
+
+function Tilemap:overwrite_flags(layer, x, y, mask)
+    ant.tilemap.overwrite_flags(self._tilemap, layer, x, y, mask)
+end
 
 function Tilemap:export(rect)
     return ant.tilemap.export_slice(self._tilemap, rect.x, rect.y, rect.w, rect.h)
@@ -64,6 +87,18 @@ end
 
 function Tilemap:patch(data, rect)
     ant.tilemap.patch(self._tilemap, data, rect.x, rect.y, rect.w, rect.h)
+end
+
+
+-- TODO write this C binding
+function Tilemap:addObject(object)
+    ant.tilemap.addobject(self._tilemap, object._object)
+    object._tilemap = self._tilemap
+end
+
+function Tilemap:removeObject(object)
+    ant.tilemap.removeobject(self._tilemap, object._object)
+    object._tilemap = nil
 end
 
 return Tilemap

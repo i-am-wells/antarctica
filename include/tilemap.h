@@ -6,7 +6,9 @@
 #define _TILEMAP_H
 
 #include "image.h"
+#include "object.h"
 
+#include "vec.h"
 
 /**
  *  \struct tile_t
@@ -35,6 +37,10 @@ typedef struct tilemap_t {
     size_t w;           /**< map width (tiles) */
     size_t h;           /**< map height (tiles) */
     size_t  nlayers;    /**< number of layers */
+
+    vec_t objectvec; /**< vector containing "moving" objects on map */
+    //int objectvec_orientation; /**< 0 if objectvec is sorted by x, 1 if sorted by y */
+
     tile_t** tiles;     /**< tile data */
 } tilemap_t;
 
@@ -189,6 +195,23 @@ int tilemap_read_from_file(tilemap_t * t, const char * path);
  */
 int tilemap_write_to_file(const tilemap_t * t, const char * path);
 
+/** NEW **/
+
+
+void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw, int ph);
+void tilemap_draw_layer_flags(const tilemap_t* t, const image_t* i, int layer, int px, int py, int pw, int ph);
+
+void tilemap_add_object(tilemap_t* t, object_t* o);
+void tilemap_remove_object(tilemap_t* t, object_t* o);
+
+void tilemap_move_object_absolute(tilemap_t* t, object_t* o, int x, int y);
+void tilemap_move_object_relative(tilemap_t* t, size_t object_idx, int dx, int dy);
+
+void tilemap_set_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mask);
+void tilemap_clear_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mask);
+void tilemap_overwrite_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mask);
+
+int tilemap_get_flags(tilemap_t* t, size_t layer, size_t x, size_t y);
 
 #endif
 

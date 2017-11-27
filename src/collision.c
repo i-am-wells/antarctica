@@ -11,8 +11,9 @@ typedef struct rect_t {
 
 
 typedef struct object_t {
-    // TODO others
-    //
+    int tx, ty, tw, th;
+    int x, y, layer;
+    
     image_t* image;
 
     rect_t bound;

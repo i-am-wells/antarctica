@@ -108,6 +108,9 @@ function Engine:getcolor()
     return ant.engine.getcolor(self._engine)
 end
 
+function Engine:setlogicalsize(w, h)
+    ant.engine.setlogicalsize(self._engine, w, h)
+end
 
 return Engine
 

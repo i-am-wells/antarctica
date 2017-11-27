@@ -50,6 +50,13 @@ local editor = function(map, tilefile, filename)
     local shift, ctrlkey = false, false
     local selecting = false
 
+    local showflags = false
+
+    local flagmask = ant.tilemap.bumpnorthflag
+        | ant.tilemap.bumpsouthflag
+        | ant.tilemap.bumpeastflag
+        | ant.tilemap.bumpwestflag
+
     local undostack = {}
 
     --
@@ -84,6 +91,19 @@ local editor = function(map, tilefile, filename)
                 end
             end 
         end,
+        set_flags = function(layer, isfirst)
+            ctrl.pushundo(isfirst)
+
+            for y = 0, (palettesel.h - 1) do
+                local mapy = mapsel.y + y
+                local paly = palettesel.y + (y % palettesel.h)
+                for x = 0, (palettesel.w - 1) do
+                    local mapx = mapsel.x + x
+                    local palx = palettesel.x + (x % palettesel.w)
+                    map:set_flags(layer, mapx, mapy, flagmask)
+                end
+            end 
+        end,
         moveview = function(dx, dy)
             return function()
                 view.x = view.x + dx
@@ -100,6 +120,15 @@ local editor = function(map, tilefile, filename)
                 ctrlkey = b
             end
         end,
+
+        toggleflags = function()
+            showflags = not showflags
+        end,
+
+        toggle_flag_in_mask = function(flag)
+            return function() flagmask = flagmask ^ flag end
+        end,
+
         undo = function()
             -- Seek back to the beginning of the most recent action and apply
             -- undo patches
@@ -137,8 +166,12 @@ local editor = function(map, tilefile, filename)
     --
     local drawmap = function(tick, elapsed)
         -- draw the map
-        map:draw_layer(tileset, 0, view.x, view.y, view.w, view.h)
-        
+        if showflags then
+            map:draw_layer_flags(tileset, 0, view.x, view.y, view.w, view.h)
+        else
+            map:draw_layer(tileset, 0, view.x, view.y, view.w, view.h)
+        end
+
         -- draw selection rect
         local sx, sy = maptoscreen(mapsel.x, mapsel.y)
         engine:drawrect(sx - view.x, sy - view.y, mapsel.w * tileset.tw, mapsel.h * tileset.th)
@@ -195,6 +228,14 @@ local editor = function(map, tilefile, filename)
             end
         end,
 
+        -- Flags
+        F = ctrl.toggleflags,
+
+        L = ctrl.toggle_flag_in_mask(ant.tilemap.bumpeastflag),
+        I = ctrl.toggle_flag_in_mask(ant.tilemap.bumpnorthflag),
+        J = ctrl.toggle_flag_in_mask(ant.tilemap.bumpwestflag),
+        K = ctrl.toggle_flag_in_mask(ant.tilemap.bumpsouthflag),
+
         ['Left Shift'] = ctrl.setshift(true),
         ['Right Shift'] = ctrl.setshift(true),
 
@@ -250,7 +291,11 @@ local editor = function(map, tilefile, filename)
                 if not shift then
                     mapsel.w = 1
                     mapsel.h = 1
-                    ctrl.set_tiles(editinglayer, true)
+                    if showflags then
+                        ctrl.set_flags(editinglayer, true)
+                    else
+                        ctrl.set_tiles(editinglayer, true)
+                    end
                 end
             end 
         end,
@@ -301,7 +346,11 @@ local editor = function(map, tilefile, filename)
                         end
                     else
                         mapsel.x, mapsel.y, mapsel.w, mapsel.h = x, y, 1, 1
-                        ctrl.set_tiles(editinglayer)
+                        if showflags then
+                            ctrl.set_flags(editinglayer, true)
+                        else
+                            ctrl.set_tiles(editinglayer)
+                        end
                     end
                 end
             end

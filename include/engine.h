@@ -16,7 +16,6 @@ typedef struct engine_t {
     SDL_Window * window;
     SDL_Renderer * renderer;
     int running;
-
 } engine_t;
 
 
@@ -155,5 +154,6 @@ void engine_get_draw_color(engine_t* e, uint8_t* r, uint8_t* g, uint8_t* b, uint
  */
 void engine_clear(engine_t* e);
 
+void engine_set_render_logical_size(engine_t* e, int w, int h);
 
 #endif
