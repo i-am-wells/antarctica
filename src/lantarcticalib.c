@@ -696,6 +696,49 @@ int l_tilemap_remove_object(lua_State* L) {
 }
 
 
+int l_tilemap_set_camera_object(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    object_t* o = (object_t*)luaL_checkudata(L, 2, "object_t");
+
+    tilemap_set_camera_object(t, o);
+    
+    return 0;
+}
+
+
+int l_tilemap_update_objects(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+
+    tilemap_update_objects(t);
+    
+    return 0;
+}
+
+
+int l_tilemap_draw_layer_at_camera_object(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    image_t* i = (image_t*)luaL_checkudata(L, 2, "image_t");
+    int layer = luaL_checkinteger(L, 3);
+    int pw = luaL_checkinteger(L, 4);
+    int ph = luaL_checkinteger(L, 5);
+    
+    tilemap_draw_layer_at_camera_object(t, i, layer, pw, ph);
+
+    return 0;
+}
+
+
+int l_tilemap_draw_objects_at_camera_object(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    int layer = luaL_checkinteger(L, 2);
+    int pw = luaL_checkinteger(L, 3);
+    int ph = luaL_checkinteger(L, 4);
+    
+    tilemap_draw_objects_at_camera_object(t, layer, pw, ph);
+
+    return 0;
+}
+
 
 static const luaL_Reg tilemaplib[] = {
     {"read", l_tilemap_read},
@@ -714,6 +757,10 @@ static const luaL_Reg tilemaplib[] = {
     {"get", l_tilemap_get},
     {"addobject", l_tilemap_add_object},
     {"removeobject", l_tilemap_remove_object},
+    {"setCameraObject", l_tilemap_set_camera_object},
+    {"updateobjects", l_tilemap_update_objects},
+    {"drawLayerAtCameraObject", l_tilemap_draw_layer_at_camera_object},
+    {"drawObjectsAtCameraObject", l_tilemap_draw_objects_at_camera_object},
     {NULL, NULL}
 };
 
@@ -796,11 +843,44 @@ int l_object_set_sprite(lua_State* L) {
 }
 
 
+int l_object_set_x_velocity(lua_State* L) {
+    object_t* o = (object_t*)luaL_checkudata(L, 1, "object_t");
+    int vx = luaL_checkinteger(L, 2);
+
+    object_set_x_velocity(o, vx);
+    
+    return 0;
+}
+
+
+int l_object_set_y_velocity(lua_State* L) {
+    object_t* o = (object_t*)luaL_checkudata(L, 1, "object_t");
+    int vy = luaL_checkinteger(L, 2);
+
+    object_set_y_velocity(o, vy);
+    
+    return 0;
+}
+
+int l_object_set_velocity(lua_State* L) {
+    object_t* o = (object_t*)luaL_checkudata(L, 1, "object_t");
+    int vx = luaL_checkinteger(L, 2);
+    int vy = luaL_checkinteger(L, 3);
+
+    object_set_velocity(o, vx, vy);
+    
+    return 0;
+}
+
+
 static const luaL_Reg objectlib[] = {
     {"create", l_object_create},
     {"set_sprite", l_object_set_sprite},
     {"move_relative", l_object_move_relative},
     {"move_absolute", l_object_move_absolute},
+    {"setXVelocity", l_object_set_x_velocity},
+    {"setYVelocity", l_object_set_y_velocity},
+    {"setVelocity", l_object_set_velocity},
     {NULL, NULL}
 };
 

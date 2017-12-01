@@ -41,6 +41,8 @@ typedef struct tilemap_t {
     vec_t objectvec; /**< vector containing "moving" objects on map */
     //int objectvec_orientation; /**< 0 if objectvec is sorted by x, 1 if sorted by y */
 
+    object_t* cameraobject;
+
     tile_t** tiles;     /**< tile data */
 } tilemap_t;
 
@@ -212,6 +214,13 @@ void tilemap_clear_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mas
 void tilemap_overwrite_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mask);
 
 int tilemap_get_flags(tilemap_t* t, size_t layer, size_t x, size_t y);
+
+void tilemap_update_objects(tilemap_t* t);
+
+// Camera object
+void tilemap_set_camera_object(tilemap_t* t, object_t* o);
+void tilemap_draw_layer_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph);
+void tilemap_draw_objects_at_camera_object(const tilemap_t* t, int layer, int pw, int ph);
 
 #endif
 

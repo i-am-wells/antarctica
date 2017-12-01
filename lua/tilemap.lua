@@ -101,5 +101,22 @@ function Tilemap:removeObject(object)
     object._tilemap = nil
 end
 
+function Tilemap:updateObjects()
+    ant.tilemap.updateobjects(self._tilemap)
+end
+
+
+function Tilemap:setCameraObject(object)
+    ant.tilemap.setCameraObject(self._tilemap, object._object)
+end
+
+function Tilemap:drawLayerAtCameraObject(image, layer, pw, ph)
+    ant.tilemap.drawLayerAtCameraObject(self._tilemap, image._image, layer, pw, ph)
+end
+
+function Tilemap:drawObjectsAtCameraObject(layer, pw, ph)
+    ant.tilemap.drawObjectsAtCameraObject(self._tilemap, layer, pw, ph)
+end
+
 return Tilemap
 

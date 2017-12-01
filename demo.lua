@@ -41,9 +41,7 @@ local penguin = Object{
 }
 
 
--- These will store penguin's walking velocity.
-penguin.wx = 0
-penguin.wy = 0
+-- Penguin's walking velocity
 penguin.stepsize = 2
 
 -- Used for looking up which sprite to use for each direction the penguin
@@ -80,38 +78,15 @@ local screentomap = function(x, y)
 end
 
 
--- Stop the penguin if it reaches a wall
-function penguin:checkwallbump()
-    if penguin.x <= 0 and penguin.wx < 0 then
-        penguin.wx = 0
-    end
-
-    if penguin.y <= 0 and penguin.wy < 0 then
-        penguin.wy = 0
-    end
-
-    local mapx, mapy = screentomap(penguin.x, penguin.y)
-    if (map:get_flags(0, mapx, mapy) & ant.tilemap.bumpeastflag) ~= 0 then
-        if penguin.wx < 0 then penguin.wx = 0 end
-    end
-    if (map:get_flags(0, mapx + 1, mapy) & ant.tilemap.bumpwestflag) ~= 0 then
-        if penguin.wx > 0 then penguin.wx = 0 end
-    end
-    if (map:get_flags(0, mapx, mapy) & ant.tilemap.bumpsouthflag) ~= 0 then
-        if penguin.wy < 0 then penguin.wy = 0 end
-    end
-    if (map:get_flags(0, mapx, mapy + 1) & ant.tilemap.bumpnorthflag) ~= 0 then
-        if penguin.wy > 0 then penguin.wy = 0 end
-    end
-end
-
-
 map:addObject(penguin)
-
+map:setCameraObject(penguin)
 
 -- Add NPCs
 local dummylocations = {
+    {x = 100, y = 400},
+    {x = 100, y = 500},
     {x = 100, y = 100},
+    {x = 200, y = 200}
 }
 
 for _, loc in ipairs(dummylocations) do
@@ -137,19 +112,19 @@ end
 onkeydown = setmetatable({
         D = function() 
             penguin:turn('east')
-            penguin.wx = penguin.stepsize 
+            penguin:setVelocity(penguin.stepsize, nil)
         end,
         W = function() 
             penguin:turn('north')
-            penguin.wy = -penguin.stepsize 
+            penguin:setVelocity(nil, -penguin.stepsize)
         end,
         A = function() 
             penguin:turn('west')
-            penguin.wx = -penguin.stepsize 
+            penguin:setVelocity(-penguin.stepsize, nil)
         end,
         S = function() 
             penguin:turn('south')
-            penguin.wy = penguin.stepsize 
+            penguin:setVelocity(nil, penguin.stepsize)
         end,
         Escape = function() print('quitting...') engine:stop() end
     },
@@ -159,10 +134,22 @@ onkeydown = setmetatable({
 )
 
 onkeyup = setmetatable({
-        D = function() penguin.wx = 0 penguin:turn(penguin.direction) end,
-        W = function() penguin.wy = 0 penguin:turn(penguin.direction) end,
-        A = function() penguin.wx = 0 penguin:turn(penguin.direction) end,
-        S = function() penguin.wy = 0 penguin:turn(penguin.direction) end,
+        D = function() 
+            penguin:setVelocity(0, nil)
+            penguin:turn(penguin.direction) 
+        end,
+        W = function() 
+            penguin:setVelocity(nil, 0)
+            penguin:turn(penguin.direction) 
+        end,
+        A = function() 
+            penguin:setVelocity(0, nil)
+            penguin:turn(penguin.direction) 
+        end,
+        S = function() 
+            penguin:setVelocity(nil, 0)
+            penguin:turn(penguin.direction) 
+        end,
     },
     {
         __index = function() return function() end end
@@ -170,29 +157,21 @@ onkeyup = setmetatable({
 )
 
 
-local min = function(a, b)
-    if a > b then return a else return b end
-end
 
+local layer = 0
 
-
+-- Install handlers and run
 engine:run{
     redraw = function(time, elapsed, counter)
-        local actual_vx = min(0, vx)
-        local actual_vy = min(0, vy)
-
         -- Redraw
-        map:draw_layer(image, 0, actual_vx, actual_vy, vw, vh)
-        map:draw_layer_objects(0, actual_vx, actual_vy, vw, vh)
+        map:drawLayerAtCameraObject(image, layer, vw, vh)
+        map:drawObjectsAtCameraObject(layer, vw, vh)
 
-        -- Update position
-        penguin:checkwallbump()
-        penguin:move(penguin.wx, penguin.wy)
-        vx = vx + penguin.wx
-        vy = vy + penguin.wy
+        -- Update object positions
+        map:updateObjects()
 
         -- Update sprite
-        if penguin.wx ~= 0 or penguin.wy ~= 0 then
+        if penguin.velx ~= 0 or penguin.vely ~= 0 then
             penguin:setspriteY(counter)
         end
     end,

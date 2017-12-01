@@ -17,6 +17,8 @@ int object_init(object_t* o, image_t* image, int tx, int ty, int tw, int th, int
     o->y = y;
     o->layer = layer;
     o->index = -1;
+
+    object_set_velocity(o, 0, 0);
     return 1;
 }
 
@@ -64,4 +66,27 @@ void object_draw(const object_t* o, int vx, int vy) {
 }
 
 
+void object_set_velocity(object_t* o, int velx, int vely) {
+    o->velx = velx;
+    o->vely = vely;
+}
+
+
+void object_set_x_velocity(object_t* o, int velx) {
+    o->velx = velx;
+}
+
+
+void object_set_y_velocity(object_t* o, int vely) {
+    o->vely = vely;
+}
+
+
+void object_get_map_location(const object_t* o, int* mapx, int* mapy) {
+    if(mapx)
+        *mapx = o->x / o->image->tw;
+    
+    if(mapy)
+        *mapy = o->y / o->image->th;
+}
 

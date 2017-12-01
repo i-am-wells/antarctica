@@ -16,6 +16,9 @@ typedef struct object_t {
 
     // map location
     int x, y, layer;
+    
+    // velocity
+    int velx, vely;
 
     // index in array
     size_t index;
@@ -35,6 +38,11 @@ void object_destroy(object_t* o);
 
 void object_draw(const object_t* o, int vx, int vy);
 
+void object_set_velocity(object_t* o, int velx, int vely);
+void object_set_x_velocity(object_t* o, int velx);
+void object_set_y_velocity(object_t* o, int vely);
+
+void object_get_map_location(const object_t* o, int* mapx, int* mapy);
 
 #endif
 

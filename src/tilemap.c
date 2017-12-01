@@ -74,6 +74,8 @@ int tilemap_init(tilemap_t * t, size_t nlayers, size_t w, size_t h) {
     // Create object vector
     vec_init(&(t->objectvec), 8);
 
+    t->cameraobject = NULL;
+
     t->w = w;
     t->h = h;
     t->nlayers = nlayers;
@@ -272,6 +274,33 @@ void tilemap_draw_layer_flags(const tilemap_t* t, const image_t* i, int l, int p
     SDL_SetRenderDrawColor(i->renderer, or, og, ob, oa);
 }
 
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
+void tilemap_get_camera_location(const tilemap_t* t, int pw, int ph, int* x, int* y) {
+    if(!t->cameraobject)
+        return;
+
+    int px = MAX(0, t->cameraobject->x - (pw / 2));
+    int py = MAX(0, t->cameraobject->y - (ph / 2));
+    px = MIN(px, t->w * t->cameraobject->image->tw - pw);
+    py = MIN(py, t->h * t->cameraobject->image->th - ph);
+
+    if(x)
+        *x = px;
+
+    if(y)
+        *y = py;
+}
+
+void tilemap_draw_layer_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph) {
+    int px = 0;
+    int py = 0;
+    tilemap_get_camera_location(t, pw, ph, &px, &py);
+
+    tilemap_draw_layer(t, i, layer, px, py, pw, ph);
+}
+
 
 #define OBJECT_AT(ovec, i) ((object_t*)(ovec.data[(i)]))
 
@@ -356,6 +385,53 @@ void tilemap_move_object_absolute(tilemap_t* t, object_t* o, int x, int y) {
 }
 
 
+void tilemap_update_objects(tilemap_t* t) {
+    
+    // TODO update sprites as well (use 
+    for(size_t i = 0; i < t->objectvec.size; i++) {
+        object_t* object = OBJECT_AT(t->objectvec, i);
+
+        // actual motion of object
+        int velx = object->velx;
+        int vely = object->vely;
+
+        int mapx, mapy;
+        object_get_map_location(object, &mapx, &mapy);
+
+        // TODO maybe create extra "bumping" rectangle for object with sprite drawing offset
+        int newx = object->x + velx;
+        if(velx > 0) {
+            int newmapx = (newx / object->image->tw) + 1;
+            if(tilemap_get_flags(t, object->layer, newmapx, mapy) & TILEMAP_BUMP_WEST_MASK)
+                velx = 0;
+        } else if(velx < 0) {
+            int newmapx = newx / object->image->tw;
+            if(tilemap_get_flags(t, object->layer, newmapx, mapy) & TILEMAP_BUMP_EAST_MASK)
+                velx = 0;
+        }
+        
+        int newy = object->y + vely;
+        if(vely > 0) {
+            int newmapy = (newy / object->image->th) + 1;
+            if(tilemap_get_flags(t, object->layer, mapx, newmapy) & TILEMAP_BUMP_NORTH_MASK)
+                vely = 0;
+        } else if(vely < 0) {
+            int newmapy = newy / object->image->th;
+            if(tilemap_get_flags(t, object->layer, mapx, newmapy) & TILEMAP_BUMP_SOUTH_MASK)
+                vely = 0;
+        }
+
+        // Move object
+        tilemap_move_object_relative(t, object->index, velx, vely);
+    }
+}
+
+
+void tilemap_set_camera_object(tilemap_t* t, object_t* o) {
+    t->cameraobject = o;
+}
+
+
 // draw objects from one map layer
 void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw, int ph) {
 
@@ -391,6 +467,15 @@ void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw,
             object_draw(obj, px, py);
         }
     }
+}
+    
+
+void tilemap_draw_objects_at_camera_object(const tilemap_t* t, int layer, int pw, int ph) {
+    int px = 0;
+    int py = 0;
+    tilemap_get_camera_location(t, pw, ph, &px, &py);
+
+    tilemap_draw_objects(t, layer, px, py, pw, ph);
 }
 
 

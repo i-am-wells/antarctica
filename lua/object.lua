@@ -24,13 +24,36 @@ function Object:init(options)
         options.animation_count,
         options.animation_period
     )
+
+    self.velx = 0
+    self.vely = 0
 end
 
 
+-- TODO remove
 function Object:move(dx, dy)
     self.x = self.x + dx
     self.y = self.y + dy
     ant.object.move_relative(self._tilemap, self._object, dx, dy)
+end
+
+function Object:setVelocity(vx, vy)
+    self.velx = vx or self.velx
+    self.vely = vy or self.vely
+
+    if vx == nil then
+        if vy == nil then
+            return
+        else
+            ant.object.setYVelocity(self._object, vy)
+        end
+    else
+        if vy == nil then
+            ant.object.setXVelocity(self._object, vx)
+        else
+            ant.object.setVelocity(self._object, vx, vy)
+        end
+    end
 end
 
 
