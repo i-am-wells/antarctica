@@ -278,17 +278,23 @@ void tilemap_draw_layer_flags(const tilemap_t* t, const image_t* i, int l, int p
 static size_t tilemap_binary_search_objects(const tilemap_t* t, int q, size_t first, size_t last) {
     if(last == -1)
         return -1;
+        
+    int firstval = OBJECT_AT(t->objectvec, first)->y;
+    if(q < firstval)
+        return first - 1;
+
+    int lastval = OBJECT_AT(t->objectvec, last)->y;
+    if(q > lastval)
+        return last;
 
     while((last - first) > 1) {
         size_t mid = (first + last) / 2;
 
         int midval = OBJECT_AT(t->objectvec, mid)->y;
 
-        if(midval == q) {
-            first = last = mid;
-        } else if(midval > q) {
+        if(midval > q) {
             last = mid;
-        } else if(midval < q) {
+        } else {
             first = mid;
         }
     }
@@ -332,7 +338,7 @@ void tilemap_add_object(tilemap_t* t, object_t* o) {
     size_t index = tilemap_binary_search_objects(t, o->y, 0, t->objectvec.size - 1);
     index++;
 
-    vec_insert(&(t->objectvec), index, o);
+    assert(vec_insert(&(t->objectvec), index, o));
     o->index = index;
 }
 
@@ -359,10 +365,20 @@ void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw,
         //idx0 = tilemap_binary_search_objects(t, px, 0, t->objectvec.size - 1);
         //idx1 = tilemap_binary_search_objects(t, px + pw, idx0, t->objectvec.size - 1);
     //} else if(t->objectvec_orientation == 1) {
+        
+    /*
         idx0 = tilemap_binary_search_objects(t, py, 0, t->objectvec.size - 1);
+        if(idx0 >= t->objectvec.size)
+            idx0 = 0;
+
         idx1 = tilemap_binary_search_objects(t, py + ph, idx0, t->objectvec.size - 1);
         idx1++;
         //}
+    */
+
+    // For now, just draw all objects
+    idx0 = 0;
+    idx1 = t->objectvec.size - 1;
 
     for(size_t i = idx0; i <= idx1; i++) {
         object_t* obj = OBJECT_AT(t->objectvec, i);
