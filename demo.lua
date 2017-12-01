@@ -6,6 +6,8 @@ local Image = require 'image'
 local Object = require 'object'
 local Engine = require 'engine'
 
+local Penguin = require 'penguin'
+
 -- TODO remove
 -- the viewport
 local vx, vy, vw, vh
@@ -178,6 +180,7 @@ onkeydown = setmetatable({
         __index = function() return function() print('unhandled key') end end
     }
 )
+
 
 onkeyup = setmetatable({
         D = function() 
