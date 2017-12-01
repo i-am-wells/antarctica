@@ -6,12 +6,16 @@ local Image = require 'image'
 local Object = require 'object'
 local Engine = require 'engine'
 
+-- TODO remove
 -- the viewport
 local vx, vy, vw, vh
 vx = -200
 vy = -150
 vw = 400
 vh = 300
+
+local keysdown = 0
+
 
 -- Create a window. "setlogicalsize" lets us render everything normally but
 -- will scale the canvas to match the window.
@@ -29,8 +33,8 @@ local image = Image{ engine = engine, file = 'res/terrain.png', tw = 16, th = 16
 -- Create the player object. It will use sprites from terrain.png.
 local penguin = Object{
     image = image,
-    x = 0,
-    y = 0,
+    x = 32,
+    y = 64,
     layer = 0,
     tx = 10,
     ty = 0,
@@ -77,7 +81,7 @@ local screentomap = function(x, y)
     return mapx, mapy
 end
 
-
+penguin:turn('south')
 map:addObject(penguin)
 map:setCameraObject(penguin)
 
@@ -106,25 +110,67 @@ for _, loc in ipairs(dummylocations) do
     map:addObject(dummy)
 end
 
-
+function penguin:updateDirection()
+    if penguin.direction == 'north' then
+        if penguin.vely > 0 then
+            penguin:turn('south')
+        elseif penguin.vely == 0 then
+            if penguin.velx > 0 then
+                penguin:turn('east')
+            elseif penguin.velx < 0 then
+                penguin:turn('west')
+            end
+        end
+    elseif penguin.direction == 'south' then
+        if penguin.vely < 0 then
+            penguin:turn('north')
+        elseif penguin.vely == 0 then
+            if penguin.velx > 0 then
+                penguin:turn('east')
+            elseif penguin.velx < 0 then
+                penguin:turn('west')
+            end
+        end
+    elseif penguin.direction == 'east' then
+        if penguin.velx < 0 then
+            penguin:turn('west')
+        elseif penguin.velx == 0 then
+            if penguin.vely > 0 then
+                penguin:turn('south')
+            elseif penguin.vely < 0 then
+                penguin:turn('north')
+            end
+        end
+    elseif penguin.direction == 'west' then
+        if penguin.velx > 0 then
+            penguin:turn('east')
+        elseif penguin.velx == 0 then
+            if penguin.vely > 0 then
+                penguin:turn('south')
+            elseif penguin.vely < 0 then
+                penguin:turn('north')
+            end
+        end
+    end
+end
 
 -- Keyboard handling callbacks
 onkeydown = setmetatable({
         D = function() 
-            penguin:turn('east')
             penguin:setVelocity(penguin.stepsize, nil)
+            penguin:updateDirection()
         end,
         W = function() 
-            penguin:turn('north')
             penguin:setVelocity(nil, -penguin.stepsize)
+            penguin:updateDirection()
         end,
         A = function() 
-            penguin:turn('west')
             penguin:setVelocity(-penguin.stepsize, nil)
+            penguin:updateDirection()
         end,
         S = function() 
-            penguin:turn('south')
             penguin:setVelocity(nil, penguin.stepsize)
+            penguin:updateDirection()
         end,
         Escape = function() print('quitting...') engine:stop() end
     },
@@ -136,19 +182,19 @@ onkeydown = setmetatable({
 onkeyup = setmetatable({
         D = function() 
             penguin:setVelocity(0, nil)
-            penguin:turn(penguin.direction) 
+            penguin:updateDirection()
         end,
         W = function() 
             penguin:setVelocity(nil, 0)
-            penguin:turn(penguin.direction) 
+            penguin:updateDirection()
         end,
         A = function() 
             penguin:setVelocity(0, nil)
-            penguin:turn(penguin.direction) 
+            penguin:updateDirection()
         end,
         S = function() 
             penguin:setVelocity(nil, 0)
-            penguin:turn(penguin.direction) 
+            penguin:updateDirection()
         end,
     },
     {
@@ -172,7 +218,7 @@ engine:run{
 
         -- Update sprite
         if penguin.velx ~= 0 or penguin.vely ~= 0 then
-            penguin:setspriteY(counter)
+            penguin:setspriteY(counter) 
         end
     end,
 

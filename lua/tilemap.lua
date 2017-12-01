@@ -90,7 +90,6 @@ function Tilemap:patch(data, rect)
 end
 
 
--- TODO write this C binding
 function Tilemap:addObject(object)
     ant.tilemap.addobject(self._tilemap, object._object)
     object._tilemap = self._tilemap

@@ -401,7 +401,7 @@ void tilemap_update_objects(tilemap_t* t) {
         // TODO maybe create extra "bumping" rectangle for object with sprite drawing offset
         int newx = object->x + velx;
         if(velx > 0) {
-            int newmapx = (newx / object->image->tw) + 1;
+            int newmapx = (newx + object->tw) / object->image->tw;
             if(tilemap_get_flags(t, object->layer, newmapx, mapy) & TILEMAP_BUMP_WEST_MASK)
                 velx = 0;
         } else if(velx < 0) {
@@ -412,7 +412,7 @@ void tilemap_update_objects(tilemap_t* t) {
         
         int newy = object->y + vely;
         if(vely > 0) {
-            int newmapy = (newy / object->image->th) + 1;
+            int newmapy = (newy + object->th) / object->image->th;
             if(tilemap_get_flags(t, object->layer, mapx, newmapy) & TILEMAP_BUMP_NORTH_MASK)
                 vely = 0;
         } else if(vely < 0) {
@@ -513,8 +513,8 @@ int tilemap_remove_object(tilemap_t* t, object_t* o) {
 
 tile_t* tilemap_export_slice(const tilemap_t* t, int x, int y, int w, int h) {
     assert(t);
-    assert((x > -1) && (x < t->w) && ((x+w) < t->w));
-    assert((y > -1) && (y < t->h) && ((y+h) < t->h));
+    assert((x > -1) && (x < t->w) && ((x+w) <= t->w));
+    assert((y > -1) && (y < t->h) && ((y+h) <= t->h));
 
     tile_t* slice = (tile_t*)malloc(t->nlayers * w * h * sizeof(tile_t));
     if(!slice)

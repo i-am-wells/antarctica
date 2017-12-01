@@ -51,11 +51,14 @@ local editor = function(map, tilefile, filename)
     local selecting = false
 
     local showflags = false
+    local clearingflags = false
 
     local flagmask = ant.tilemap.bumpnorthflag
         | ant.tilemap.bumpsouthflag
         | ant.tilemap.bumpeastflag
         | ant.tilemap.bumpwestflag
+
+    print(flagmask)
 
     local undostack = {}
 
@@ -100,7 +103,11 @@ local editor = function(map, tilefile, filename)
                 for x = 0, (palettesel.w - 1) do
                     local mapx = mapsel.x + x
                     local palx = palettesel.x + (x % palettesel.w)
-                    map:set_flags(layer, mapx, mapy, flagmask)
+                    if clearingflags then
+                        map:clear_flags(layer, mapx, mapy, flagmask)
+                    else
+                        map:set_flags(layer, mapx, mapy, flagmask)
+                    end
                 end
             end 
         end,
@@ -126,7 +133,7 @@ local editor = function(map, tilefile, filename)
         end,
 
         toggle_flag_in_mask = function(flag)
-            return function() flagmask = flagmask ^ flag end
+            return function() flagmask = flagmask ~ flag end
         end,
 
         undo = function()
@@ -192,7 +199,6 @@ local editor = function(map, tilefile, filename)
         engine:drawrect(mouserect.x, mouserect.y, mouserect.w, mouserect.h)
     end
 
-
     --
     -- Keyboard handlers
     --
@@ -230,6 +236,9 @@ local editor = function(map, tilefile, filename)
 
         -- Flags
         F = ctrl.toggleflags,
+        R = function()
+            clearingflags = not clearingflags 
+        end,
 
         L = ctrl.toggle_flag_in_mask(ant.tilemap.bumpeastflag),
         I = ctrl.toggle_flag_in_mask(ant.tilemap.bumpnorthflag),
