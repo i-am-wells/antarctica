@@ -148,9 +148,10 @@ int vec_insert(vec_t* v, size_t idx, void* ptr) {
         if(!vec_extend_if_needed(v))
             return 0;
 
-        memmove(v->data + idx + 1, v->data + idx, sizeof(void*));
+        memmove(v->data + idx + 1, v->data + idx, (v->size - idx) * sizeof(void*));
         vec_set(v, idx, ptr);
-        
+        v->size++;
+
         return 1;
     }
 
@@ -188,7 +189,7 @@ void vec_move(vec_t* v, size_t destidx, size_t srcidx) {
         memmove(v->data + srcidx, v->data + srcidx + 1, numitems * sizeof(void*));
     } else if(destidx < srcidx) {
         size_t numitems = srcidx - destidx;
-        memmove(v->data + destidx + 1, v->data + destidx, numitems + sizeof(void*));
+        memmove(v->data + destidx + 1, v->data + destidx, numitems * sizeof(void*));
     }
     v->data[destidx] = tmp;
 }
