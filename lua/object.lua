@@ -62,7 +62,7 @@ end
 function Object:warp(x, y)
     --self.x = x
     --self.y = y
-    ant.object.move_absolute(self._object, x, y)
+    ant.object.move_absolute(self._tilemap, self._object, x, y)
 end
 
 
