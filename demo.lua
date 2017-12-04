@@ -57,11 +57,44 @@ map:setCameraObject(penguin)
 local font = Image{engine = engine, file = 'res/text-6x12.png', tilew = 6, tileh = 12}
 local descriptiontext = nil
 
--- Set up the interactive fish space (0, 24, 15)
-map:setInteractCallback(0, 24, 15, function(obj)
-    descriptiontext = "It's a fish."
-    print('interact!')
-end)
+local showtext = function(text)
+    return function()
+        descriptiontext = text
+    end
+end
+
+local outsidemap, igloomap
+
+local interactive = {
+    {l=0, x=9, y=9, cb = showtext('Small pond')},
+    {l=0, x=25, y=23, cb = showtext('An igloo')},
+    {l=0, x=32, y=14, cb = showtext("It's a fish.")},
+    {l=0, x=11, y=31, cb = showtext("It's a fish.")},
+
+    -- Enter the igloo!
+    {l=0, x=27, y=23, cb = function()
+
+        if not igloomap then
+            igloomap = Tilemap{file='igloo.map'}
+        end
+
+        outsidemap = map
+        map = igloomap
+
+        outsidemap:removeObject(penguin)
+        igloomap:addObject(penguin)
+        igloomap:setCameraObject(penguin)
+
+        penguin:warp(9 * 16, 18 * 16)
+        engine:setcolor(0,0,0,255)
+    end}
+}
+
+
+-- Set up interactive tiles
+for _, v in ipairs(interactive) do
+    map:setInteractCallback(v.l, v.x, v.y, v.cb)
+end
 
 
 -- Add NPCs
