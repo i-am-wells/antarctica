@@ -83,6 +83,10 @@ local editor = function(map, tilefile, filename)
     ctrl = {
         set_tiles = function(layer, isfirst)
             ctrl.pushundo(isfirst)
+            
+            if palettesel.x == -1 or palettesel.y == -1 then
+                return
+            end
 
             for y = 0, (palettesel.h - 1) do
                 local mapy = mapsel.y + y
@@ -97,12 +101,10 @@ local editor = function(map, tilefile, filename)
         set_flags = function(layer, isfirst)
             ctrl.pushundo(isfirst)
 
-            for y = 0, (palettesel.h - 1) do
+            for y = 0, (mapsel.h - 1) do
                 local mapy = mapsel.y + y
-                local paly = palettesel.y + (y % palettesel.h)
-                for x = 0, (palettesel.w - 1) do
+                for x = 0, (mapsel.w - 1) do
                     local mapx = mapsel.x + x
-                    local palx = palettesel.x + (x % palettesel.w)
                     if clearingflags then
                         map:clear_flags(layer, mapx, mapy, flagmask)
                     else
@@ -114,7 +116,13 @@ local editor = function(map, tilefile, filename)
         set_tile_animation = function(period, count)
             return function()
                 ctrl.pushundo(true)
-                map:setTileAnimationInfo(editinglayer, mapsel.x, mapsel.y, period, count)               
+                for y = 0, (mapsel.h - 1) do
+                    local mapy = mapsel.y + y
+                    for x = 0, (mapsel.w - 1) do
+                        local mapx = mapsel.x + x
+                        map:setTileAnimationInfo(editinglayer, mapx, mapy, period, count)               
+                    end
+                end 
             end
         end,
         moveview = function(dx, dy)
@@ -173,6 +181,8 @@ local editor = function(map, tilefile, filename)
             })
         end,
     }
+
+    local font = Image{file = 'res/text-6x12.png', tilew = 6, tileh = 12, engine = engine}
     
     --
     -- Views
@@ -191,6 +201,12 @@ local editor = function(map, tilefile, filename)
         
         -- draw mouse-over rect
         engine:drawrect(mouserect.x, mouserect.y, mouserect.w, mouserect.h)
+
+        -- draw info bar
+        engine:setcolor(255,255,255,255)
+        engine:fillrect(0, 0, 100, 14)
+        font:drawtext(string.format('(%d, %d, %d)', editinglayer, mapsel.x, mapsel.y), 1, 1, 100)
+        engine:setcolor(0, 0, 0, 255)
     end
 
     local drawpalette = function(tick, elapsed)
@@ -261,12 +277,18 @@ local editor = function(map, tilefile, filename)
         J = ctrl.toggle_flag_in_mask(ant.tilemap.bumpwestflag),
         K = ctrl.toggle_flag_in_mask(ant.tilemap.bumpsouthflag),
 
+        H = ctrl.toggle_flag_in_mask(ant.tilemap.actionflag),
+
         ['Left Shift'] = ctrl.setshift(true),
         ['Right Shift'] = ctrl.setshift(true),
 
         ['Left Ctrl'] = ctrl.setctrl(true),
-        ['Right Ctrl'] = ctrl.setctrl(true)
+        ['Right Ctrl'] = ctrl.setctrl(true),
 
+        Escape = function()
+            palettesel.x = -1
+            palettesel.y = -1
+        end
     }
     -- Default key handler
     setmetatable(onkey, {
