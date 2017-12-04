@@ -8,6 +8,7 @@ local Object = class.base()
 function Object:init(options)
     self.x = options.x
     self.y = options.y
+    self.layer = options.layer
     -- takes an image, a location, and sprite info
     --
     -- TODO create C object_t
@@ -24,6 +25,7 @@ function Object:init(options)
         options.animation_count,
         options.animation_period
     )
+    self.image = options.image
 
     self.velx = 0
     self.vely = 0
@@ -70,6 +72,11 @@ function Object:setsprite(tx, ty, animation_count, animation_period)
     animation_count = animation_count or 1
     animation_period = animation_period or 1
     ant.object.set_sprite(self._object, tx, ty, animation_count, animation_period)
+end
+
+function Object:getTileLocation()
+    local px, py = ant.object.getLocation(self._object)
+    return (px // self.image.tw), (py // self.image.th)
 end
 
 return Object

@@ -22,6 +22,9 @@ class.deriving = function(...)
                 for isAKey, isAValue in pairs(v) do
                     klass.isA[isAKey] = isAValue
                 end
+            elseif k == "init" then
+                -- keep base class constructor
+                klass.initSuper[base] = v
             else
                 -- shallow copy base class data
                 klass[k] = v

@@ -35,5 +35,10 @@ function Image:drawtile(tilenum, dx, dy)
     ant.image.drawtile(self._image, tilenum, dx, dy)
 end
 
+
+function Image:drawtext(text, x, y, wrapwidth)
+    ant.image.drawtext(self._image, text, x, y, wrapwidth)
+end
+
 return Image
 

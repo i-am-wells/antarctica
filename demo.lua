@@ -6,15 +6,14 @@ local Image = require 'image'
 local Object = require 'object'
 local Engine = require 'engine'
 
+-- our actor class
 local Penguin = require 'penguin'
 
--- TODO remove
--- the viewport
-local vx, vy, vw, vh
-vx = -200
-vy = -150
-vw = 400
-vh = 300
+
+
+-- the view size
+local vw = 400
+local vh = 300
 
 local keysdown = 0
 
@@ -22,7 +21,7 @@ local keysdown = 0
 -- Create a window. "setlogicalsize" lets us render everything normally but
 -- will scale the canvas to match the window.
 local engine = Engine{ title = 'Demo', w = vw * 2, h = vh * 2, 
-        windowflags = 0 }
+        windowflags = ant.engine.fullscreen }
 engine:setlogicalsize(vw, vh)
 engine:setcolor(255, 255, 255, 255) -- white background
 
@@ -32,50 +31,6 @@ local map = Tilemap{ file = 'test.map' }
 -- Load the tiles and sprites
 local image = Image{ engine = engine, file = 'res/terrain.png', tw = 16, th = 16 }
 
--- Create the player object. It will use sprites from terrain.png.
-local penguin = Object{
-    image = image,
-    x = 32,
-    y = 64,
-    layer = 0,
-    tx = 10,
-    ty = 0,
-    tw = 16,
-    th = 32,
-    animation_count = 1,
-    animation_period = 1
-}
-
-
--- Penguin's walking velocity
-penguin.stepsize = 2
-
--- Used for looking up which sprite to use for each direction the penguin
--- can face.
-penguin.walkinfo = {
-    north = { tx = 11, ty = 0 },
-    south = { tx = 10, ty = 0 },
-    east = { tx = 12, ty = 0 },
-    west = { tx = 13, ty = 0 }
-}
--- For the walking animation
-penguin.walkY = { 0, 1, 0, 2 }
-
-
--- Turns the penguin to face north, south, east, or west
-function penguin:turn(direction)
-    penguin.direction = direction
-    local winfo = penguin.walkinfo[direction]
-    penguin:setsprite(winfo.tx, winfo.ty)
-end
-
--- Update the penguin's sprite to create the walking animation
-function penguin:setspriteY(count)
-    local frame = (count // 4) % 4
-    local winfo = penguin.walkinfo[penguin.direction]
-    penguin:setsprite(winfo.tx, winfo.ty + penguin.walkY[frame+1])
-end
-
 -- convert between map and pixel coordinates
 local screentomap = function(x, y)
     local mapx = (x) // image.tw
@@ -83,78 +38,51 @@ local screentomap = function(x, y)
     return mapx, mapy
 end
 
+
+
+-- Create the player object. It will use sprites from terrain.png.
+local penguin = Penguin{
+    image = image,
+    x = 232,
+    y = 364,
+    layer = 0,
+}
+
+
+-- Set up the penguin
 penguin:turn('south')
 map:addObject(penguin)
 map:setCameraObject(penguin)
 
+local font = Image{engine = engine, file = 'res/text-6x12.png', tilew = 6, tileh = 12}
+local descriptiontext = nil
+
+-- Set up the interactive fish space (0, 24, 15)
+map:setInteractCallback(0, 24, 15, function(obj)
+    descriptiontext = "It's a fish."
+    print('interact!')
+end)
+
+
 -- Add NPCs
-local dummylocations = {
+local npclocations = {
     {x = 100, y = 400},
     {x = 100, y = 500},
     {x = 100, y = 100},
     {x = 200, y = 200}
 }
 
-for _, loc in ipairs(dummylocations) do
-    local dummy = Object{
+for _, loc in ipairs(npclocations) do
+    local npc = Penguin{
         image = image,
         x = loc.x,
         y = loc.y,
         layer = 0,
-        tx = 10,
-        ty = 0,
-        tw = 16,
-        th = 32,
-        animation_count = 1,
-        animation_period = 1
     }
-
-    map:addObject(dummy)
+    npc:turn('south')
+    map:addObject(npc)
 end
 
-function penguin:updateDirection()
-    if penguin.direction == 'north' then
-        if penguin.vely > 0 then
-            penguin:turn('south')
-        elseif penguin.vely == 0 then
-            if penguin.velx > 0 then
-                penguin:turn('east')
-            elseif penguin.velx < 0 then
-                penguin:turn('west')
-            end
-        end
-    elseif penguin.direction == 'south' then
-        if penguin.vely < 0 then
-            penguin:turn('north')
-        elseif penguin.vely == 0 then
-            if penguin.velx > 0 then
-                penguin:turn('east')
-            elseif penguin.velx < 0 then
-                penguin:turn('west')
-            end
-        end
-    elseif penguin.direction == 'east' then
-        if penguin.velx < 0 then
-            penguin:turn('west')
-        elseif penguin.velx == 0 then
-            if penguin.vely > 0 then
-                penguin:turn('south')
-            elseif penguin.vely < 0 then
-                penguin:turn('north')
-            end
-        end
-    elseif penguin.direction == 'west' then
-        if penguin.velx > 0 then
-            penguin:turn('east')
-        elseif penguin.velx == 0 then
-            if penguin.vely > 0 then
-                penguin:turn('south')
-            elseif penguin.vely < 0 then
-                penguin:turn('north')
-            end
-        end
-    end
-end
 
 -- Keyboard handling callbacks
 onkeydown = setmetatable({
@@ -174,10 +102,16 @@ onkeydown = setmetatable({
             penguin:setVelocity(nil, penguin.stepsize)
             penguin:updateDirection()
         end,
+        Space = function()
+            if descriptiontext then
+                descriptiontext = nil
+            end
+            penguin:interact(map)
+        end,
         Escape = function() print('quitting...') engine:stop() end
     },
     {
-        __index = function() return function() print('unhandled key') end end
+        __index = function(_, key) return function() print('unhandled key '..key) end end
     }
 )
 
@@ -213,8 +147,21 @@ local layer = 0
 engine:run{
     redraw = function(time, elapsed, counter)
         -- Redraw
-        map:drawLayerAtCameraObject(image, layer, vw, vh)
+        map:drawLayerAtCameraObject(image, layer, vw, vh, counter)
         map:drawObjectsAtCameraObject(layer, vw, vh)
+
+        if descriptiontext then
+            -- Draw box and show text
+            engine:fillrect(100, 200, 200, 50)
+            engine:setcolor(0, 0, 0, 255)
+            engine:drawrect(100, 200, 200, 50)
+            engine:drawrect(102, 202, 196, 46)
+            engine:setcolor(255, 255, 255, 255)
+            font:drawtext(descriptiontext, 104, 204, 192)
+        end
+
+        -- TODO run all callbacks set with setInterval or setTimeout
+        --engine:runCallbacks()
 
         -- Update object positions
         map:updateObjects()
@@ -228,6 +175,9 @@ engine:run{
     keydown = function(key, mod, isrepeat)
         if isrepeat == 0 then
             onkeydown[key]()
+            if key ~= 'Space' then
+                descriptiontext = nil
+            end
         end
     end,
 

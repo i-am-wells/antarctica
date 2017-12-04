@@ -154,7 +154,7 @@ void tilemap_overwrite_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int
 }
 
 
-void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph) {
+void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph, int counter) {
     // Get the starting position and dimensions for drawing in map square coordinates
     int startx = (px / i->tw);
     int starty = (py / i->th);
@@ -179,10 +179,13 @@ void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int
 
                 // are we on the map horizontally?
                 if((drawx > -1) && (drawx < t->w)) {
-
                     // draw the tile at (layer, drawx, drawy)
                     tile_t* tile = layer + drawy * t->w + drawx;
-                    image_draw_tile(i, tile->tilex, tile->tiley, x * i->tw - offx, y * i->th - offy);
+                    
+                    // Animation
+                    int tiley = tile->tiley + (counter / TILE_ANIM_PERIOD(tile)) % TILE_ANIM_COUNT(tile);
+
+                    image_draw_tile(i, tile->tilex, tiley, x * i->tw - offx, y * i->th - offy);
                 }
             } // loop x
         }
@@ -293,12 +296,12 @@ void tilemap_get_camera_location(const tilemap_t* t, int pw, int ph, int* x, int
         *y = py;
 }
 
-void tilemap_draw_layer_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph) {
+void tilemap_draw_layer_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph, int counter) {
     int px = 0;
     int py = 0;
     tilemap_get_camera_location(t, pw, ph, &px, &py);
 
-    tilemap_draw_layer(t, i, layer, px, py, pw, ph);
+    tilemap_draw_layer(t, i, layer, px, py, pw, ph, counter);
 }
 
 
@@ -397,6 +400,9 @@ void tilemap_update_objects(tilemap_t* t) {
 
         int mapx, mapy;
         object_get_map_location(object, &mapx, &mapy);
+        int mapx2 = (object->x + object->tw) / object->image->tw;
+        int mapy2 = (object->y + object->th) / object->image->th;
+
 
         // TODO maybe create extra "bumping" rectangle for object with sprite drawing offset
         int newx = object->x + velx;
@@ -404,9 +410,14 @@ void tilemap_update_objects(tilemap_t* t) {
             int newmapx = (newx + object->tw) / object->image->tw;
             if(tilemap_get_flags(t, object->layer, newmapx, mapy) & TILEMAP_BUMP_WEST_MASK)
                 velx = 0;
+            if(tilemap_get_flags(t, object->layer, newmapx, mapy2) & TILEMAP_BUMP_WEST_MASK)
+                velx = 0;
+
         } else if(velx < 0) {
             int newmapx = newx / object->image->tw;
             if(tilemap_get_flags(t, object->layer, newmapx, mapy) & TILEMAP_BUMP_EAST_MASK)
+                velx = 0;
+            if(tilemap_get_flags(t, object->layer, newmapx, mapy2) & TILEMAP_BUMP_EAST_MASK)
                 velx = 0;
         }
         
@@ -415,9 +426,13 @@ void tilemap_update_objects(tilemap_t* t) {
             int newmapy = (newy + object->th) / object->image->th;
             if(tilemap_get_flags(t, object->layer, mapx, newmapy) & TILEMAP_BUMP_NORTH_MASK)
                 vely = 0;
+            if(tilemap_get_flags(t, object->layer, mapx2, newmapy) & TILEMAP_BUMP_NORTH_MASK)
+                vely = 0;
         } else if(vely < 0) {
             int newmapy = newy / object->image->th;
             if(tilemap_get_flags(t, object->layer, mapx, newmapy) & TILEMAP_BUMP_SOUTH_MASK)
+                vely = 0;
+            if(tilemap_get_flags(t, object->layer, mapx2, newmapy) & TILEMAP_BUMP_SOUTH_MASK)
                 vely = 0;
         }
 
@@ -676,6 +691,55 @@ tilemap_write_fail:
     fclose(f);
     return 0;
 }
+
+
+int tilemap_get_tile_animation_info(const tilemap_t* t, size_t layer, int x, int y, int* period, int* count) {
+    assert(t);
+    tile_t* tile = tilemap_get_tile_address(t, layer, x, y);
+    if(!tile)
+        return 0;
+
+    if(period)
+        *period = TILE_ANIM_PERIOD(tile);
+
+    if(count)
+        *count = TILE_ANIM_COUNT(tile);
+
+    return 1;
+};
+
+
+int tilemap_set_tile_animation_info(tilemap_t* t, size_t layer, int x, int y, int period, int count) {
+    assert(t);
+    tile_t* tile = tilemap_get_tile_address(t, layer, x, y);
+    if(!tile)
+        return 0;
+
+    if(period != -1) {
+        // set period (take log2 by right-shifting)
+        int log_period = 0;
+        while(period ^ 0x1) {
+            period >>= 1;
+            log_period++;
+        }
+        tile->flags &= ~TILEMAP_ANIM_PERIOD_MASK;
+        tile->flags |= (log_period & 0x3) << 2;
+    }
+
+    if(count != -1) {
+        // set count
+        int log_count = 0;
+        while(count ^ 0x1) {
+            count >>= 1;
+            log_count++;
+        }
+        tile->flags &= ~TILEMAP_ANIM_COUNT_MASK;
+        tile->flags |= (log_count & 0x3);
+    }
+
+    return 1;
+};
+
 
 
 

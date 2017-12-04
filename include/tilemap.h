@@ -62,6 +62,9 @@ enum {
     TILEMAP_BUMP_EAST_MASK =      0x800     /**< objects can't enter from the east */
 };
 
+// get
+#define TILE_ANIM_COUNT(t) (1 << ((t)->flags & TILEMAP_ANIM_COUNT_MASK))
+#define TILE_ANIM_PERIOD(t) (1 << (((t)->flags & TILEMAP_ANIM_PERIOD_MASK) >> 2))
 
 /**
  *  Frees memory held by the tilemap for the tile arrays.
@@ -145,8 +148,9 @@ void tilemap_set_tile(tilemap_t* t, size_t layer, size_t x, size_t y, int tilex,
  *  \param py   pixel y offset of top edge of the visible area of the map
  *  \param pw   pixel width of the view
  *  \param ph   pixel height of the view
+ *  \param counter  used for animation
  */
-void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph);
+void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph, int counter);
 
 
 /**
@@ -219,8 +223,11 @@ void tilemap_update_objects(tilemap_t* t);
 
 // Camera object
 void tilemap_set_camera_object(tilemap_t* t, object_t* o);
-void tilemap_draw_layer_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph);
+void tilemap_draw_layer_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph, int counter);
 void tilemap_draw_objects_at_camera_object(const tilemap_t* t, int layer, int pw, int ph);
+
+int tilemap_get_tile_animation_info(const tilemap_t* t, size_t layer, int x, int y, int* period, int* count);
+int tilemap_set_tile_animation_info(tilemap_t* t, size_t layer, int x, int y, int period, int count);
 
 #endif
 

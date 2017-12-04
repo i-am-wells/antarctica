@@ -41,6 +41,122 @@ function Engine:init(...)
     if not self._engine then
         return 'failed to create engine'
     end
+
+    self.callbackHeap = {}
+end
+
+local heap_push = function(heap, entry)
+    table.insert(heap, entry)
+    local entryidx = #heap
+
+    while true do
+        -- TODO check parent index!
+        local parentidx = ((entryidx - 1) // 2) + 1
+        local parent = heap[parentidx]
+        if (entry == parent) or (entry.time >= parent.time) then
+            return
+        else
+            heap[parentidx] = entry
+            heap[entryidx] = parent
+            entryidx = parentidx
+        end
+    end
+end
+
+
+local heap_pop = function(heap)
+    heap[1] = heap[#heap]
+    heap[#heap] = nil
+
+    local entryidx = 1
+    while true do
+        local entry = heap[entryidx]
+        local lchildidx = entryidx * 2
+        local lchild = heap[lchildidx]
+        if not lchild then
+            -- leaf
+            return
+        else
+            local rchildidx = lchildidx + 1
+            local rchild = heap[rchildidx]
+            if rchild then
+                if (lchild.time < rchild.time) and (lchild.time < entry.time) then
+                    heap[entryidx] = lchild
+                    heap[lchildidx] = entry
+                    entryidx = lchildidx
+                elseif (rchild.time < lchild.time) and (rchild.time < entry.time) then
+                    heap[entryidx] = rchild
+                    heap[rchildidx] = entry
+                    entryidx = rchildidx
+                else
+                    return
+                end
+            else
+                if entry.time >= lchild.time then
+                    -- swap
+                    heap[entryidx] = lchild
+                    heap[lchildidx] = entry
+                    entryidx = lchildidx
+                else
+                    return
+                end
+            end
+        end
+        
+    end
+end
+
+
+function Engine:setTimeout(timeout, callback, _self)
+    local timeout = {
+        time = ant.engine.msSinceStart() + timeout,
+        wait = interval,
+        repeating = true,
+        callback = callback,
+        _self = _self
+    }
+    heap_push(self.callbackHeap, timeout)
+    return timeout
+end
+
+
+function Engine:setInterval(interval, callback, _self)
+    local interval = {
+        time = ant.engine.msSinceStart() + interval,
+        wait = interval,
+        repeating = true,
+        callback = callback,
+        _self = _self
+    }
+    heap_push(self.callbackHeap, interval)
+    return interval
+end
+
+
+function Engine:runCallbacks()
+    local now, entry
+    repeat
+        entry = self.callbackHeap[1]
+        if not entry then
+            break
+        end
+        now = ant.engine.msSinceStart()
+
+        if now >= entry.time then
+            -- Run the callback
+            if type(entry.callback) == 'function' then
+                entry.callback(entry._self)
+            end
+            heap_pop(self)
+
+            -- If repeating, add the entry back into the heap
+            if entry.repeating then
+                entry.time = ant.engine.msSinceStart() + entry.wait
+                heap_push(self, entry)
+            end
+        end
+
+    until now < entry.time 
 end
 
 
@@ -110,6 +226,11 @@ end
 
 function Engine:setlogicalsize(w, h)
     ant.engine.setlogicalsize(self._engine, w, h)
+end
+
+
+function Engine:runCallbacks()
+    -- TODO
 end
 
 return Engine

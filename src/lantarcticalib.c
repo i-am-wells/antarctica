@@ -230,6 +230,12 @@ int l_engine_set_logical_size(lua_State* L) {
 }
 
 
+int l_engine_get_ms_since_start(lua_State* L) {
+    lua_pushinteger(L, SDL_GetTicks());
+    return 1;
+}
+
+
 static const luaL_Reg enginelib[] = {
     {"create", l_engine_create},
     {"destroy", l_engine_destroy},
@@ -245,6 +251,7 @@ static const luaL_Reg enginelib[] = {
     {"setcolor", l_engine_set_draw_color},
     {"getcolor", l_engine_get_draw_color},
     {"setlogicalsize", l_engine_set_logical_size},
+    {"msSinceStart", l_engine_get_ms_since_start},
     {NULL, NULL}
 };
 
@@ -397,12 +404,25 @@ int l_image_get(lua_State* L) {
 }
 
 
+int l_image_draw_text(lua_State* L) {
+    image_t* i = (image_t*)luaL_checkudata(L, 1, "image_t");
+    const char* text = luaL_checkstring(L, 2);
+    int x = luaL_checkinteger(L, 3);
+    int y = luaL_checkinteger(L, 4);
+    int width = luaL_checkinteger(L, 5);
+
+    image_draw_text(i, text, x, y, width);
+    return 0;
+}
+
+
 static const luaL_Reg imagelib[] = {
     {"load", l_image_load},
     {"destroy", l_image_destroy},
     {"draw", l_image_draw},
     {"drawwhole", l_image_draw_whole},
     {"drawtile", l_image_draw_tile},
+    {"drawtext", l_image_draw_text},
     {"get", l_image_get},
     {NULL, NULL}
 };
@@ -498,8 +518,9 @@ int l_tilemap_draw_layer(lua_State* L) {
     int py = luaL_checkinteger(L, 5);
     int pw = luaL_checkinteger(L, 6);
     int ph = luaL_checkinteger(L, 7);
+    int counter = luaL_checkinteger(L, 8);
     
-    tilemap_draw_layer(t, i, layer, px, py, pw, ph);
+    tilemap_draw_layer(t, i, layer, px, py, pw, ph, counter);
 
     return 0;
 }
@@ -721,8 +742,9 @@ int l_tilemap_draw_layer_at_camera_object(lua_State* L) {
     int layer = luaL_checkinteger(L, 3);
     int pw = luaL_checkinteger(L, 4);
     int ph = luaL_checkinteger(L, 5);
+    int counter = luaL_checkinteger(L, 6);
     
-    tilemap_draw_layer_at_camera_object(t, i, layer, pw, ph);
+    tilemap_draw_layer_at_camera_object(t, i, layer, pw, ph, counter);
 
     return 0;
 }
@@ -737,6 +759,44 @@ int l_tilemap_draw_objects_at_camera_object(lua_State* L) {
     tilemap_draw_objects_at_camera_object(t, layer, pw, ph);
 
     return 0;
+}
+
+
+int l_tilemap_get_tile_animation_info(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    int layer = luaL_checkinteger(L, 2);
+    int x = luaL_checkinteger(L, 3);
+    int y = luaL_checkinteger(L, 4);
+    
+    int period, count;
+    if(tilemap_get_tile_animation_info(t, layer, x, y, &period, &count)) {
+        lua_pushinteger(L, period);
+        lua_pushinteger(L, count);
+        return 2;
+    }
+
+    // failure
+    lua_pushnil(L);
+    return 1;
+}
+
+
+int l_tilemap_set_tile_animation_info(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    int layer = luaL_checkinteger(L, 2);
+    int x = luaL_checkinteger(L, 3);
+    int y = luaL_checkinteger(L, 4);
+    int period = luaL_checkinteger(L, 5);
+    int count = luaL_checkinteger(L, 6);
+    
+    if(tilemap_set_tile_animation_info(t, layer, x, y, period, count)) {
+        lua_pushboolean(L, 1);
+        return 1;
+    }
+
+    // failure
+    lua_pushnil(L);
+    return 1;
 }
 
 
@@ -761,6 +821,8 @@ static const luaL_Reg tilemaplib[] = {
     {"updateobjects", l_tilemap_update_objects},
     {"drawLayerAtCameraObject", l_tilemap_draw_layer_at_camera_object},
     {"drawObjectsAtCameraObject", l_tilemap_draw_objects_at_camera_object},
+    {"getTileAnimationInfo", l_tilemap_get_tile_animation_info},
+    {"setTileAnimationInfo", l_tilemap_set_tile_animation_info},
     {NULL, NULL}
 };
 
@@ -872,6 +934,14 @@ int l_object_set_velocity(lua_State* L) {
     return 0;
 }
 
+int l_object_get_location(lua_State* L) {
+    object_t* o = (object_t*)luaL_checkudata(L, 1, "object_t");
+    
+    lua_pushinteger(L, o->x);
+    lua_pushinteger(L, o->y);
+    return 2;
+}
+
 
 static const luaL_Reg objectlib[] = {
     {"create", l_object_create},
@@ -881,6 +951,7 @@ static const luaL_Reg objectlib[] = {
     {"setXVelocity", l_object_set_x_velocity},
     {"setYVelocity", l_object_set_y_velocity},
     {"setVelocity", l_object_set_velocity},
+    {"getLocation", l_object_get_location},
     {NULL, NULL}
 };
 

@@ -158,7 +158,8 @@ void image_draw_text(const image_t* i, const char* text, int dx, int dy, int wra
                 dy += i->th;
                 linepos = 0;
                 image_draw_text_word(i, text, wordlen, drawx, dy);
-                firstword = 1;
+                firstword = 0;
+                drawx += i->tw * (wordlen + 1);
             }
         } else {
             // TODO draw word, move forward
@@ -167,6 +168,9 @@ void image_draw_text(const image_t* i, const char* text, int dx, int dy, int wra
             drawx += i->tw * wordlen;
             if(firstword)
                 firstword = 0;
+
+            linepos++;
+            drawx += i->tw;
         }
 
         if(*wordend) {

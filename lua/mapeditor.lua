@@ -111,6 +111,12 @@ local editor = function(map, tilefile, filename)
                 end
             end 
         end,
+        set_tile_animation = function(period, count)
+            return function()
+                ctrl.pushundo(true)
+                map:setTileAnimationInfo(editinglayer, mapsel.x, mapsel.y, period, count)               
+            end
+        end,
         moveview = function(dx, dy)
             return function()
                 view.x = view.x + dx
@@ -171,12 +177,12 @@ local editor = function(map, tilefile, filename)
     --
     -- Views
     --
-    local drawmap = function(tick, elapsed)
+    local drawmap = function(tick, elapsed, counter)
         -- draw the map
         if showflags then
             map:draw_layer_flags(tileset, 0, view.x, view.y, view.w, view.h)
         else
-            map:draw_layer(tileset, 0, view.x, view.y, view.w, view.h)
+            map:draw_layer(tileset, 0, view.x, view.y, view.w, view.h, counter)
         end
 
         -- draw selection rect
@@ -227,6 +233,16 @@ local editor = function(map, tilefile, filename)
                 engine:on{redraw=drawmap}
             end
         end,
+
+        ['1'] = ctrl.set_tile_animation(1, nil),
+        ['2'] = ctrl.set_tile_animation(2, nil),
+        ['4'] = ctrl.set_tile_animation(4, nil),
+        ['8'] = ctrl.set_tile_animation(8, nil),
+
+        V = ctrl.set_tile_animation(nil, 1),
+        B = ctrl.set_tile_animation(nil, 2),
+        N = ctrl.set_tile_animation(nil, 4),
+        M = ctrl.set_tile_animation(nil, 8),
 
         Z = function()
             if ctrlkey then

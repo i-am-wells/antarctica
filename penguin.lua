@@ -91,5 +91,19 @@ function Penguin:updateDirection()
 end
 
 
+function Penguin:interact(map)
+    local mx, my = self:getTileLocation()
+
+    if self.direction == 'north' then
+        map:runInteractCallback(self.layer, mx, my, self)
+    elseif self.direction == 'south' then
+        map:runInteractCallback(self.layer, mx, my + 2, self)
+    elseif self.direction == 'east' then
+        map:runInteractCallback(self.layer, mx - 1, my, self)
+    elseif self.direction == 'east' then
+        map:runInteractCallback(self.layer, mx + 1, my, self)
+    end
+end
+
 return Penguin
 

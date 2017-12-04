@@ -14,6 +14,8 @@ function Tilemap:init(options)
     else
         return nil, 'provide either a file name or empty map dimensions (nlayers, w, h)'
     end
+
+    self.interactCallbacks = {}
 end
 
 
@@ -22,7 +24,8 @@ function Tilemap:read(filename)
     if self._tilemap == nil then
         error('failed loading tile map')
     end
-    --ant.tilemap.get(self._tilemap, self)
+    -- set own properties
+    ant.tilemap.get(self._tilemap, self)
 end
 
 
@@ -41,8 +44,8 @@ function Tilemap:create_empty(nlayers, w, h)
 end
 
 
-function Tilemap:draw_layer(image, layer, px, py, pw, ph)
-    ant.tilemap.draw_layer(self._tilemap, image._image, layer, px, py, pw, ph)
+function Tilemap:draw_layer(image, layer, px, py, pw, ph, counter)
+    ant.tilemap.draw_layer(self._tilemap, image._image, layer, px, py, pw, ph, counter)
 end
 
 function Tilemap:draw_layer_flags(image, layer, px, py, pw, ph)
@@ -109,12 +112,47 @@ function Tilemap:setCameraObject(object)
     ant.tilemap.setCameraObject(self._tilemap, object._object)
 end
 
-function Tilemap:drawLayerAtCameraObject(image, layer, pw, ph)
-    ant.tilemap.drawLayerAtCameraObject(self._tilemap, image._image, layer, pw, ph)
+function Tilemap:drawLayerAtCameraObject(image, layer, pw, ph, counter)
+    ant.tilemap.drawLayerAtCameraObject(self._tilemap, image._image, layer, pw, ph, counter)
 end
 
 function Tilemap:drawObjectsAtCameraObject(layer, pw, ph)
     ant.tilemap.drawObjectsAtCameraObject(self._tilemap, layer, pw, ph)
+end
+
+
+function Tilemap:getTileAnimationInfo(layer, x, y)
+    return ant.tilemap.getTileAnimationInfo(self._tilemap, layer, x, y)
+end
+
+
+function Tilemap:setTileAnimationInfo(layer, x, y, period, count)
+    if period == nil then period = -1 end
+    if count == nil then count = -1 end
+    ant.tilemap.setTileAnimationInfo(self._tilemap, layer, x, y, period, count)
+end
+
+
+function Tilemap:getTileIndex(layer, mapx, mapy)
+    return (layer * self.w * self.h) + (mapy * self.w) + mapx
+end
+
+function Tilemap:setInteractCallback(layer, mapx, mapy, cb)
+    local index = self:getTileIndex(layer, mapx, mapy)
+    self.interactCallbacks[index] = cb
+end
+
+function Tilemap:clearInteractCallback(layer, mapx, mapy)
+    local index = self:getTileIndex(layer, mapx, mapy)
+    self.interactCallbacks[index] = nil
+end
+
+function Tilemap:runInteractCallback(layer, mapx, mapy, object)
+    local index = self:getTileIndex(layer, mapx, mapy)
+    local cb = self.interactCallbacks[index]
+    if type(cb) == 'function' then
+        cb(object)
+    end
 end
 
 return Tilemap
