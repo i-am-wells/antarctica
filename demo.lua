@@ -5,6 +5,7 @@ local Tilemap = require 'tilemap'
 local Image = require 'image'
 local Object = require 'object'
 local Engine = require 'engine'
+local Sound = require 'sound'
 
 -- our actor class
 local Penguin = require 'penguin'
@@ -21,7 +22,7 @@ local keysdown = 0
 -- Create a window. "setlogicalsize" lets us render everything normally but
 -- will scale the canvas to match the window.
 local engine = Engine{ title = 'Demo', w = vw * 2, h = vh * 2, 
-        windowflags = ant.engine.fullscreen }
+        windowflags = 0 } -- ant.engine.fullscreen }
 engine:setlogicalsize(vw, vh)
 engine:setcolor(255, 255, 255, 255) -- white background
 
@@ -38,6 +39,9 @@ local screentomap = function(x, y)
     return mapx, mapy
 end
 
+-- Load the water drop sound
+local drop = Sound{file = 'res/waterdrop.wav'}
+
 
 
 -- Create the player object. It will use sprites from terrain.png.
@@ -48,6 +52,21 @@ local penguin = Penguin{
     layer = 0,
 }
 
+-- Penguin event handlers
+penguin:on{
+    --[[
+    wallbump = function(slf, direction)
+        print(string.format('Wall bump (mask=%d)', direction))
+    end,
+    collision = function(slf, other)
+        print(string.format('Collision (%d, %d)', slf.x, other.x))
+        --other:turn(slf.direction)
+    end,
+    --]]
+    update = function(slf)
+        slf:getLocation()
+    end
+}
 
 -- Set up the penguin
 penguin:turn('south')
@@ -105,6 +124,28 @@ local npclocations = {
     {x = 200, y = 200}
 }
 
+local npcfollow = function(npc)
+    npc:getLocation()
+
+    if npc.x < penguin.x then
+        npc:walk('east')
+    elseif npc.x > penguin.x then
+        npc:walk('west')
+    else
+        npc:setVelocity(0, nil)
+        npc:updateDirection()
+    end
+    
+    if npc.y < penguin.y then
+        npc:walk('south')
+    elseif npc.y > penguin.y then
+        npc:walk('north')
+    else
+        npc:setVelocity(nil, 0)
+        npc:updateDirection()
+    end
+end
+
 for _, loc in ipairs(npclocations) do
     local npc = Penguin{
         image = image,
@@ -112,7 +153,11 @@ for _, loc in ipairs(npclocations) do
         y = loc.y,
         layer = 0,
     }
+    npc.stepsize = 1
     npc:turn('south')
+    npc:on{
+        update = npcfollow
+    }
     map:addObject(npc)
 end
 
@@ -134,6 +179,10 @@ onkeydown = setmetatable({
         S = function() 
             penguin:setVelocity(nil, penguin.stepsize)
             penguin:updateDirection()
+        end,
+        Q = function()
+            -- Play a sound
+            drop:play()
         end,
         Space = function()
             if descriptiontext then

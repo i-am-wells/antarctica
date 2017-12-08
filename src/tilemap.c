@@ -76,6 +76,8 @@ int tilemap_init(tilemap_t * t, size_t nlayers, size_t w, size_t h) {
 
     t->cameraobject = NULL;
 
+    tilemap_set_object_callbacks(t, NULL, NULL, NULL);
+
     t->w = w;
     t->h = h;
     t->nlayers = nlayers;
@@ -151,6 +153,14 @@ void tilemap_overwrite_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int
     if(tileptr) {
         tileptr->flags = (mask & 0xffff);
     }
+}
+
+
+void tilemap_set_object_callbacks(tilemap_t* t, void* data, void (*bump)(void*, object_t*, int), void (*collision)(void*, object_t*, object_t*)) {
+    assert(t);
+    t->bump_callback = bump;
+    t->collision_callback = collision;
+    t->object_callback_data = data;
 }
 
 
@@ -394,6 +404,9 @@ void tilemap_update_objects(tilemap_t* t) {
     for(size_t i = 0; i < t->objectvec.size; i++) {
         object_t* object = OBJECT_AT(t->objectvec, i);
 
+        // Run update callback
+        t->object_update_callback(t->object_callback_data, object);
+
         // actual motion of object
         int velx = object->velx;
         int vely = object->vely;
@@ -404,8 +417,10 @@ void tilemap_update_objects(tilemap_t* t) {
         int mapy2 = (object->y + object->th) / object->image->th;
 
 
-        // TODO maybe create extra "bumping" rectangle for object with sprite drawing offset
+        // Check if new position would overlap any blocked squares (x direction)
         int newx = object->x + velx;
+        int oldvelx = velx;
+        int bumpdir = 0;
         if(velx > 0) {
             int newmapx = (newx + object->tw) / object->image->tw;
             if(tilemap_get_flags(t, object->layer, newmapx, mapy) & TILEMAP_BUMP_WEST_MASK)
@@ -413,31 +428,72 @@ void tilemap_update_objects(tilemap_t* t) {
             if(tilemap_get_flags(t, object->layer, newmapx, mapy2) & TILEMAP_BUMP_WEST_MASK)
                 velx = 0;
 
+            if(velx != oldvelx)
+                bumpdir |= TILEMAP_BUMP_EAST_MASK;
+
         } else if(velx < 0) {
             int newmapx = newx / object->image->tw;
             if(tilemap_get_flags(t, object->layer, newmapx, mapy) & TILEMAP_BUMP_EAST_MASK)
                 velx = 0;
             if(tilemap_get_flags(t, object->layer, newmapx, mapy2) & TILEMAP_BUMP_EAST_MASK)
                 velx = 0;
+            
+            if(velx != oldvelx)
+                bumpdir |= TILEMAP_BUMP_WEST_MASK;
         }
         
+        // Same thing in the y direction
         int newy = object->y + vely;
+        int oldvely = vely;
         if(vely > 0) {
             int newmapy = (newy + object->th) / object->image->th;
             if(tilemap_get_flags(t, object->layer, mapx, newmapy) & TILEMAP_BUMP_NORTH_MASK)
                 vely = 0;
             if(tilemap_get_flags(t, object->layer, mapx2, newmapy) & TILEMAP_BUMP_NORTH_MASK)
                 vely = 0;
+            
+            if(vely != oldvely)
+                bumpdir |= TILEMAP_BUMP_SOUTH_MASK;
         } else if(vely < 0) {
             int newmapy = newy / object->image->th;
             if(tilemap_get_flags(t, object->layer, mapx, newmapy) & TILEMAP_BUMP_SOUTH_MASK)
                 vely = 0;
             if(tilemap_get_flags(t, object->layer, mapx2, newmapy) & TILEMAP_BUMP_SOUTH_MASK)
                 vely = 0;
+            if(vely != oldvely)
+                bumpdir |= TILEMAP_BUMP_NORTH_MASK;
         }
 
         // Move object
         tilemap_move_object_relative(t, object->index, velx, vely);
+        
+        // Run wall bump callback
+        if(bumpdir && t->bump_callback)
+            t->bump_callback(t->object_callback_data, object, bumpdir);
+    }
+
+    // Check for collisions between objects
+    
+    // Bounding box collision: must overlap in both x and y
+    for(size_t i = 0; i < t->objectvec.size; i++) {
+        object_t* objectA = OBJECT_AT(t->objectvec, i);
+        
+        for(size_t j = i + 1; j < t->objectvec.size; j++) {
+            object_t* objectB = OBJECT_AT(t->objectvec, j);
+
+            // Check if they overlap in y direction
+            if((objectA->y + objectA->th) >= objectB->y) {
+                // Check x
+                if(((objectA->x < objectB->x) && ((objectA->x + objectA->tw) >= objectB->x))
+                        || ((objectA->x >= objectB->x) && (objectA->x <= (objectB->x + objectB->tw)))) {
+                    // there is overlap
+                    t->collision_callback(t->object_callback_data, objectA, objectB);
+                }
+            } else {
+                // no Y overlap: move to the next objectA
+                break;
+            }
+        }
     }
 }
 

@@ -90,6 +90,19 @@ function Penguin:updateDirection()
     end
 end
 
+function Penguin:walk(direction)
+    local velx = {
+        east = self.stepsize,
+        west = -self.stepsize
+    }
+    local vely = {
+        north = -self.stepsize,
+        south = self.stepsize
+    }
+    self:setVelocity(velx[direction], vely[direction])
+    self:updateDirection()
+end
+
 
 function Penguin:interact(map)
     local mx, my = self:getTileLocation()

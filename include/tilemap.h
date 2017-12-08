@@ -43,6 +43,11 @@ typedef struct tilemap_t {
 
     object_t* cameraobject;
 
+    void (*bump_callback)(void*, object_t*, int);
+    void (*collision_callback)(void*, object_t*, object_t*);
+    void (*object_update_callback)(void*, object_t*);
+    void* object_callback_data;
+
     tile_t** tiles;     /**< tile data */
 } tilemap_t;
 
@@ -219,6 +224,8 @@ void tilemap_overwrite_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int
 
 int tilemap_get_flags(tilemap_t* t, size_t layer, size_t x, size_t y);
 
+
+void tilemap_set_object_callbacks(tilemap_t* t, void* data, void (*bump)(void*, object_t*, int), void (*collision)(void*, object_t*, object_t*));
 void tilemap_update_objects(tilemap_t* t);
 
 // Camera object

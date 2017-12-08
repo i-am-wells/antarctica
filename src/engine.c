@@ -1,15 +1,19 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include <lua.h>
 
 #include <SDL.h>
+#include <SDL_mixer.h>
 
 #include "engine.h"
 
 
 void engine_deinit(engine_t * e) {
     if(e) {
+        Mix_CloseAudio();
+
         // Destroy the window and the renderer
         if(e->renderer) {
             SDL_DestroyRenderer(e->renderer);
@@ -44,6 +48,12 @@ int engine_init(engine_t * e, char * wtitle, int x, int y, int w, int h, int wfl
    
     // not "running" yet
     e->running = 0;
+
+    // Set up audio
+    if(Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 1024) == -1) {
+        fprintf(stderr, "failed to open audio device: %s\n", Mix_GetError());
+        return 1;
+    }
 
     // Success
     return 1;
@@ -228,9 +238,6 @@ static int engine_run_event_handlers(engine_t* e, lua_State* L) {
             // Mouse button up event
             lua_pushinteger(L, ev.button.x);
             lua_pushinteger(L, ev.button.y);
-            lua_pushinteger(L, ev.button.button);
-            lua_pushinteger(L, ev.button.clicks);
-            lua_pushinteger(L, ev.button.state);
             lua_pushinteger(L, ev.button.which);
             lua_pushinteger(L, ev.button.windowID);
             lua_pushinteger(L, ev.button.timestamp);
@@ -268,7 +275,6 @@ void engine_run(engine_t * e, lua_State* L) {
     lua_pushlightuserdata(L, e);
     lua_gettable(L, LUA_REGISTRYINDEX);
         
-
     e->running = 1;
     uint32_t tick1 = 0, elapsed;
 

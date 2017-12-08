@@ -6,6 +6,7 @@
 
 #include <SDL.h>
 #include <SDL_image.h>
+#include <SDL_mixer.h>
 
 #include "lantarcticalib.h"
 
@@ -20,7 +21,7 @@
 
 int main(int argc, char** argv) {
     // Load/init SDL
-    if(SDL_Init(SDL_INIT_VIDEO) != 0) {
+    if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         fprintf(stderr, "failed to start SDL: %s\n", SDL_GetError());
         return 0;
     }
@@ -31,6 +32,14 @@ int main(int argc, char** argv) {
         fprintf(stderr, "failed to init SDL image library: %s\n", SDL_GetError());
         return 0;
     }
+
+    // Load/init SDL mixer
+    int mix_init_flags = 0;
+    if(Mix_Init(mix_init_flags) != mix_init_flags) {
+        fprintf(stderr, "failed to init SDL mixer library: %s\n", Mix_GetError());
+        return 0;
+    }
+
 
     // Create a new Lua state
     lua_State * L = luaL_newstate();
@@ -81,6 +90,7 @@ int main(int argc, char** argv) {
 
     // Free Lua state, close SDL
     lua_close(L);
+    Mix_Quit();
     IMG_Quit();
     SDL_Quit();
     return 0;

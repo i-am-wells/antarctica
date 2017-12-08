@@ -14,6 +14,7 @@ function Object:init(options)
     -- TODO create C object_t
     --
     self._object = ant.object.create(
+        self,
         options.image._image,
         options.x,
         options.y,
@@ -74,9 +75,25 @@ function Object:setsprite(tx, ty, animation_count, animation_period)
     ant.object.set_sprite(self._object, tx, ty, animation_count, animation_period)
 end
 
+function Object:getLocation()
+    local x, y = ant.object.getLocation(self._object)
+    self.x = x
+    self.y = y
+end
+
 function Object:getTileLocation()
     local px, py = ant.object.getLocation(self._object)
     return (px // self.image.tw), (py // self.image.th)
+end
+
+function Object:on(handlers)
+    for k, v in pairs(handlers) do
+        if type(v) == 'function' then
+            self['on'..k] = v
+        else
+            error('expected function for "'..k..'" but got '..type(v))
+        end
+    end
 end
 
 return Object

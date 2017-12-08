@@ -11,6 +11,7 @@
 #include "image.h"
 #include "tilemap.h"
 #include "object.h"
+#include "sound.h"
 
 #include "lantarcticalib.h"
 
@@ -451,6 +452,75 @@ int l_tilemap_deinit(lua_State* L) {
 }
 
 
+void get_object_table(lua_State* L, object_t* o) {
+    lua_pushlightuserdata(L, o);    
+    lua_gettable(L, LUA_REGISTRYINDEX);
+}
+
+
+// for running lua callbacks on object-wall and object-object collisions
+static void bump_callback(void* d, object_t* oA, int directionmask) {
+    lua_State* L = (lua_State*)d;
+
+    get_object_table(L, oA);
+    if(lua_getfield(L, -1, "onwallbump") == LUA_TFUNCTION) {
+        // push a copy of oA's table and the direction mask
+        lua_pushvalue(L, -2);
+        lua_pushinteger(L, directionmask);
+        lua_call(L, 2, 0);
+    } else {
+        lua_pop(L, 1);
+    }
+
+    // pop oA's table
+    lua_pop(L, 1);
+}
+
+
+static void collision_callback(void* d, object_t* oA, object_t* oB) {
+    lua_State* L = (lua_State*)d;
+
+    get_object_table(L, oA);
+    if(lua_getfield(L, -1, "oncollision") == LUA_TFUNCTION) {
+        // push a copy of oA's table and oB's table
+        lua_pushvalue(L, -2);
+        get_object_table(L, oB);
+        lua_call(L, 2, 0);
+    } else {
+        lua_pop(L, 1);
+    }
+
+    get_object_table(L, oB);
+    if(lua_getfield(L, -1, "oncollision") == LUA_TFUNCTION) {
+        lua_pushvalue(L, -2); // oB table
+        lua_pushvalue(L, -4); // oA table
+        lua_call(L, 2, 0);
+    } else {
+        lua_pop(L, 1);
+    }
+
+    // pop both object tables
+    lua_pop(L, 2);
+}
+
+static void object_update_callback(void* d, object_t* oA) {
+    lua_State* L = (lua_State*)d;
+
+    get_object_table(L, oA);
+    if(lua_getfield(L, -1, "onupdate") == LUA_TFUNCTION) {
+        // push a copy of oA's table and oB's table
+        lua_pushvalue(L, -2);
+        lua_call(L, 1, 0);
+    } else {
+        lua_pop(L, 1);
+    }
+
+    // pop object table
+    lua_pop(L, 1);
+}
+
+
+
 int l_tilemap_create_empty(lua_State* L) {
     int nlayers = luaL_checkinteger(L, 1);
     int w = luaL_checkinteger(L, 2);
@@ -466,6 +536,9 @@ int l_tilemap_create_empty(lua_State* L) {
         lua_pushstring(L, buf);
         return 2;
     }
+
+    tilemap_set_object_callbacks(t, L, bump_callback, collision_callback);
+    t->object_update_callback = object_update_callback;
 
     set_gc_metamethod(L, "tilemap_t", l_tilemap_deinit);
 
@@ -487,6 +560,9 @@ int l_tilemap_read(lua_State* L) {
         return 2;
         //return luaL_error(L, "failed to load tilemap file from %s", filename);
     }
+    
+    tilemap_set_object_callbacks(t, L, bump_callback, collision_callback);
+    t->object_update_callback = object_update_callback;
 
     set_gc_metamethod(L, "tilemap_t", l_tilemap_deinit);
 
@@ -837,17 +913,21 @@ int l_object_deinit(lua_State* L) {
 }
 
 int l_object_create(lua_State* L) {
-    image_t* image = (image_t*)luaL_checkudata(L, 1, "image_t");
-    int x = luaL_checkinteger(L, 2);
-    int y = luaL_checkinteger(L, 3);
-    int layer = luaL_checkinteger(L, 4);
-    int tx = luaL_checkinteger(L, 5);
-    int ty = luaL_checkinteger(L, 6);
-    int tw = luaL_checkinteger(L, 7);
-    int th = luaL_checkinteger(L, 8);
-    int acount = luaL_checkinteger(L, 9);
-    int aperiod = luaL_checkinteger(L, 10);
-        /*
+    // Object table
+    luaL_checktype(L, 1, LUA_TTABLE);
+
+    image_t* image = (image_t*)luaL_checkudata(L, 2, "image_t");
+    int x = luaL_checkinteger(L, 3);
+    int y = luaL_checkinteger(L, 4);
+    int layer = luaL_checkinteger(L, 5);
+    int tx = luaL_checkinteger(L, 6);
+    int ty = luaL_checkinteger(L, 7);
+    int tw = luaL_checkinteger(L, 8);
+    int th = luaL_checkinteger(L, 9);
+    int acount = luaL_checkinteger(L, 10);
+    int aperiod = luaL_checkinteger(L, 11);
+
+    /*
         options.image._image,
         options.x,
         options.y,
@@ -860,6 +940,11 @@ int l_object_create(lua_State* L) {
 
     object_t* o = (object_t*)lua_newuserdata(L, sizeof(object_t));
     
+    // Store the object table in registry
+    lua_pushlightuserdata(L, o);
+    lua_pushvalue(L, 1);
+    lua_settable(L, LUA_REGISTRYINDEX);
+
     object_init(o, image, tx, ty, tw, th, aperiod, acount, x, y, layer);
 
     set_gc_metamethod(L, "object_t", l_object_deinit);
@@ -956,6 +1041,46 @@ static const luaL_Reg objectlib[] = {
 };
 
 
+int l_sound_deinit(lua_State* L) {
+    sound_t* sound = luaL_checkudata(L, 1, "sound_t");
+    sound_deinit(sound);
+    return 0;
+}
+
+
+int l_sound_read(lua_State* L) {
+    const char* file = luaL_checkstring(L, 1);
+
+    sound_t* s = (sound_t*)lua_newuserdata(L, sizeof(sound_t));
+    
+    if(!sound_init(s, file)) {
+        lua_pushnil(L);
+        lua_pushfstring(L, "failed to load sound: %s\n", SDL_GetError());
+        return 2;
+    }
+
+    set_gc_metamethod(L, "sound_t", l_sound_deinit);
+
+    return 1;
+}
+
+int l_sound_play(lua_State* L) {
+    sound_t* sound = luaL_checkudata(L, 1, "sound_t");
+    int channel = luaL_checkinteger(L, 2);
+    int nloops = luaL_checkinteger(L, 3);
+
+    sound_play(sound, channel, nloops);
+
+    return 1;
+}
+
+
+static const luaL_Reg soundlib[] = {
+    {"read", l_sound_read},
+    {"play", l_sound_play},
+    {NULL, NULL}
+};
+
 // TODO maybe put window/renderer constants in
 static const luaL_Reg antarcticalib[] = {
     {NULL, NULL}
@@ -1017,6 +1142,9 @@ int luaopen_antarctica(lua_State * L) {
     luaL_newlib(L, objectlib);
     lua_setfield(L, -2, "object");
 
+    // sound
+    luaL_newlib(L, soundlib);
+    lua_setfield(L, -2, "sound");
     return 1;
 }
 
