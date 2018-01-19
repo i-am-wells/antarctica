@@ -481,6 +481,11 @@ static void collision_callback(void* d, object_t* oA, object_t* oB) {
     lua_State* L = (lua_State*)d;
 
     get_object_table(L, oA);
+    if(lua_isnil(L, -1)) {
+        lua_pop(L, 1);
+        return;
+    }
+
     if(lua_getfield(L, -1, "oncollision") == LUA_TFUNCTION) {
         // push a copy of oA's table and oB's table
         lua_pushvalue(L, -2);
@@ -491,6 +496,10 @@ static void collision_callback(void* d, object_t* oA, object_t* oB) {
     }
 
     get_object_table(L, oB);
+    if(lua_isnil(L, -1)) {
+        lua_pop(L, 2);
+        return;
+    }
     if(lua_getfield(L, -1, "oncollision") == LUA_TFUNCTION) {
         lua_pushvalue(L, -2); // oB table
         lua_pushvalue(L, -4); // oA table
@@ -507,6 +516,11 @@ static void object_update_callback(void* d, object_t* oA) {
     lua_State* L = (lua_State*)d;
 
     get_object_table(L, oA);
+    if(lua_isnil(L, -1)) {
+        lua_pop(L, 1);
+        return;
+    }
+
     if(lua_getfield(L, -1, "onupdate") == LUA_TFUNCTION) {
         // push a copy of oA's table and oB's table
         lua_pushvalue(L, -2);
@@ -624,8 +638,9 @@ int l_tilemap_draw_layer_objects(lua_State* L) {
     int py = luaL_checkinteger(L, 4);
     int pw = luaL_checkinteger(L, 5);
     int ph = luaL_checkinteger(L, 6);
+    int counter = luaL_checkinteger(L, 7);
     
-    tilemap_draw_objects(t, layer, px, py, pw, ph);
+    tilemap_draw_objects(t, layer, px, py, pw, ph, counter);
 
     return 0;
 }
@@ -831,8 +846,9 @@ int l_tilemap_draw_objects_at_camera_object(lua_State* L) {
     int layer = luaL_checkinteger(L, 2);
     int pw = luaL_checkinteger(L, 3);
     int ph = luaL_checkinteger(L, 4);
+    int counter = luaL_checkinteger(L, 5);
     
-    tilemap_draw_objects_at_camera_object(t, layer, pw, ph);
+    tilemap_draw_objects_at_camera_object(t, layer, pw, ph, counter);
 
     return 0;
 }
