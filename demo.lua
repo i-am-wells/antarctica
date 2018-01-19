@@ -22,7 +22,7 @@ local keysdown = 0
 -- Create a window. "setlogicalsize" lets us render everything normally but
 -- will scale the canvas to match the window.
 local engine = Engine{ title = 'Demo', w = vw * 2, h = vh * 2, 
-        windowflags = 0 } -- ant.engine.fullscreen }
+        windowflags = 0}-- ant.engine.fullscreen }
 engine:setlogicalsize(vw, vh)
 engine:setcolor(255, 255, 255, 255) -- white background
 
@@ -41,8 +41,7 @@ end
 
 -- Load the water drop sound
 local drop = Sound{file = 'res/waterdrop.wav'}
-
-
+local music = Sound{file = 'res/penguin.wav'}
 
 -- Create the player object. It will use sprites from terrain.png.
 local penguin = Penguin{
@@ -57,12 +56,14 @@ penguin:on{
     --[[
     wallbump = function(slf, direction)
         print(string.format('Wall bump (mask=%d)', direction))
-    end,
+    end,--]]
     collision = function(slf, other)
-        print(string.format('Collision (%d, %d)', slf.x, other.x))
-        --other:turn(slf.direction)
+        print(other)
+        if other.type == 'fish' then
+            drop:play()
+            map:removeObject(other)
+        end
     end,
-    --]]
     update = function(slf)
         slf:getLocation()
     end
@@ -146,6 +147,7 @@ local npcfollow = function(npc)
     end
 end
 
+
 for _, loc in ipairs(npclocations) do
     local npc = Penguin{
         image = image,
@@ -160,6 +162,38 @@ for _, loc in ipairs(npclocations) do
     }
     map:addObject(npc)
 end
+
+
+-- Add fish
+local fishlocations = {
+    {x = 32*16, y=14*16},
+    {x = 2*16, y=30*16},
+    {x = 2*16, y=32*16},
+    {x = 2*16, y=34*16},
+}
+
+for _, loc in ipairs(fishlocations) do
+    local fish = Object{
+        image = image,
+        x = loc.x,
+        y = loc.y,
+        layer = 0,
+        tx = 10,
+        ty = 7,
+        tw = 16,
+        th = 16,
+        animation_count = 8,
+        animation_period = 4
+    }
+    fish.type = 'fish'
+    fish:on{
+        update = function() end,
+        collision = function() end
+    }
+    map:addObject(fish)
+end
+
+
 
 
 -- Keyboard handling callbacks
@@ -221,6 +255,9 @@ onkeyup = setmetatable({
     }
 )
 
+-- Play music
+music:play{channel = 1, loop = true}
+
 
 
 local layer = 0
@@ -230,7 +267,7 @@ engine:run{
     redraw = function(time, elapsed, counter)
         -- Redraw
         map:drawLayerAtCameraObject(image, layer, vw, vh, counter)
-        map:drawObjectsAtCameraObject(layer, vw, vh)
+        map:drawObjectsAtCameraObject(layer, vw, vh, counter)
 
         if descriptiontext then
             -- Draw box and show text
