@@ -52,8 +52,8 @@ function Tilemap:draw_layer_flags(image, layer, px, py, pw, ph)
     ant.tilemap.draw_layer_flags(self._tilemap, image._image, layer, px, py, pw, ph)
 end
 
-function Tilemap:draw_layer_objects(layer, px, py, pw, ph)
-    ant.tilemap.draw_layer_objects(self._tilemap, layer, px, py, pw, ph)
+function Tilemap:draw_layer_objects(layer, px, py, pw, ph, counter)
+    ant.tilemap.draw_layer_objects(self._tilemap, layer, px, py, pw, ph, counter)
 end
 
 --[[
@@ -116,8 +116,8 @@ function Tilemap:drawLayerAtCameraObject(image, layer, pw, ph, counter)
     ant.tilemap.drawLayerAtCameraObject(self._tilemap, image._image, layer, pw, ph, counter)
 end
 
-function Tilemap:drawObjectsAtCameraObject(layer, pw, ph)
-    ant.tilemap.drawObjectsAtCameraObject(self._tilemap, layer, pw, ph)
+function Tilemap:drawObjectsAtCameraObject(layer, pw, ph, counter)
+    ant.tilemap.drawObjectsAtCameraObject(self._tilemap, layer, pw, ph, counter)
 end
 
 
