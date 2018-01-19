@@ -54,7 +54,7 @@ function Sound:play(options)
     local channel = options.channel or -1
     local nloops = options.nloops or 0
     if options.loop == true then
-        options.nloops = -1
+        nloops = -1
     end
     ant.sound.play(self._sound, channel, nloops)
 end
