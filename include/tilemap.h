@@ -43,6 +43,9 @@ typedef struct tilemap_t {
 
     object_t* cameraobject;
 
+    // Start a linked list of objects here
+    object_t* head;
+
     void (*bump_callback)(void*, object_t*, int);
     void (*collision_callback)(void*, object_t*, object_t*);
     void (*object_update_callback)(void*, object_t*);
@@ -209,7 +212,7 @@ int tilemap_write_to_file(const tilemap_t * t, const char * path);
 /** NEW **/
 
 
-void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw, int ph);
+void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw, int ph, int counter);
 void tilemap_draw_layer_flags(const tilemap_t* t, const image_t* i, int layer, int px, int py, int pw, int ph);
 
 void tilemap_add_object(tilemap_t* t, object_t* o);
@@ -231,7 +234,7 @@ void tilemap_update_objects(tilemap_t* t);
 // Camera object
 void tilemap_set_camera_object(tilemap_t* t, object_t* o);
 void tilemap_draw_layer_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph, int counter);
-void tilemap_draw_objects_at_camera_object(const tilemap_t* t, int layer, int pw, int ph);
+void tilemap_draw_objects_at_camera_object(const tilemap_t* t, int layer, int pw, int ph, int counter);
 
 int tilemap_get_tile_animation_info(const tilemap_t* t, size_t layer, int x, int y, int* period, int* count);
 int tilemap_set_tile_animation_info(tilemap_t* t, size_t layer, int x, int y, int period, int count);

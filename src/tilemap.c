@@ -54,25 +54,31 @@ void tilemap_deinit(tilemap_t* t) {
 
 int tilemap_init(tilemap_t * t, size_t nlayers, size_t w, size_t h) {
     assert(t);
-    assert((w * h * nlayers) > 0);
 
-    // Allocate layers array
-    t->tiles = (tile_t**)calloc(1, nlayers * sizeof(tile_t*));
-    if(!t->tiles)
-        return 0;
-
-    // Allocate each layer
-    tile_t** maplayers = t->tiles;
-    for(size_t i = 0; i < nlayers; i++) {
-        maplayers[i] = (tile_t*)calloc(w * h, sizeof(tile_t));
-        if(!(maplayers[i])) {
-            tilemap_destroy(t);
+    if(w && h && nlayers) {
+        // Allocate layers array
+        t->tiles = (tile_t**)calloc(1, nlayers * sizeof(tile_t*));
+        if(!t->tiles)
             return 0;
+
+        // Allocate each layer
+        tile_t** maplayers = t->tiles;
+        for(size_t i = 0; i < nlayers; i++) {
+            maplayers[i] = (tile_t*)calloc(w * h, sizeof(tile_t));
+            if(!(maplayers[i])) {
+                tilemap_destroy(t);
+                return 0;
+            }
         }
+    } else {
+        t->tiles = NULL;
     }
 
     // Create object vector
     vec_init(&(t->objectvec), 8);
+
+    // no objects yet
+    t->head = NULL;
 
     t->cameraobject = NULL;
 
@@ -344,7 +350,7 @@ static size_t tilemap_binary_search_objects(const tilemap_t* t, int q, size_t fi
     return first;
 }
 
-
+// TODO take the actual object pointer rather than an index!
 void tilemap_move_object_relative(tilemap_t* t, size_t object_idx, int dx, int dy) {
     assert(object_idx < t->objectvec.size);
 
@@ -382,11 +388,22 @@ void tilemap_add_object(tilemap_t* t, object_t* o) {
 
     assert(vec_insert(&(t->objectvec), index, o));
     o->index = index;
+
+    // link into the update list
+    o->next = t->head;
+    t->head = o;
 }
 
 
 void tilemap_remove_object(tilemap_t* t, object_t* o) {
     vec_remove(&(t->objectvec), o->index, 1);
+
+    // unlink from update list
+    object_t* prev = t->head;
+    while(prev && (prev->next != o))
+        prev = prev->next;
+
+    prev->next = o->next;
 }
 
 
@@ -400,12 +417,16 @@ void tilemap_move_object_absolute(tilemap_t* t, object_t* o, int x, int y) {
 
 void tilemap_update_objects(tilemap_t* t) {
     
-    // TODO update sprites as well (use 
-    for(size_t i = 0; i < t->objectvec.size; i++) {
-        object_t* object = OBJECT_AT(t->objectvec, i);
+    // TODO update sprites as well? (edit 1/19: nvm, should happen in Lua) 
+    //for(size_t i = 0; i < t->objectvec.size; i++) {
+    for(object_t* object = t->head; object != NULL; ) {
+        //object_t* object = OBJECT_AT(t->objectvec, i);
 
-        // Run update callback
+        // === Run update callback ===
         t->object_update_callback(t->object_callback_data, object);
+
+        
+        // === Update object position ===
 
         // actual motion of object
         int velx = object->velx;
@@ -417,6 +438,7 @@ void tilemap_update_objects(tilemap_t* t) {
         int mapy2 = (object->y + object->th) / object->image->th;
 
 
+        // === Run wall collision callbacks ===
         // Check if new position would overlap any blocked squares (x direction)
         int newx = object->x + velx;
         int oldvelx = velx;
@@ -470,10 +492,20 @@ void tilemap_update_objects(tilemap_t* t) {
         // Run wall bump callback
         if(bumpdir && t->bump_callback)
             t->bump_callback(t->object_callback_data, object, bumpdir);
+
+        // Next
+        object = object->next;
     }
 
+    // === Run object-object collision callbacks === 
     // Check for collisions between objects
     
+    // TODO Warning: This loop calls user-supplied Lua code that may arbitrarily
+    // modify t->objectvec. It does not attempt to keep track of which objects
+    // have had a collision callback run for this timestep, nor does it keep
+    // track of insertions/deletions/permutations to t-objectvec. As a result
+    // some objects may be skipped or visited twice. Fixes upcoming.
+
     // Bounding box collision: must overlap in both x and y
     for(size_t i = 0; i < t->objectvec.size; i++) {
         object_t* objectA = OBJECT_AT(t->objectvec, i);
@@ -504,7 +536,7 @@ void tilemap_set_camera_object(tilemap_t* t, object_t* o) {
 
 
 // draw objects from one map layer
-void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw, int ph) {
+void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw, int ph, int counter) {
 
     // Find range of objects to draw
     size_t idx0, idx1;
@@ -535,18 +567,18 @@ void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw,
                 && (obj->y < py + ph)
                 && (obj->x + obj->tw > px)
                 && (obj->y + obj->th > py)) {
-            object_draw(obj, px, py);
+            object_draw(obj, px, py, counter);
         }
     }
 }
     
 
-void tilemap_draw_objects_at_camera_object(const tilemap_t* t, int layer, int pw, int ph) {
+void tilemap_draw_objects_at_camera_object(const tilemap_t* t, int layer, int pw, int ph, int counter) {
     int px = 0;
     int py = 0;
     tilemap_get_camera_location(t, pw, ph, &px, &py);
 
-    tilemap_draw_objects(t, layer, px, py, pw, ph);
+    tilemap_draw_objects(t, layer, px, py, pw, ph, counter);
 }
 
 
@@ -631,6 +663,9 @@ void tilemap_patch(tilemap_t* t, tile_t* patch, int x, int y, int w, int h) {
 
 int tilemap_read_from_file(tilemap_t * t, const char * path) {
     assert(t);
+
+    // Start with a fresh tilemap_t
+    tilemap_init(t, 0, 0, 0);
     
     FILE * f = fopen(path, "rb");
     if(!f)

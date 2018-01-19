@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stdlib.h>
 
 #include "object.h"
@@ -17,6 +18,8 @@ int object_init(object_t* o, image_t* image, int tx, int ty, int tw, int th, int
     o->y = y;
     o->layer = layer;
     o->index = -1;
+
+    o->next = NULL;
 
     object_set_velocity(o, 0, 0);
     return 1;
@@ -55,12 +58,12 @@ void object_destroy(object_t* o) {
 }
 
 
-void object_draw(const object_t* o, int vx, int vy) {
+void object_draw(const object_t* o, int vx, int vy, int counter) {
     int orig_tw = o->image->tw;
     int orig_th = o->image->th;
     o->image->tw = o->tw;
     o->image->th = o->th;
-    image_draw_tile(o->image, o->tx, o->ty, o->x - vx, o->y - vy);
+    image_draw_tile(o->image, o->tx, o->ty + (counter / o->animperiod) % o->animcount, o->x - vx, o->y - vy);
     o->image->tw = orig_tw;
     o->image->th = orig_th;
 }
@@ -88,5 +91,23 @@ void object_get_map_location(const object_t* o, int* mapx, int* mapy) {
     
     if(mapy)
         *mapy = o->y / o->image->th;
+}
+
+void object_link_after(object_t* o, object_t* n) {
+    assert(o);
+
+    object_t* original_next = o->next;
+    o->next = n;
+
+    if(n)
+        n->next = original_next;
+}
+
+
+void object_unlink_after(object_t* o) {
+    assert(o);
+
+    if(o->next)
+        o->next = o->next->next;
 }
 
