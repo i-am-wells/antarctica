@@ -132,7 +132,7 @@ void vec_remove(vec_t * v, size_t i, size_t n) {
     assert(v);
     assert(i < v->size);
 
-    memmove(v->data + i, v->data + i + n, n);
+    memmove(v->data + i, v->data + i + n, (v->size - i - n) * sizeof(void*));
 
     v->size -= n;
 
