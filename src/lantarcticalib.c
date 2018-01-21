@@ -976,7 +976,7 @@ int l_object_move_relative(lua_State* L) {
     int dx = luaL_checkinteger(L, 3);
     int dy = luaL_checkinteger(L, 4);
 
-    tilemap_move_object_relative(t, o->index, dx, dy);
+    tilemap_move_object_relative(t, o, dx, dy);
     return 0;
 }
 

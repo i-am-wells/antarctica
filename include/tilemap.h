@@ -219,7 +219,7 @@ void tilemap_add_object(tilemap_t* t, object_t* o);
 void tilemap_remove_object(tilemap_t* t, object_t* o);
 
 void tilemap_move_object_absolute(tilemap_t* t, object_t* o, int x, int y);
-void tilemap_move_object_relative(tilemap_t* t, size_t object_idx, int dx, int dy);
+void tilemap_move_object_relative(tilemap_t* t, object_t* o, int dx, int dy);
 
 void tilemap_set_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mask);
 void tilemap_clear_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mask);
