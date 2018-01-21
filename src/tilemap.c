@@ -350,15 +350,13 @@ static size_t tilemap_binary_search_objects(const tilemap_t* t, int q, size_t fi
     return first;
 }
 
-// TODO take the actual object pointer rather than an index!
-void tilemap_move_object_relative(tilemap_t* t, size_t object_idx, int dx, int dy) {
-    assert(object_idx < t->objectvec.size);
 
+void tilemap_move_object_relative(tilemap_t* t, object_t* o, int dx, int dy) {
+    assert(o);
+    size_t object_idx = o->index;
     size_t dest_idx = object_idx;
-    
-    object_t* o = OBJECT_AT(t->objectvec, object_idx);
-    int next_y = o->y + dy;
 
+    int next_y = o->y + dy;
 
     // Search linearly for new y index
     if(dy > 0) {
@@ -397,13 +395,22 @@ void tilemap_add_object(tilemap_t* t, object_t* o) {
 
 void tilemap_remove_object(tilemap_t* t, object_t* o) {
     vec_remove(&(t->objectvec), o->index, 1);
+    for(size_t i = 0; i < t->objectvec.size; i++) {
+        object_t* obj = OBJECT_AT(t->objectvec, i);
+        obj->index = i;
+    }
 
     // unlink from update list
-    object_t* prev = t->head;
-    while(prev && (prev->next != o))
-        prev = prev->next;
+    if(t->head == o) {
+        t->head = o->next;
+    } else {
+        object_t* prev = t->head;
+        while(prev && (prev->next != o))
+            prev = prev->next;
 
-    prev->next = o->next;
+        if(prev)
+            prev->next = o->next;
+    }
 }
 
 
@@ -417,15 +424,17 @@ void tilemap_move_object_absolute(tilemap_t* t, object_t* o, int x, int y) {
 
 void tilemap_update_objects(tilemap_t* t) {
     
+    // Run update callbacks
+    for(object_t* object = t->head; object != NULL; object = object->next) {
+        // === Run update callback ===
+        t->object_update_callback(t->object_callback_data, object);
+    }
+    
     // TODO update sprites as well? (edit 1/19: nvm, should happen in Lua) 
     //for(size_t i = 0; i < t->objectvec.size; i++) {
     for(object_t* object = t->head; object != NULL; ) {
         //object_t* object = OBJECT_AT(t->objectvec, i);
 
-        // === Run update callback ===
-        t->object_update_callback(t->object_callback_data, object);
-
-        
         // === Update object position ===
 
         // actual motion of object
@@ -487,7 +496,7 @@ void tilemap_update_objects(tilemap_t* t) {
         }
 
         // Move object
-        tilemap_move_object_relative(t, object->index, velx, vely);
+        tilemap_move_object_relative(t, object, velx, vely);
         
         // Run wall bump callback
         if(bumpdir && t->bump_callback)
