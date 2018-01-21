@@ -61,7 +61,7 @@ penguin:on{
         print(other)
         if other.type == 'fish' then
             drop:play()
-            map:removeObject(other)
+            other.toRemove = true
         end
     end,
     update = function(slf)
@@ -187,7 +187,11 @@ for _, loc in ipairs(fishlocations) do
     }
     fish.type = 'fish'
     fish:on{
-        update = function() end,
+        update = function(slf) 
+            if slf.toRemove then
+                map:removeObject(slf)
+            end
+        end,
         collision = function() end
     }
     map:addObject(fish)
