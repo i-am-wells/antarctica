@@ -37,9 +37,11 @@ int engine_init(engine_t * e, char * wtitle, int x, int y, int w, int h, int wfl
     if(!e->window)
         goto engine_init_fail;
 
+    //SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
     e->renderer = SDL_CreateRenderer(e->window, ridx, rflags);
     if(!e->renderer)
         goto engine_init_fail;
+
 
     // Clear screen
     SDL_SetRenderDrawColor(e->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
@@ -48,6 +50,7 @@ int engine_init(engine_t * e, char * wtitle, int x, int y, int w, int h, int wfl
    
     // not "running" yet
     e->running = 0;
+    e->targetfps = 60;
 
     // Set up audio
     if(Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 1024) == -1) {
@@ -102,6 +105,11 @@ static int get_event_handler(lua_State* L, int key) {
 }
 
 
+void engine_set_scale(engine_t* e, float scaleX, float scaleY) {
+    SDL_RenderSetScale(e->renderer, scaleX, scaleY);
+}
+
+
 // Basic drawing functions //
 void engine_draw_point(engine_t* e, int x, int y) {
     SDL_RenderDrawPoint(e->renderer, x, y);
@@ -149,6 +157,16 @@ void engine_clear(engine_t* e) {
 
 void engine_set_render_logical_size(engine_t* e, int w, int h) {
     SDL_RenderSetLogicalSize(e->renderer, w, h);
+}
+    
+
+void engine_get_render_logical_size(const engine_t* e, int* w, int* h) {
+    SDL_RenderGetLogicalSize(e->renderer, w, h);
+}
+    
+
+void engine_get_render_size(const engine_t* e, int* w, int* h) {
+    SDL_GetRendererOutputSize(e->renderer, w, h);
 }
 
 
@@ -241,7 +259,7 @@ static int engine_run_event_handlers(engine_t* e, lua_State* L) {
             lua_pushinteger(L, ev.button.which);
             lua_pushinteger(L, ev.button.windowID);
             lua_pushinteger(L, ev.button.timestamp);
-            lua_call(L, 8, 0);
+            lua_call(L, 5, 0);
         } else if(ev.type == SDL_MOUSEWHEEL && get_event_handler(L, ev.type)) {
             // Mouse wheel event
             lua_pushinteger(L, ev.wheel.x);
@@ -277,6 +295,7 @@ void engine_run(engine_t * e, lua_State* L) {
         
     e->running = 1;
     uint32_t tick1 = 0, elapsed;
+    uint32_t targetframetime = 1000 / e->targetfps;
 
     int counter = 0;
 
@@ -284,7 +303,7 @@ void engine_run(engine_t * e, lua_State* L) {
     while(e->running) {
         // Clear the renderer every time we redraw (necessary because of some
         // double-buffering implementations)
-        SDL_RenderClear(e->renderer);
+        //SDL_RenderClear(e->renderer);
         
         // push redraw callback
         lua_pushlightuserdata(L, e+1);    
@@ -306,8 +325,8 @@ void engine_run(engine_t * e, lua_State* L) {
         // Time to roughly 60 fps
         elapsed = SDL_GetTicks() - tick1;
         //fprintf(stderr, "%u\n", elapsed);
-        //if(elapsed < 16)
-            //SDL_Delay(16 - elapsed);
+        if(elapsed < targetframetime)
+            SDL_Delay(targetframetime - elapsed);
         //tick0 = tick1;
         tick1 = SDL_GetTicks();
 
