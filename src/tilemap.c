@@ -209,6 +209,7 @@ void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int
 }
 
 
+
 void tilemap_draw_layer_flags(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph) {
     // see tilemap_draw_layer
     int startx = (px / i->tw);
@@ -662,9 +663,9 @@ void tilemap_patch(tilemap_t* t, tile_t* patch, int x, int y, int w, int h) {
         tile_t* patchlayer = patch + (l * w * h);
 
         for(int my = 0; my < h; my++) {
-            for(int mx = 0; mx < w; mx++) {
-                memcpy(layer + (y + my) * t->w + x, patchlayer + my * w + mx, rowsize);
-            }
+            //for(int mx = 0; mx < w; mx++) {
+                memcpy(layer + (y + my) * t->w + x, patchlayer + my * w, rowsize);
+            //}
         }
     }
 }
