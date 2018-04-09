@@ -19,6 +19,17 @@
 #define CONFIGPATH "config.lua"
 #endif
 
+// https://stackoverflow.com/questions/12256455/print-stacktrace-from-c-code-with-embedded-lua
+static int traceback(lua_State *L) {
+    lua_getglobal(L, "debug");
+    lua_getfield(L, -1, "traceback");
+    lua_pushvalue(L, 1);
+    lua_pushinteger(L, 2);
+    lua_call(L, 2, 1);
+    fprintf(stderr, "lua error: %s\n", lua_tostring(L, -1));
+    return 1;
+}
+
 int main(int argc, char** argv) {
     // Load/init SDL
     if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
@@ -81,12 +92,16 @@ int main(int argc, char** argv) {
         lua_seti(L, -2, i);
     }
     lua_setglobal(L, "arg");
-
+    
     // Run scripts
     argv++;
-    if(luaL_dofile(L, *argv)) {
-        fprintf(stderr, "lua: %s\n", lua_tostring(L, -1));
-    }
+    //if(luaL_dofile(L, *argv)) {
+    //if(luaL_loadfile(L, *argv) || lua_call(L, 0, LUA_MULTRET)) {
+    lua_pushcfunction(L, traceback);
+    if(luaL_loadfile(L, *argv))
+        fprintf(stderr, "failed to run %s\n", *argv);
+    else
+        lua_pcall(L, 0, 0, lua_gettop(L) - 1);
 
     // Free Lua state, close SDL
     lua_close(L);
