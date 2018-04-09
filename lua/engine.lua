@@ -165,9 +165,9 @@ function Engine:on(tbl)
         if type(value) == 'function' then
             local sdlevent_type = eventkeymap[key]
             if sdlevent_type then
-                ant.engine.sethandler(self._engine, sdlevent_type, value);
+                ant.engine.setHandler(self._engine, sdlevent_type, value);
             elseif key == 'redraw' then
-                ant.engine.setredraw(self._engine, value);
+                ant.engine.setRedraw(self._engine, value);
             else
                 error('unknown event type "'..key..'"')
             end
@@ -192,22 +192,22 @@ function Engine:stop()
 end
 
 
-function Engine:drawpoint(x, y)
-    ant.engine.drawpoint(self._engine, x, y)
+function Engine:drawPoint(x, y)
+    ant.engine.drawPoint(self._engine, x, y)
 end
 
 
-function Engine:drawline(x0, y0, x1, y1)
-    ant.engine.drawline(self._engine, x0, y0, x1, y1)
+function Engine:drawLine(x0, y0, x1, y1)
+    ant.engine.drawLine(self._engine, x0, y0, x1, y1)
 end
 
 
-function Engine:drawrect(x, y, w, h)
-    ant.engine.drawrect(self._engine, x, y, w, h)
+function Engine:drawRect(x, y, w, h)
+    ant.engine.drawRect(self._engine, x, y, w, h)
 end
 
-function Engine:fillrect(x, y, w, h)
-    ant.engine.fillrect(self._engine, x, y, w, h)
+function Engine:fillRect(x, y, w, h)
+    ant.engine.fillRect(self._engine, x, y, w, h)
 end
 
 
@@ -216,18 +216,29 @@ function Engine:clear()
 end
 
 
-function Engine:setcolor(r, g, b, a)
-    ant.engine.setcolor(self._engine, r, g, b, a)
+function Engine:setColor(r, g, b, a)
+    ant.engine.setColor(self._engine, r, g, b, a)
 end
 
-function Engine:getcolor()
-    return ant.engine.getcolor(self._engine)
+function Engine:getColor()
+    return ant.engine.getColor(self._engine)
 end
 
-function Engine:setlogicalsize(w, h)
-    ant.engine.setlogicalsize(self._engine, w, h)
+function Engine:setLogicalSize(w, h)
+    ant.engine.setLogicalSize(self._engine, w, h)
 end
 
+function Engine:getLogicalSize()
+    return ant.engine.getLogicalSize(self._engine)
+end
+
+function Engine:getSize()
+    return ant.engine.getSize(self._engine)
+end
+
+function Engine:setScale(scaleX, scaleY)
+    ant.engine.setScale(self._engine, scaleX or 1, scaleY or 1)
+end
 
 function Engine:runCallbacks()
     -- TODO

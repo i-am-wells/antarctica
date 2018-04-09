@@ -37,7 +37,7 @@ end
 function Object:move(dx, dy)
     self.x = self.x + dx
     self.y = self.y + dy
-    ant.object.move_relative(self._tilemap, self._object, dx, dy)
+    ant.object.moveRelative(self._tilemap, self._object, dx, dy)
 end
 
 function Object:setVelocity(vx, vy)
@@ -62,16 +62,16 @@ end
 
 function Object:warp(x, y)
     self:getLocation()
-    ant.object.move_absolute(self._tilemap, self._object, x or self.x, y or self.y)
+    ant.object.moveAbsolute(self._tilemap, self._object, x or self.x, y or self.y)
 end
 
 
-function Object:setsprite(tx, ty, animation_count, animation_period)
+function Object:setSprite(tx, ty, animation_count, animation_period)
     tx = tx or 0
     ty = ty or 0
     animation_count = animation_count or 1
     animation_period = animation_period or 1
-    ant.object.set_sprite(self._object, tx, ty, animation_count, animation_period)
+    ant.object.setSprite(self._object, tx, ty, animation_count, animation_period)
 end
 
 function Object:getLocation()

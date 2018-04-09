@@ -23,8 +23,8 @@ local keysdown = 0
 -- will scale the canvas to match the window.
 local engine = Engine{ title = 'Demo', w = vw * 2, h = vh * 2, 
         windowflags = 0}-- ant.engine.fullscreen }
-engine:setlogicalsize(vw, vh)
-engine:setcolor(255, 255, 255, 255) -- white background
+engine:setLogicalSize(vw, vh)
+engine:setColor(255, 255, 255, 255) -- white background
 
 -- Load the map
 local map = Tilemap{ file = 'test.map' }
@@ -106,7 +106,7 @@ local interactive = {
         igloomap:setCameraObject(penguin)
 
         penguin:warp(9 * 16, 18 * 16)
-        engine:setcolor(0,0,0,255)
+        engine:setColor(0,0,0,255)
     end}
 }
 
@@ -275,12 +275,12 @@ engine:run{
 
         if descriptiontext then
             -- Draw box and show text
-            engine:fillrect(100, 200, 200, 50)
-            engine:setcolor(0, 0, 0, 255)
-            engine:drawrect(100, 200, 200, 50)
-            engine:drawrect(102, 202, 196, 46)
-            engine:setcolor(255, 255, 255, 255)
-            font:drawtext(descriptiontext, 104, 204, 192)
+            engine:fillRect(100, 200, 200, 50)
+            engine:setColor(0, 0, 0, 255)
+            engine:drawRect(100, 200, 200, 50)
+            engine:drawRect(102, 202, 196, 46)
+            engine:setColor(255, 255, 255, 255)
+            font:drawText(descriptiontext, 104, 204, 192)
         end
 
         -- TODO run all callbacks set with setInterval or setTimeout

@@ -1,3 +1,29 @@
+local class = require 'class'
+
+local PointSet = class.base()
+function PointSet:init()
+    self.hasTable = {}
+end
+
+function PointSet:add(x, y)
+    local hasX = self.hasTable[x]
+    if not hasX then
+        self.hasTable[x] = {}
+    end
+    self.hasTable[x][y] = true
+end
+
+function PointSet:remove(x, y)
+    local hasX = self.hasTable[x]
+    if hasX then
+        self.hasTable[x][y] = nil
+    end
+end
+
+function PointSet:has(x, y)
+    return self.hasTable[x] and self.hasTable[x][y]
+end 
+
 
 local ant = require 'antarctica'
 local Tilemap = require 'tilemap'
@@ -8,19 +34,19 @@ local Image = require 'image'
 local rect = function(x, y, w, h)
     return {x=x, y=y, w=w, h=h}
 end
-    
+   
 
 
 local editor = function(map, tilefile, filename)
     local Engine = require 'engine'
     
     -- Create a window
-    local windowW, windowH = 640, 480
+    local windowW, windowH = 1200, 700
     local engine, err = Engine{
         title='map editor - '..filename,
         w = windowW,
         h = windowH,
-        windowflags = 0 -- ant.engine.fullscreen
+        windowflags = ant.engine.fullscreendesktop
     }
     if err then
         return error(err)
@@ -83,7 +109,6 @@ local editor = function(map, tilefile, filename)
     ctrl = {
         set_tiles = function(layer, isfirst)
             ctrl.pushundo(isfirst)
-            
             if palettesel.x == -1 or palettesel.y == -1 then
                 return
             end
@@ -94,7 +119,9 @@ local editor = function(map, tilefile, filename)
                 for x = 0, (palettesel.w - 1) do
                     local mapx = mapsel.x + x
                     local palx = palettesel.x + (x % palettesel.w)
-                    map:set_tile(layer, mapx, mapy, palx, paly)
+                    if mapx >= 0 and mapx < map.w and mapy >= 0 and mapy < map.h then 
+                        map:set_tile(layer, mapx, mapy, palx, paly)
+                    end
                 end
             end 
         end,
@@ -170,6 +197,11 @@ local editor = function(map, tilefile, filename)
         end,
         pushundo = function(marker)
             print('push undo')
+
+            if mapsel.x < 0 or mapsel.x >= map.w or mapsel.y < 0 or mapsel.y >= map.h then
+                return
+            end
+
             -- Get the selected area and push
             table.insert(undostack, {
                 data = map:export{x=mapsel.x, y=mapsel.y, w=palettesel.w, h=palettesel.h},
@@ -179,6 +211,13 @@ local editor = function(map, tilefile, filename)
                 h = palettesel.h,
                 mark = marker
             })
+        end,
+        finish_topo_map = function()
+            -- Starting from the selection point as the center, search outward
+            -- for topo edges and replace with proper terrain tiles
+            local originX, originY = mapsel.x, mapsel.y
+
+            
         end,
     }
 
@@ -341,6 +380,7 @@ local editor = function(map, tilefile, filename)
                     if showflags then
                         ctrl.set_flags(editinglayer, true)
                     else
+                        print('set tiles')
                         ctrl.set_tiles(editinglayer, true)
                     end
                 end
@@ -454,6 +494,9 @@ do
         mapoptions = {
             file = mapfile
         }
+    else
+        printusage()
+        return
     end
 
     -- Try to create the map

@@ -10,7 +10,7 @@ function Tilemap:init(options)
     if options.file then
         self:read(options.file)
     elseif options.nlayers and options.w and options.h then
-        self:create_empty(options.nlayers, options.w, options.h)
+        self:createEmpty(options.nlayers, options.w, options.h)
     else
         return nil, 'provide either a file name or empty map dimensions (nlayers, w, h)'
     end
@@ -34,8 +34,8 @@ function Tilemap:write(filename)
 end
 
 
-function Tilemap:create_empty(nlayers, w, h)
-    self._tilemap = ant.tilemap.create_empty(nlayers, w, h)
+function Tilemap:createEmpty(nlayers, w, h)
+    self._tilemap = ant.tilemap.createEmpty(nlayers, w, h)
     --ant.tilemap.get(self._tilemap, self)
     self.nlayers = nlayers
     self.w = w
@@ -44,48 +44,48 @@ function Tilemap:create_empty(nlayers, w, h)
 end
 
 
-function Tilemap:draw_layer(image, layer, px, py, pw, ph, counter)
-    ant.tilemap.draw_layer(self._tilemap, image._image, layer, px, py, pw, ph, counter)
+function Tilemap:drawLayer(image, layer, px, py, pw, ph, counter)
+    ant.tilemap.drawLayer(self._tilemap, image._image, layer, px, py, pw, ph, counter)
 end
 
-function Tilemap:draw_layer_flags(image, layer, px, py, pw, ph)
-    ant.tilemap.draw_layer_flags(self._tilemap, image._image, layer, px, py, pw, ph)
+function Tilemap:drawLayerFlags(image, layer, px, py, pw, ph)
+    ant.tilemap.drawLayerFlags(self._tilemap, image._image, layer, px, py, pw, ph)
 end
 
-function Tilemap:draw_layer_objects(layer, px, py, pw, ph, counter)
-    ant.tilemap.draw_layer_objects(self._tilemap, layer, px, py, pw, ph, counter)
+function Tilemap:drawLayerObjects(layer, px, py, pw, ph, counter)
+    ant.tilemap.drawLayerObjects(self._tilemap, layer, px, py, pw, ph, counter)
 end
 
 --[[
 -- TODO
 
-function Tilemap:get_tile(layer, x, y)
-    return ant.tilemap.get_tile(self._tilemap, layer, x, y)
+function Tilemap:getTile(layer, x, y)
+    return ant.tilemap.getTile(self._tilemap, layer, x, y)
 end
 --]]
 
-function Tilemap:set_tile(layer, x, y, tilex, tiley)
-    ant.tilemap.set_tile(self._tilemap, layer, x, y, tilex, tiley)
+function Tilemap:setTile(layer, x, y, tilex, tiley)
+    ant.tilemap.setTile(self._tilemap, layer, x, y, tilex, tiley)
 end
 
-function Tilemap:get_flags(layer, x, y)
-    return ant.tilemap.get_flags(self._tilemap, layer, x, y)
+function Tilemap:getFlags(layer, x, y)
+    return ant.tilemap.getFlags(self._tilemap, layer, x, y)
 end
 
-function Tilemap:set_flags(layer, x, y, mask)
-    ant.tilemap.set_flags(self._tilemap, layer, x, y, mask)
+function Tilemap:setFlags(layer, x, y, mask)
+    ant.tilemap.setFlags(self._tilemap, layer, x, y, mask)
 end
 
-function Tilemap:clear_flags(layer, x, y, mask)
-    ant.tilemap.clear_flags(self._tilemap, layer, x, y, mask)
+function Tilemap:clearFlags(layer, x, y, mask)
+    ant.tilemap.clearFlags(self._tilemap, layer, x, y, mask)
 end
 
-function Tilemap:overwrite_flags(layer, x, y, mask)
-    ant.tilemap.overwrite_flags(self._tilemap, layer, x, y, mask)
+function Tilemap:overwriteFlags(layer, x, y, mask)
+    ant.tilemap.overwriteFlags(self._tilemap, layer, x, y, mask)
 end
 
 function Tilemap:export(rect)
-    return ant.tilemap.export_slice(self._tilemap, rect.x, rect.y, rect.w, rect.h)
+    return ant.tilemap.exportSlice(self._tilemap, rect.x, rect.y, rect.w, rect.h)
 end
 
 function Tilemap:patch(data, rect)
@@ -94,17 +94,17 @@ end
 
 
 function Tilemap:addObject(object)
-    ant.tilemap.addobject(self._tilemap, object._object)
+    ant.tilemap.addObject(self._tilemap, object._object)
     object._tilemap = self._tilemap
 end
 
 function Tilemap:removeObject(object)
-    ant.tilemap.removeobject(self._tilemap, object._object)
+    ant.tilemap.removeObject(self._tilemap, object._object)
     object._tilemap = nil
 end
 
 function Tilemap:updateObjects()
-    ant.tilemap.updateobjects(self._tilemap)
+    ant.tilemap.updateObjects(self._tilemap)
 end
 
 

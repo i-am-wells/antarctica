@@ -14,7 +14,7 @@ function Image:init(opt)
         return nil, 'failed to load image'
     end
 
-    --ant.image.get(self._image, self)
+    ant.image.get(self._image, self)
 
     self.tw = tilew
     self.th = tileh
@@ -26,18 +26,18 @@ function Image:draw(sx, sy, sw, sh, dx, dy, dw, dh)
 end
 
 
-function Image:drawwhole(dx, dy)
-    ant.image.drawwhole(self._image, dx, dy)
+function Image:drawWhole(dx, dy)
+    ant.image.drawWhole(self._image, dx, dy)
 end
 
 
-function Image:drawtile(tilenum, dx, dy)
-    ant.image.drawtile(self._image, tilenum, dx, dy)
+function Image:drawTile(tilex, tiley, dx, dy)
+    ant.image.drawTile(self._image, tilex, tiley, dx, dy)
 end
 
 
-function Image:drawtext(text, x, y, wrapwidth)
-    ant.image.drawtext(self._image, text, x, y, wrapwidth)
+function Image:drawText(text, x, y, wrapwidth)
+    ant.image.drawText(self._image, text, x, y, wrapwidth)
 end
 
 return Image

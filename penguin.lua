@@ -36,14 +36,14 @@ end
 function Penguin:turn(direction)
     self.direction = direction
     local winfo = self.walkinfo[direction]
-    self:setsprite(winfo.tx, winfo.ty)
+    self:setSprite(winfo.tx, winfo.ty)
 end
 
 -- Update the penguin's sprite to create the walking animation
 function Penguin:setspriteY(count)
     local frame = (count // 4) % 4
     local winfo = self.walkinfo[self.direction]
-    self:setsprite(winfo.tx, winfo.ty + self.walkY[frame+1])
+    self:setSprite(winfo.tx, winfo.ty + self.walkY[frame+1])
 end
 
 function Penguin:updateDirection()

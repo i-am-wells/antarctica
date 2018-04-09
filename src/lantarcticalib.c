@@ -52,6 +52,7 @@ int l_engine_create(lua_State* L) {
         LOPTIONALNUMBER("windowflags", 0),
         LOPTIONALNUMBER("rendererindex", -1),
         LOPTIONALNUMBER("rendererflags", SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC),
+        LOPTIONALNUMBER("targetfps", 60),
         LNULL
     };
     if(luaarg_check(L, args) == -1) {
@@ -86,6 +87,8 @@ int l_engine_create(lua_State* L) {
         return 2;
         //luaL_error(L, "failed to create engine: %s", SDL_GetError());
     }
+
+    e->targetfps = LNUMBER_VALUE(args[8]);
 
     // Set destructor for garbage-collection
     set_gc_metamethod(L, "engine_t", l_engine_destroy);
@@ -230,6 +233,26 @@ int l_engine_set_logical_size(lua_State* L) {
     return 0;
 }
 
+int l_engine_get_logical_size(lua_State* L) {
+    engine_t* e = (engine_t*)luaL_checkudata(L, 1, "engine_t");
+
+    int w, h;
+    engine_get_render_logical_size(e, &w, &h);
+    lua_pushinteger(L, w);
+    lua_pushinteger(L, h);
+    return 2;
+}
+
+int l_engine_get_size(lua_State* L) {
+    engine_t* e = (engine_t*)luaL_checkudata(L, 1, "engine_t");
+
+    int w, h;
+    engine_get_render_size(e, &w, &h);
+    lua_pushinteger(L, w);
+    lua_pushinteger(L, h);
+    return 2;
+}
+
 
 int l_engine_get_ms_since_start(lua_State* L) {
     lua_pushinteger(L, SDL_GetTicks());
@@ -237,21 +260,34 @@ int l_engine_get_ms_since_start(lua_State* L) {
 }
 
 
+int l_engine_set_scale(lua_State* L) {
+    engine_t* e = (engine_t*)luaL_checkudata(L, 1, "engine_t");
+    float scaleX = luaL_checknumber(L, 2);
+    float scaleY = luaL_checknumber(L, 3);
+    engine_set_scale(e, scaleX, scaleY);
+    return 0;
+}
+    
+
+
 static const luaL_Reg enginelib[] = {
     {"create", l_engine_create},
     {"destroy", l_engine_destroy},
-    {"sethandler", l_engine_sethandler},
-    {"setredraw", l_engine_setredraw},
+    {"setHandler", l_engine_sethandler},
+    {"setRedraw", l_engine_setredraw},
     {"run", l_engine_run},
     {"stop", l_engine_stop},
-    {"drawpoint", l_engine_draw_point},
-    {"drawline", l_engine_draw_line},
-    {"drawrect", l_engine_draw_rect},
-    {"fillrect", l_engine_fill_rect},
+    {"drawPoint", l_engine_draw_point},
+    {"drawLine", l_engine_draw_line},
+    {"drawRect", l_engine_draw_rect},
+    {"fillRect", l_engine_fill_rect},
     {"clear", l_engine_clear},
-    {"setcolor", l_engine_set_draw_color},
-    {"getcolor", l_engine_get_draw_color},
-    {"setlogicalsize", l_engine_set_logical_size},
+    {"setColor", l_engine_set_draw_color},
+    {"getColor", l_engine_get_draw_color},
+    {"setLogicalSize", l_engine_set_logical_size},
+    {"getLogicalSize", l_engine_get_logical_size},
+    {"getSize", l_engine_get_size},
+    {"setScale", l_engine_set_scale},
     {"msSinceStart", l_engine_get_ms_since_start},
     {NULL, NULL}
 };
@@ -421,9 +457,9 @@ static const luaL_Reg imagelib[] = {
     {"load", l_image_load},
     {"destroy", l_image_destroy},
     {"draw", l_image_draw},
-    {"drawwhole", l_image_draw_whole},
-    {"drawtile", l_image_draw_tile},
-    {"drawtext", l_image_draw_text},
+    {"drawWhole", l_image_draw_whole},
+    {"drawTile", l_image_draw_tile},
+    {"drawText", l_image_draw_text},
     {"get", l_image_get},
     {NULL, NULL}
 };
@@ -522,7 +558,7 @@ static void object_update_callback(void* d, object_t* oA) {
     }
 
     if(lua_getfield(L, -1, "onupdate") == LUA_TFUNCTION) {
-        // push a copy of oA's table and oB's table
+        // push "self"
         lua_pushvalue(L, -2);
         lua_call(L, 1, 0);
     } else {
@@ -895,22 +931,22 @@ int l_tilemap_set_tile_animation_info(lua_State* L) {
 static const luaL_Reg tilemaplib[] = {
     {"read", l_tilemap_read},
     {"write", l_tilemap_write},
-    {"create_empty", l_tilemap_create_empty},
-    {"draw_layer", l_tilemap_draw_layer},
-    {"draw_layer_flags", l_tilemap_draw_layer_flags},
-    {"draw_layer_objects", l_tilemap_draw_layer_objects},
-    {"set_tile", l_tilemap_set_tile},
-    {"get_flags", l_tilemap_get_flags},
-    {"set_flags", l_tilemap_set_flags},
-    {"clear_flags", l_tilemap_clear_flags},
-    {"overwrite_flags", l_tilemap_overwrite_flags},
-    {"export_slice", l_tilemap_export_slice},
+    {"createEmpty", l_tilemap_create_empty},
+    {"drawLayer", l_tilemap_draw_layer},
+    {"drawLayerFlags", l_tilemap_draw_layer_flags},
+    {"drawLayerObjects", l_tilemap_draw_layer_objects},
+    {"setTile", l_tilemap_set_tile},
+    {"getFlags", l_tilemap_get_flags},
+    {"setFlags", l_tilemap_set_flags},
+    {"clearFlags", l_tilemap_clear_flags},
+    {"overwriteFlags", l_tilemap_overwrite_flags},
+    {"exportSlice", l_tilemap_export_slice},
     {"patch", l_tilemap_patch},
     {"get", l_tilemap_get},
-    {"addobject", l_tilemap_add_object},
-    {"removeobject", l_tilemap_remove_object},
+    {"addObject", l_tilemap_add_object},
+    {"removeObject", l_tilemap_remove_object},
     {"setCameraObject", l_tilemap_set_camera_object},
-    {"updateobjects", l_tilemap_update_objects},
+    {"updateObjects", l_tilemap_update_objects},
     {"drawLayerAtCameraObject", l_tilemap_draw_layer_at_camera_object},
     {"drawObjectsAtCameraObject", l_tilemap_draw_objects_at_camera_object},
     {"getTileAnimationInfo", l_tilemap_get_tile_animation_info},
@@ -1046,9 +1082,9 @@ int l_object_get_location(lua_State* L) {
 
 static const luaL_Reg objectlib[] = {
     {"create", l_object_create},
-    {"set_sprite", l_object_set_sprite},
-    {"move_relative", l_object_move_relative},
-    {"move_absolute", l_object_move_absolute},
+    {"setSprite", l_object_set_sprite},
+    {"moveRelative", l_object_move_relative},
+    {"moveAbsolute", l_object_move_absolute},
     {"setXVelocity", l_object_set_x_velocity},
     {"setYVelocity", l_object_set_y_velocity},
     {"setVelocity", l_object_set_velocity},
