@@ -269,6 +269,17 @@ int l_engine_set_scale(lua_State* L) {
 }
     
 
+int l_engine_start_text_input(lua_State* L) {
+    (void) L;
+    SDL_StartTextInput();
+    return 0;
+}
+
+int l_engine_stop_text_input(lua_State* L) {
+    (void) L;
+    SDL_StopTextInput();
+    return 0;
+}
 
 static const luaL_Reg enginelib[] = {
     {"create", l_engine_create},
@@ -289,6 +300,8 @@ static const luaL_Reg enginelib[] = {
     {"getSize", l_engine_get_size},
     {"setScale", l_engine_set_scale},
     {"msSinceStart", l_engine_get_ms_since_start},
+    {"startTextInput", l_engine_start_text_input},
+    {"stopTextInput", l_engine_stop_text_input},
     {NULL, NULL}
 };
 
@@ -452,6 +465,14 @@ int l_image_draw_text(lua_State* L) {
     return 0;
 }
 
+int l_image_scale(lua_State* L) {
+    image_t* i = (image_t*)luaL_checkudata(L, 1, "image_t");
+    double scale = luaL_checknumber(L, 2);
+
+    lua_pushinteger(L, image_scale(i, scale));
+    return 1;
+}
+
 
 static const luaL_Reg imagelib[] = {
     {"load", l_image_load},
@@ -461,6 +482,7 @@ static const luaL_Reg imagelib[] = {
     {"drawTile", l_image_draw_tile},
     {"drawText", l_image_draw_text},
     {"get", l_image_get},
+    {"scale", l_image_scale},
     {NULL, NULL}
 };
 
@@ -634,6 +656,22 @@ int l_tilemap_write(lua_State* L) {
     return 1;
 }
 
+
+int l_tilemap_prerender_layer(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    int layer = luaL_checkinteger(L, 2);
+    image_t* i = (image_t*)luaL_checkudata(L, 3, "image_t");
+
+    if(tilemap_prerender_layer(t, layer, i)) {
+        lua_pushboolean(L, 1);
+    } else {
+        lua_pushboolean(L, 0);
+    }
+
+    return 1;
+}
+
+
 // TODO make layer, flags, etc. options to one function
 
 int l_tilemap_draw_layer(lua_State* L) {
@@ -693,6 +731,25 @@ int l_tilemap_set_tile(lua_State* L) {
     tilemap_set_tile(t, layer, x, y, tx, ty);
 
     return 0;
+}
+
+
+int l_tilemap_get_tile(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    int layer = luaL_checkinteger(L, 2);
+    int x = luaL_checkinteger(L, 3);
+    int y = luaL_checkinteger(L, 4);
+    
+    int tx = -1;
+    int ty = -1;
+    if(!tilemap_get_tile(t, layer, x, y, &tx, &ty)) {
+        lua_pushnil(L);
+        return 1;
+    } 
+    
+    lua_pushinteger(L, tx);
+    lua_pushinteger(L, ty);
+    return 2;
 }
 
 
@@ -936,6 +993,7 @@ static const luaL_Reg tilemaplib[] = {
     {"drawLayerFlags", l_tilemap_draw_layer_flags},
     {"drawLayerObjects", l_tilemap_draw_layer_objects},
     {"setTile", l_tilemap_set_tile},
+    {"getTile", l_tilemap_get_tile},
     {"getFlags", l_tilemap_get_flags},
     {"setFlags", l_tilemap_set_flags},
     {"clearFlags", l_tilemap_clear_flags},
@@ -951,6 +1009,7 @@ static const luaL_Reg tilemaplib[] = {
     {"drawObjectsAtCameraObject", l_tilemap_draw_objects_at_camera_object},
     {"getTileAnimationInfo", l_tilemap_get_tile_animation_info},
     {"setTileAnimationInfo", l_tilemap_set_tile_animation_info},
+    {"prerenderLayer", l_tilemap_prerender_layer},
     {NULL, NULL}
 };
 
@@ -987,7 +1046,7 @@ int l_object_create(lua_State* L) {
         options.tx,
         options.ty,
         options.animation_count,
-        options.animation_period
+        options.animation_period,
     */
 
     object_t* o = (object_t*)lua_newuserdata(L, sizeof(object_t));
@@ -1002,6 +1061,18 @@ int l_object_create(lua_State* L) {
     set_gc_metamethod(L, "object_t", l_object_deinit);
 
     return 1;
+}
+
+
+int l_object_set_bounding_box(lua_State* L) {
+    object_t* o = (object_t*)luaL_checkudata(L, 1, "object_t");
+    int x = luaL_checkinteger(L, 2);
+    int y = luaL_checkinteger(L, 3);
+    int w = luaL_checkinteger(L, 4);
+    int h = luaL_checkinteger(L, 5);
+   
+    object_set_bounding_box(o, x, y, w, h);
+    return 0;
 }
 
 
@@ -1036,8 +1107,10 @@ int l_object_set_sprite(lua_State* L) {
     int ty = luaL_checkinteger(L, 3);
     int acount = luaL_checkinteger(L, 4);
     int aperiod = luaL_checkinteger(L, 5);
-
-    object_set_sprite(o, tx, ty, acount, aperiod);
+    int offX = luaL_checkinteger(L, 6);
+    int offY = luaL_checkinteger(L, 7);
+    
+    object_set_sprite(o, tx, ty, acount, aperiod, offX, offY);
     return 0;
 }
 
@@ -1080,6 +1153,14 @@ int l_object_get_location(lua_State* L) {
 }
 
 
+int l_object_remove_self(lua_State* L) {
+    object_t* o = (object_t*)luaL_checkudata(L, 1, "object_t");
+    o->toRemove = 1;
+
+    return 0;
+}
+
+
 static const luaL_Reg objectlib[] = {
     {"create", l_object_create},
     {"setSprite", l_object_set_sprite},
@@ -1089,6 +1170,8 @@ static const luaL_Reg objectlib[] = {
     {"setYVelocity", l_object_set_y_velocity},
     {"setVelocity", l_object_set_velocity},
     {"getLocation", l_object_get_location},
+    {"setBoundingBox", l_object_set_bounding_box},
+    {"removeSelf", l_object_remove_self}, 
     {NULL, NULL}
 };
 
@@ -1175,6 +1258,15 @@ int luaopen_antarctica(lua_State * L) {
     set_int_field(L, "popupmenu", SDL_WINDOW_POPUP_MENU);
     set_int_field(L, "vulkan", SDL_WINDOW_VULKAN);
 
+    set_int_field(L, "mousebuttonleft", SDL_BUTTON_LEFT);
+    set_int_field(L, "mousebuttonmiddle", SDL_BUTTON_MIDDLE);
+    set_int_field(L, "mousebuttonright", SDL_BUTTON_RIGHT);
+
+    set_int_field(L, "rendersoftware", SDL_RENDERER_SOFTWARE);
+    set_int_field(L, "renderaccelerated", SDL_RENDERER_ACCELERATED);
+    set_int_field(L, "rendervsync", SDL_RENDERER_PRESENTVSYNC);
+    set_int_field(L, "rendertargettexture", SDL_RENDERER_TARGETTEXTURE);
+
     lua_setfield(L, -2, "engine");
 
     // image
@@ -1188,6 +1280,11 @@ int luaopen_antarctica(lua_State * L) {
     set_int_field(L, "bumpnorthflag", TILEMAP_BUMP_NORTH_MASK);
     set_int_field(L, "bumpwestflag", TILEMAP_BUMP_WEST_MASK);
     set_int_field(L, "bumpsouthflag", TILEMAP_BUMP_SOUTH_MASK);
+    set_int_field(L, "bumpnortheastflag", TILEMAP_BUMP_NORTHEAST_MASK);
+    set_int_field(L, "bumpnorthwestflag", TILEMAP_BUMP_NORTHWEST_MASK);
+    set_int_field(L, "bumpsouthwestflag", TILEMAP_BUMP_SOUTHWEST_MASK);
+    set_int_field(L, "bumpsoutheastflag", TILEMAP_BUMP_SOUTHEAST_MASK);
+
     lua_setfield(L, -2, "tilemap");
 
     // object
