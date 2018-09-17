@@ -42,6 +42,22 @@ int engine_init(engine_t * e, char * wtitle, int x, int y, int w, int h, int wfl
     if(!e->renderer)
         goto engine_init_fail;
 
+    SDL_RendererInfo rinfo;
+    if(SDL_GetRendererInfo(e->renderer, &rinfo) == -1) {
+        fprintf(stderr, "warning: failed to get renderer info\n");
+    } else {
+        printf("Renderer name: %s\n", rinfo.name);
+        printf("Max texture dimensions: %dx%d\n", rinfo.max_texture_width, rinfo.max_texture_height);
+        if(rinfo.flags & SDL_RENDERER_SOFTWARE)
+            printf("Software renderer\n");
+        if(rinfo.flags & SDL_RENDERER_ACCELERATED)
+            printf("Hardware accelerated renderer\n");
+        if(rinfo.flags & SDL_RENDERER_PRESENTVSYNC)
+            printf("Vsync enabled\n");
+        if(rinfo.flags & SDL_RENDERER_TARGETTEXTURE)
+            printf("Rendering to texture supported\n");
+    }
+
 
     // Clear screen
     SDL_SetRenderDrawColor(e->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
@@ -52,11 +68,13 @@ int engine_init(engine_t * e, char * wtitle, int x, int y, int w, int h, int wfl
     e->running = 0;
     e->targetfps = 60;
 
-    // Set up audio
+    // Set up audio -- TODO find out why Mix_CloseAudio hangs
+    
     if(Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 1024) == -1) {
         fprintf(stderr, "failed to open audio device: %s\n", Mix_GetError());
         return 1;
     }
+    
 
     // Success
     return 1;
@@ -256,10 +274,11 @@ static int engine_run_event_handlers(engine_t* e, lua_State* L) {
             // Mouse button up event
             lua_pushinteger(L, ev.button.x);
             lua_pushinteger(L, ev.button.y);
+            lua_pushinteger(L, ev.button.button);
             lua_pushinteger(L, ev.button.which);
             lua_pushinteger(L, ev.button.windowID);
             lua_pushinteger(L, ev.button.timestamp);
-            lua_call(L, 5, 0);
+            lua_call(L, 6, 0);
         } else if(ev.type == SDL_MOUSEWHEEL && get_event_handler(L, ev.type)) {
             // Mouse wheel event
             lua_pushinteger(L, ev.wheel.x);
@@ -269,6 +288,18 @@ static int engine_run_event_handlers(engine_t* e, lua_State* L) {
             lua_pushinteger(L, ev.wheel.windowID);
             lua_pushinteger(L, ev.wheel.timestamp);
             lua_call(L, 6, 0);
+        } else if(ev.type == SDL_TEXTINPUT && get_event_handler(L, ev.type)) {
+            lua_pushstring(L, ev.text.text);
+            lua_pushinteger(L, ev.text.windowID);
+            lua_pushinteger(L, ev.text.timestamp);
+            lua_call(L, 3, 0);
+        } else if(ev.type == SDL_TEXTEDITING && get_event_handler(L, ev.type)) {
+            lua_pushstring(L, ev.edit.text);
+            lua_pushinteger(L, ev.edit.start);
+            lua_pushinteger(L, ev.edit.length);
+            lua_pushinteger(L, ev.edit.windowID);
+            lua_pushinteger(L, ev.edit.timestamp);
+            lua_call(L, 5, 0);
         } else if(ev.type == SDL_QUIT) {
             // Quit event (alt-f4 or window close or ctrl-C)
             if(get_event_handler(L, ev.type)) {
