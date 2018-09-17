@@ -52,6 +52,10 @@ typedef struct tilemap_t {
     void* object_callback_data;
 
     tile_t** tiles;     /**< tile data */
+
+    //image_t** prerender; // prerendered map images
+    SDL_Texture** prerender;
+
 } tilemap_t;
 
 
@@ -67,7 +71,13 @@ enum {
     TILEMAP_BUMP_SOUTH_MASK =     0x100,    /**< objects can't enter the square from the south */
     TILEMAP_BUMP_WEST_MASK =      0x200,    /**< objects can't enter from the west */
     TILEMAP_BUMP_NORTH_MASK =     0x400,    /**< objects can't enter from the north */
-    TILEMAP_BUMP_EAST_MASK =      0x800     /**< objects can't enter from the east */
+    TILEMAP_BUMP_EAST_MASK =      0x800,    /**< objects can't enter from the east */
+    
+    // TODO implement
+    TILEMAP_BUMP_NORTHEAST_MASK = 0x1000,
+    TILEMAP_BUMP_NORTHWEST_MASK = 0x2000,
+    TILEMAP_BUMP_SOUTHWEST_MASK = 0x4000,
+    TILEMAP_BUMP_SOUTHEAST_MASK = 0x8000
 };
 
 // get
@@ -143,7 +153,7 @@ tile_t * tilemap_get_tile_address(const tilemap_t* t, size_t layer, size_t x, si
  *  \param tiley    y index of tile in image
  */
 void tilemap_set_tile(tilemap_t* t, size_t layer, size_t x, size_t y, int tilex, int tiley);
-
+int tilemap_get_tile(tilemap_t* t, size_t layer, size_t x, size_t y, int* tx, int* ty);
 
 /**
  *  Given the pixel dimensions of the renderer and a location on the map in
@@ -238,6 +248,7 @@ void tilemap_draw_objects_at_camera_object(const tilemap_t* t, int layer, int pw
 
 int tilemap_get_tile_animation_info(const tilemap_t* t, size_t layer, int x, int y, int* period, int* count);
 int tilemap_set_tile_animation_info(tilemap_t* t, size_t layer, int x, int y, int period, int count);
+int tilemap_prerender_layer(tilemap_t* t, size_t layer, const image_t* image);
 
 #endif
 

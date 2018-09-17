@@ -48,6 +48,14 @@ void tilemap_deinit(tilemap_t* t) {
             free(t->tiles);
             t->tiles = NULL;
         }
+
+        if(t->prerender) {
+            for(size_t i = 0; i < t->nlayers; i++) {
+                if(t->prerender[i])
+                    SDL_DestroyTexture(t->prerender[i]);
+            }
+            free(t->prerender);
+        }
     }
 }
 
@@ -87,7 +95,57 @@ int tilemap_init(tilemap_t * t, size_t nlayers, size_t w, size_t h) {
     t->w = w;
     t->h = h;
     t->nlayers = nlayers;
+
+    t->prerender = (SDL_Texture**)calloc(nlayers, sizeof(SDL_Texture*));
+    if(!t->prerender) {
+        fprintf(stderr, "failed to allocate memory for map prerender\n");
+    }
+
     return 1;
+}
+
+
+int tilemap_prerender_layer(tilemap_t* t, size_t layer, const image_t* image) {
+    assert(t);
+    assert(image);
+    assert(layer < t->nlayers);
+
+    int pixW = t->w * image->tw;
+    int pixH = t->h * image->th;
+
+    // Render to one enormous texture! Renderer must support texture as rendering target.
+    Uint32 pixelformat;
+    if(SDL_QueryTexture(image->texture, &pixelformat, NULL, NULL, NULL) == -1)
+        return 0;
+
+    SDL_Texture* tex = SDL_CreateTexture(
+            image->renderer, 
+            pixelformat, 
+            SDL_TEXTUREACCESS_TARGET,
+            pixW,
+            pixH
+        );
+    if(!tex) {
+        fprintf(stderr, "failed to prerender map layer %zu: %s\n", layer, SDL_GetError());
+        return 0;
+    }
+
+    if(t->prerender[layer]) 
+        SDL_DestroyTexture(t->prerender[layer]);
+    t->prerender[layer] = NULL;
+
+    // Target the prerender texture
+    SDL_SetRenderTarget(image->renderer, tex);
+
+    // Draw tiles
+    tilemap_draw_layer(t, image, layer, 0, 0, pixW, pixH, 0);
+
+    // Target the screen again
+    SDL_SetRenderTarget(image->renderer, NULL);
+    
+    
+    t->prerender[layer] = tex;
+    return 1; // success
 }
 
 
@@ -113,6 +171,23 @@ void tilemap_set_tile(tilemap_t* t, size_t layer, size_t x, size_t y, int tilex,
         tileptr->tilex = tilex & 0xff;
         tileptr->tiley = tiley & 0xff;
     }
+}
+
+
+int tilemap_get_tile(tilemap_t* t, size_t layer, size_t x, size_t y, int* tx, int* ty) {
+    assert(t);
+
+    tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
+    if(tileptr) {
+        if(tx)
+            *tx = tileptr->tilex;
+        if(ty)
+            *ty = tileptr->tiley;
+
+        return 1;
+    }
+
+    return 0;
 }
 
 
@@ -171,6 +246,21 @@ void tilemap_set_object_callbacks(tilemap_t* t, void* data, void (*bump)(void*, 
 
 
 void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph, int counter) {
+    // check for prerender
+    if(t->prerender && t->prerender[l]) {
+        SDL_Rect src, dst;
+        src.x = px;
+        src.y = py;
+        src.w = pw;
+        src.h = ph;
+        dst.x = 0;
+        dst.y = 0;
+        dst.w = pw;
+        dst.h = ph;
+        SDL_RenderCopy(i->renderer, t->prerender[l], &src, &dst);
+        return;
+    }
+
     // Get the starting position and dimensions for drawing in map square coordinates
     int startx = (px / i->tw);
     int starty = (py / i->th);
@@ -197,11 +287,13 @@ void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int
                 if((drawx > -1) && (drawx < t->w)) {
                     // draw the tile at (layer, drawx, drawy)
                     tile_t* tile = layer + drawy * t->w + drawx;
-                    
-                    // Animation
-                    int tiley = tile->tiley + (counter / TILE_ANIM_PERIOD(tile)) % TILE_ANIM_COUNT(tile);
+                   
+                    if((tile->tilex != 16) || (tile->tiley != 0)) {
+                        // Animation
+                        int tiley = tile->tiley + (counter / TILE_ANIM_PERIOD(tile)) % TILE_ANIM_COUNT(tile);
 
-                    image_draw_tile(i, tile->tilex, tiley, x * i->tw - offx, y * i->th - offy);
+                        image_draw_tile(i, tile->tilex, tiley, x * i->tw - offx, y * i->th - offy);
+                    }
                 }
             } // loop x
         }
@@ -273,6 +365,13 @@ void tilemap_draw_layer_flags(const tilemap_t* t, const image_t* i, int l, int p
                         dst.w = i->tw;
                         dst.h = thickness;
                         SDL_RenderFillRect(i->renderer, &dst);
+                    }
+
+                    if(tile->flags & (TILEMAP_BUMP_NORTHWEST_MASK | TILEMAP_BUMP_SOUTHEAST_MASK)) {
+                        SDL_RenderDrawLine(i->renderer, x0, y0+i->th, x0+i->tw, y0);
+                    }
+                    if(tile->flags & (TILEMAP_BUMP_NORTHEAST_MASK | TILEMAP_BUMP_SOUTHWEST_MASK)) {
+                        SDL_RenderDrawLine(i->renderer, x0, y0, x0+i->tw, y0+i->th);
                     }
                     
                     // draw a green rectangle in the center of map squares with
@@ -429,6 +528,10 @@ void tilemap_update_objects(tilemap_t* t) {
     for(object_t* object = t->head; object != NULL; object = object->next) {
         // === Run update callback ===
         t->object_update_callback(t->object_callback_data, object);
+        if(object->toRemove) {
+            tilemap_remove_object(t, object);
+            object->toRemove = 0;
+        }
     }
     
     // TODO update sprites as well? (edit 1/19: nvm, should happen in Lua) 
@@ -444,9 +547,18 @@ void tilemap_update_objects(tilemap_t* t) {
 
         int mapx, mapy;
         object_get_map_location(object, &mapx, &mapy);
-        int mapx2 = (object->x + object->tw) / object->image->tw;
-        int mapy2 = (object->y + object->th) / object->image->th;
+        //int mapx2 = (object->x + object->tw) / object->image->tw;
+        //int mapy2 = (object->y + object->th) / object->image->th;
+        int mapx2 = (object->x + object->boundX + object->boundW) / object->image->tw;
+        int mapy2 = (object->y + object->boundY + object->boundH) / object->image->th;
+        // TODO should not assume that object tw is same as map tw       
 
+
+        // TODO begin new wall bump code
+        
+
+
+        // TODO end new bump code
 
         // === Run wall collision callbacks ===
         // Check if new position would overlap any blocked squares (x direction)
@@ -500,8 +612,13 @@ void tilemap_update_objects(tilemap_t* t) {
         tilemap_move_object_relative(t, object, velx, vely);
         
         // Run wall bump callback
-        if(bumpdir && t->bump_callback)
+        if(bumpdir && t->bump_callback) {
             t->bump_callback(t->object_callback_data, object, bumpdir);
+            if(object->toRemove) {
+                tilemap_remove_object(t, object);
+                object->toRemove = 0;
+            }
+        }
 
         // Next
         object = object->next;
@@ -524,10 +641,14 @@ void tilemap_update_objects(tilemap_t* t) {
             object_t* objectB = OBJECT_AT(t->objectvec, j);
 
             // Check if they overlap in y direction
-            if((objectA->y + objectA->th) >= objectB->y) {
+            if((objectA->y + objectA->boundY + objectA->boundH) >= (objectB->y + objectB->boundY)) {
+                
                 // Check x
-                if(((objectA->x < objectB->x) && ((objectA->x + objectA->tw) >= objectB->x))
-                        || ((objectA->x >= objectB->x) && (objectA->x <= (objectB->x + objectB->tw)))) {
+                int ax0 = objectA->x + objectA->boundX;
+                int ax1 = ax0 + objectA->boundW;
+                int bx0 = objectB->x + objectB->boundX;
+                int bx1 = bx0 + objectB->boundW;
+                if(((ax0 < bx0) && (ax1 >= bx1)) || ((ax0 >= bx0) && (ax0 <= bx1))) {
                     // there is overlap
                     t->collision_callback(t->object_callback_data, objectA, objectB);
                 }
@@ -535,6 +656,14 @@ void tilemap_update_objects(tilemap_t* t) {
                 // no Y overlap: move to the next objectA
                 break;
             }
+        }
+    }
+
+    // remove objects marked for removal
+    for(object_t* object = t->head; object != NULL; object = object->next) {
+        if(object->toRemove) {
+            tilemap_remove_object(t, object);
+            object->toRemove = 0;
         }
     }
 }
@@ -699,12 +828,15 @@ int tilemap_read_from_file(tilemap_t * t, const char * path) {
 
     // TODO check version?
     //
-    
+    t->nlayers = 0;
+    t->w = 0;
+    t->h = 0;
+
     // Get dimensions
     t->nlayers = buffer[4];
-    t->w = (buffer[5] << 8) | buffer[6];
-    t->h = (buffer[7] << 8) | buffer[8];
-
+    t->w = ((buffer[5] << 8) & 0xff00) | (buffer[6] & 0xff);
+    t->h = ((buffer[7] << 8) & 0xff00) | (buffer[8] & 0xff);
+    
     t->tiles = (tile_t**)malloc(t->nlayers * sizeof(tile_t*));
     if(!t->tiles) {
         fclose(f);
@@ -759,14 +891,14 @@ int tilemap_write_to_file(const tilemap_t * t, const char * path) {
     buffer[3] = 0;
 
     // number of layers
-    buffer[4] = t->nlayers;
+    buffer[4] = t->nlayers & 0xff;
     
     // width
-    buffer[5] = (t->w >> 8) & 0xff;
+    buffer[5] = (t->w & 0xff00) >> 8;
     buffer[6] = t->w & 0xff;
 
     // height
-    buffer[7] = (t->h >> 8) & 0xff;
+    buffer[7] = (t->h & 0xff00) >> 8;
     buffer[8] = t->h & 0xff;
 
     if(fwrite(buffer, 9, 1, f) != 1) {

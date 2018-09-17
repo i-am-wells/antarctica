@@ -40,7 +40,17 @@ function Tilemap:createEmpty(nlayers, w, h)
     self.nlayers = nlayers
     self.w = w
     self.h = h
-    for k,v in pairs(self) do print(k,v) end
+end
+
+
+function Tilemap:clean(cleanX, cleanY)
+    for l = 0, self.nlayers - 1 do
+        for y = 0, self.h - 1 do
+            for x = 0, self.w - 1 do
+                self:setTile(l, x, y, cleanX, cleanY)
+            end
+        end
+    end
 end
 
 
@@ -56,13 +66,9 @@ function Tilemap:drawLayerObjects(layer, px, py, pw, ph, counter)
     ant.tilemap.drawLayerObjects(self._tilemap, layer, px, py, pw, ph, counter)
 end
 
---[[
--- TODO
-
 function Tilemap:getTile(layer, x, y)
     return ant.tilemap.getTile(self._tilemap, layer, x, y)
 end
---]]
 
 function Tilemap:setTile(layer, x, y, tilex, tiley)
     ant.tilemap.setTile(self._tilemap, layer, x, y, tilex, tiley)
@@ -153,6 +159,10 @@ function Tilemap:runInteractCallback(layer, mapx, mapy, object)
     if type(cb) == 'function' then
         cb(object)
     end
+end
+
+function Tilemap:prerenderLayer(layer, image)
+    return ant.tilemap.prerenderLayer(self._tilemap, layer, image._image)
 end
 
 return Tilemap
