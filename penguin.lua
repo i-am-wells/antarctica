@@ -15,9 +15,14 @@ function Penguin:init(options)
 
     Object.init(self, options)
 
+    self:setBoundingBox{x=0, y=0, w=16, h=16}
+
+    self.offX = 0
+    self.offY = -16
+
     -- Penguin's walking velocity
     self.stepsize = 2
-
+    
 
     -- Used for looking up which sprite to use for each direction the penguin
     -- can face.
@@ -36,14 +41,28 @@ end
 function Penguin:turn(direction)
     self.direction = direction
     local winfo = self.walkinfo[direction]
-    self:setSprite(winfo.tx, winfo.ty)
+    self:setSprite(
+        winfo.tx, 
+        winfo.ty,
+        self.animation_count,
+        self.animation_period,
+        self.offX,
+        self.offY
+    )
 end
 
 -- Update the penguin's sprite to create the walking animation
 function Penguin:setspriteY(count)
     local frame = (count // 4) % 4
     local winfo = self.walkinfo[self.direction]
-    self:setSprite(winfo.tx, winfo.ty + self.walkY[frame+1])
+    self:setSprite(
+        winfo.tx, 
+        winfo.ty + self.walkY[frame+1],
+        self.animation_count,
+        self.animation_period,
+        self.offX,
+        self.offY
+    )
 end
 
 function Penguin:updateDirection()
@@ -106,6 +125,7 @@ end
 
 function Penguin:interact(map)
     local mx, my = self:getTileLocation()
+
 
     if self.direction == 'north' then
         map:runInteractCallback(self.layer, mx, my, self)
