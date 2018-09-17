@@ -45,9 +45,12 @@ class.deriving = function(...)
 
         local err = nil
         if that.init then
-            err = that:init(...)
+            _, err = that:init(...)
         end
 
+        if err then
+            return nil, err
+        end
         return that, err
     end
 
