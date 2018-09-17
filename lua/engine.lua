@@ -25,6 +25,8 @@ local eventkeymap = {
 
     keydown         = 0x300,
     keyup           = 0x301,
+    textediting     = 0x302,
+    textinput       = 0x303,
 
     mousemotion     = 0x400,
     mousebuttondown = 0x401,
