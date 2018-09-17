@@ -30,6 +30,20 @@ function Object:init(options)
 
     self.velx = 0
     self.vely = 0
+
+    self.facing = options.facing or 's'
+
+    if options.bbox then
+        self:setBoundingBox(options.bbox)
+    end
+end
+
+
+function Object:setBoundingBox(box)
+    ant.object.setBoundingBox(
+        self._object,
+        box.x, box.y, box.w, box.h
+    )
 end
 
 
@@ -66,12 +80,14 @@ function Object:warp(x, y)
 end
 
 
-function Object:setSprite(tx, ty, animation_count, animation_period)
+function Object:setSprite(tx, ty, animation_count, animation_period, offX, offY)
     tx = tx or 0
     ty = ty or 0
     animation_count = animation_count or 1
     animation_period = animation_period or 1
-    ant.object.setSprite(self._object, tx, ty, animation_count, animation_period)
+    offX = offX or 0
+    offY = offY or 0
+    ant.object.setSprite(self._object, tx, ty, animation_count, animation_period, offX, offY)
 end
 
 function Object:getLocation()
@@ -85,6 +101,7 @@ function Object:getTileLocation()
     return (px // self.image.tw), (py // self.image.th)
 end
 
+
 function Object:on(handlers)
     for k, v in pairs(handlers) do
         if type(v) == 'function' then
@@ -93,6 +110,10 @@ function Object:on(handlers)
             error('expected function for "'..k..'" but got '..type(v))
         end
     end
+end
+
+function Object:remove()
+    ant.object.removeSelf(self._object)
 end
 
 return Object

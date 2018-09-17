@@ -20,10 +20,18 @@ typedef struct object_t {
     // velocity
     int velx, vely;
 
+    // bounding box;
+    int boundX, boundY, boundW, boundH;
+
+    // sprite draw offset
+    int offX, offY;
+
     struct object_t* next;
 
     // index in array
     size_t index;
+
+    int toRemove;
 } object_t;
 
 
@@ -32,9 +40,11 @@ int object_init(object_t* o, image_t* image, int tx, int ty, int tw, int th, int
 void object_deinit(object_t* o);
 
 
+void object_set_bounding_box(object_t* o, int x, int y, int w, int h);
+
 object_t* object_create(image_t* image, int tx, int ty, int tw, int th, int aperiod, int acount, int x, int y, int layer);
 
-void object_set_sprite(object_t* o, int tx, int ty, int animcount, int animperiod);
+void object_set_sprite(object_t* o, int tx, int ty, int animcount, int animperiod, int offX, int offY);
 
 void object_destroy(object_t* o);
 

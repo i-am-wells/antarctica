@@ -18,10 +18,12 @@ int object_init(object_t* o, image_t* image, int tx, int ty, int tw, int th, int
     o->y = y;
     o->layer = layer;
     o->index = -1;
-
+    o->toRemove = 0;
     o->next = NULL;
 
+    object_set_bounding_box(o, 0, 0, tw, th);
     object_set_velocity(o, 0, 0);
+
     return 1;
 }
 
@@ -44,11 +46,21 @@ object_t* object_create(image_t* image, int tx, int ty, int tw, int th, int aper
 }
 
 
-void object_set_sprite(object_t* o, int tx, int ty, int animcount, int animperiod) {
+void object_set_bounding_box(object_t* o, int x, int y, int w, int h) {
+    o->boundX = x;
+    o->boundY = y;
+    o->boundW = w;
+    o->boundH = h;
+}
+
+
+void object_set_sprite(object_t* o, int tx, int ty, int animcount, int animperiod, int offX, int offY) {
     o->tx = tx;
     o->ty = ty;
     o->animperiod = animperiod;
     o->animcount = animcount;
+    o->offX = offX;
+    o->offY = offY;
 }
 
 
@@ -63,7 +75,7 @@ void object_draw(const object_t* o, int vx, int vy, int counter) {
     int orig_th = o->image->th;
     o->image->tw = o->tw;
     o->image->th = o->th;
-    image_draw_tile(o->image, o->tx, o->ty + (counter / o->animperiod) % o->animcount, o->x - vx, o->y - vy);
+    image_draw_tile(o->image, o->tx, o->ty + (counter / o->animperiod) % o->animcount, o->x - vx + o->offX, o->y - vy + o->offY);
     o->image->tw = orig_tw;
     o->image->th = orig_th;
 }
