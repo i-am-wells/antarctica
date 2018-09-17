@@ -24,6 +24,10 @@ typedef struct image_t {
     int texturewidth, textureheight;    /**< Pixel width and height of the texture */
 
     int tw, th; /**< Pixel width and height used to divide the image into tiles */
+    int orig_tw, orig_th;
+
+    SDL_Texture* scaled_texture;
+    double scale;
 } image_t;
 
 
@@ -135,6 +139,8 @@ void image_get_size(const image_t* i, int* w, int* h);
 
 
 void image_draw_text(const image_t* i, const char* text, int dx, int dy, int wrapw);
+
+int image_scale(image_t* i, double scaleBy);
 
 
 #endif

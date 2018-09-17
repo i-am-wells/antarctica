@@ -40,5 +40,10 @@ function Image:drawText(text, x, y, wrapwidth)
     ant.image.drawText(self._image, text, x, y, wrapwidth)
 end
 
+function Image:scale(scale)
+    ant.image.scale(self._image, scale)
+    ant.image.get(self._image, self)
+end
+
 return Image
 
