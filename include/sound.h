@@ -8,12 +8,14 @@ typedef struct sound_t {
     double duration;
 } sound_t;
 
+int soundchannel_set_volume(int channel, double l, double r);
+void soundchannel_reallocate(int numChannels);
 
 int sound_init(sound_t* t, const char* file);
 void sound_deinit(sound_t* t);
 sound_t* sound_create(const char* file);
 void sound_destroy(sound_t* s);
-int sound_play(const sound_t* s, int channel, int nloops);
+int sound_play(const sound_t* s, int channel, int nloops, int duration);
 
 #endif
 

@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #include <SDL.h>
 #include <SDL_image.h>
@@ -49,6 +50,57 @@ int image_init(image_t* i, engine_t* e, const char* filename, int tw, int th) {
 }
 
 
+int image_init_blank(image_t* i, engine_t* e, int w, int h, int tw, int th) {
+    assert(i);
+
+    // Learn about renderer
+    SDL_RendererInfo info;
+    if(SDL_GetRendererInfo(e->renderer, &info) < 0) {
+        fprintf(stderr, "init image: %s\n", SDL_GetError());
+        return 0;
+    }
+
+    // Try first texture format
+    Uint32 texformat = info.texture_formats[0];
+    SDL_Texture* tex = SDL_CreateTexture(
+            e->renderer, 
+            texformat, 
+            SDL_TEXTUREACCESS_TARGET,
+            w,
+            h
+        );
+    if(!tex) {
+        fprintf(stderr, "init blank image: %s\n", SDL_GetError());
+        return 0;
+    }
+    
+    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
+    
+    i->texture = tex;
+    i->renderer = e->renderer;
+    i->texturewidth = w;
+    i->textureheight = h;
+    i->tw = tw;
+    i->th = th;
+
+    // Target new texture
+    SDL_SetRenderTarget(i->renderer, tex);
+
+    // Clear the new texture (transparent black)
+    Uint8 origR, origG, origB, origA;
+    SDL_GetRenderDrawColor(i->renderer, &origR, &origG, &origB, &origA);
+    SDL_SetRenderDrawColor(i->renderer, 0, 0, 0, 0);
+    SDL_RenderClear(i->renderer);
+    SDL_SetRenderDrawColor(i->renderer, origR, origG, origB, origA);
+    
+    // Target the screen
+    SDL_SetRenderTarget(i->renderer, NULL);
+    
+    i->scaled_texture = i->texture;
+    return 1;
+}
+
+
 void image_deinit(image_t* i) {
     if(i) {
         if(i->texture == i->scaled_texture) {
@@ -84,6 +136,31 @@ void image_destroy(image_t* i) {
         image_deinit(i);
         free(i);
     }
+}
+
+
+int image_color_mod(image_t* i, uint8_t r, uint8_t g, uint8_t b) {
+    assert(i);
+    assert(i->texture);
+
+    if(SDL_SetTextureColorMod(i->texture, r, g, b) < 0) {
+        fprintf(stderr, "color mod failed: %s\n", SDL_GetError());
+        return 0;
+    }
+
+    return 1;
+}
+
+int image_alpha_mod(image_t* i, uint8_t a) {
+    assert(i);
+    assert(i->texture);
+
+    if(SDL_SetTextureAlphaMod(i->texture, a) < 0) {
+        fprintf(stderr, "alpha mod failed: %s\n", SDL_GetError());
+        return 0;
+    }
+
+    return 1;
 }
 
 
@@ -174,7 +251,7 @@ void image_draw_text(const image_t* i, const char* text, int dx, int dy, int wra
                 // advance line, draw word
                 drawx = dx;
                 dy += i->th;
-                linepos = 0;
+                linepos = wordlen + 1;
                 image_draw_text_word(i, text, wordlen, drawx, dy);
                 firstword = 0;
                 drawx += i->tw * (wordlen + 1);
@@ -187,6 +264,7 @@ void image_draw_text(const image_t* i, const char* text, int dx, int dy, int wra
             if(firstword)
                 firstword = 0;
 
+            // space
             linepos++;
             drawx += i->tw;
         }
@@ -203,6 +281,21 @@ void image_draw_text(const image_t* i, const char* text, int dx, int dy, int wra
 void image_get_size(const image_t* i, int* w, int* h) {
     SDL_QueryTexture(i->scaled_texture, NULL, NULL, w, h);
 }
+
+
+int image_target_image(image_t* i, image_t* j) {
+    SDL_Texture* target = NULL;
+    if(j)
+        target = j->texture;
+            
+    if(SDL_SetRenderTarget(i->renderer, target) < 0) {
+        fprintf(stderr, "target image: %s\n", SDL_GetError());
+        return 0;
+    }
+
+    return 1;
+}
+
 
 int image_scale(image_t* i, double scale) {
     assert(i);
@@ -259,3 +352,4 @@ int image_scale(image_t* i, double scale) {
 
     return 1;
 }
+

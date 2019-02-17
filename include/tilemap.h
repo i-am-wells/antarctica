@@ -56,6 +56,7 @@ typedef struct tilemap_t {
     //image_t** prerender; // prerendered map images
     SDL_Texture** prerender;
 
+    int updateParity;
 } tilemap_t;
 
 
@@ -235,7 +236,7 @@ void tilemap_set_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mask)
 void tilemap_clear_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mask);
 void tilemap_overwrite_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mask);
 
-int tilemap_get_flags(tilemap_t* t, size_t layer, size_t x, size_t y);
+int tilemap_get_flags(const tilemap_t* t, size_t layer, size_t x, size_t y);
 
 
 void tilemap_set_object_callbacks(tilemap_t* t, void* data, void (*bump)(void*, object_t*, int), void (*collision)(void*, object_t*, object_t*));
@@ -243,12 +244,16 @@ void tilemap_update_objects(tilemap_t* t);
 
 // Camera object
 void tilemap_set_camera_object(tilemap_t* t, object_t* o);
+object_t* tilemap_get_camera_object(const tilemap_t* t);
+void tilemap_get_camera_location(const tilemap_t* t, int pw, int ph, int* x, int* y);
 void tilemap_draw_layer_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph, int counter);
-void tilemap_draw_objects_at_camera_object(const tilemap_t* t, int layer, int pw, int ph, int counter);
+void tilemap_draw_objects_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph, int counter);
 
 int tilemap_get_tile_animation_info(const tilemap_t* t, size_t layer, int x, int y, int* period, int* count);
 int tilemap_set_tile_animation_info(tilemap_t* t, size_t layer, int x, int y, int period, int count);
 int tilemap_prerender_layer(tilemap_t* t, size_t layer, const image_t* image);
+
+void tilemap_abort_update_objects(tilemap_t* t);
 
 #endif
 

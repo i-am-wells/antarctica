@@ -1,9 +1,12 @@
 
 local ant = require 'antarctica'
+local SoundChannels = require 'soundChannels'
+local AudioSource = require 'audioSource'
+local Class = require 'class'
 
-local class = require 'class'
+local Object = require 'object'
 
-local Tilemap = class.base()
+local Tilemap = Class(SoundChannels)
 
 
 function Tilemap:init(options)
@@ -16,6 +19,36 @@ function Tilemap:init(options)
     end
 
     self.interactCallbacks = {}
+    self.objects = {}
+
+    self.name = options.file
+
+    -- Set up sound channels
+    SoundChannels.init(self, options)
+
+    if options.objects then
+        self:populate(options.objects, options.resourceMan)
+    end
+end
+
+
+function Tilemap:populate(objects, resourceMan)
+    for _, frozenObject in ipairs(objects) do
+        --print(frozenObject.class)
+        local newObject = Object.fromTable(frozenObject, resourceMan)
+
+        self:addObject(newObject)
+    end
+end
+
+
+function Tilemap:dumpObjects()
+    local frozenObjects = {}
+    for _, o in pairs(self.objects) do
+        table.insert(frozenObjects, o:toTable())
+    end
+
+    return frozenObjects
 end
 
 
@@ -102,15 +135,35 @@ end
 function Tilemap:addObject(object)
     ant.tilemap.addObject(self._tilemap, object._object)
     object._tilemap = self._tilemap
+    object.map = self
+
+    self.objects[object] = object
+
+    if object.isA[AudioSource] then
+        self:addSource(object)
+    end
 end
 
 function Tilemap:removeObject(object)
     ant.tilemap.removeObject(self._tilemap, object._object)
     object._tilemap = nil
+    object.map = nil
+
+    self.objects[object] = nil
+
+    if object.isA[AudioSource] then
+        self:removeSource(object)
+    end
 end
 
+
 function Tilemap:updateObjects()
+    -- reallocate sound channels
+    self:reallocateChannels()
+    
     ant.tilemap.updateObjects(self._tilemap)
+    
+    --TODO
 end
 
 
@@ -122,8 +175,8 @@ function Tilemap:drawLayerAtCameraObject(image, layer, pw, ph, counter)
     ant.tilemap.drawLayerAtCameraObject(self._tilemap, image._image, layer, pw, ph, counter)
 end
 
-function Tilemap:drawObjectsAtCameraObject(layer, pw, ph, counter)
-    ant.tilemap.drawObjectsAtCameraObject(self._tilemap, layer, pw, ph, counter)
+function Tilemap:drawObjectsAtCameraObject(img, layer, pw, ph, counter)
+    ant.tilemap.drawObjectsAtCameraObject(self._tilemap, img._image, layer, pw, ph, counter)
 end
 
 
@@ -163,6 +216,29 @@ end
 
 function Tilemap:prerenderLayer(layer, image)
     return ant.tilemap.prerenderLayer(self._tilemap, layer, image._image)
+end
+
+function Tilemap:abortUpdateObjects()
+    ant.tilemap.abortUpdateObjects(self._tilemap)
+end
+
+function Tilemap:print(selX, selY)
+    local layer = 0
+
+    local selX, selY = 0 or selX, 0 or selY
+
+    for y = 0, self.h - 1 do
+        local row = ""
+        for x = 0, self.w - 1 do
+            local tx, ty = self:getTile(layer, x, y)
+            if tx == selX and ty == selY then
+                row = row + "#"
+            else
+                row = row + "."
+            end
+            print(row)
+        end
+    end
 end
 
 return Tilemap

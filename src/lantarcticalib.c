@@ -97,6 +97,20 @@ int l_engine_create(lua_State* L) {
     return 1;
 }
 
+int l_engine_get_display_bounds(lua_State* L) {
+    SDL_Rect rect;
+    if(SDL_GetDisplayBounds(0, &rect) != 0) {
+        SDL_Log("SDL_GetDisplayBounds failed: %s", SDL_GetError());
+        return 0;
+    }
+    
+    lua_pushinteger(L, rect.x);
+    lua_pushinteger(L, rect.y);
+    lua_pushinteger(L, rect.w);
+    lua_pushinteger(L, rect.h);
+    return 4;
+}
+
 
 // Set the 
 int l_engine_sethandler(lua_State* L) {
@@ -302,6 +316,8 @@ static const luaL_Reg enginelib[] = {
     {"msSinceStart", l_engine_get_ms_since_start},
     {"startTextInput", l_engine_start_text_input},
     {"stopTextInput", l_engine_stop_text_input},
+
+    {"getDisplayBounds", l_engine_get_display_bounds},
     {NULL, NULL}
 };
 
@@ -365,6 +381,34 @@ int l_image_load(lua_State* L) {
 }
 
 
+int l_image_create_blank(lua_State* L) {
+    luaL_checktype(L, 1, LUA_TTABLE);
+    luaL_checkinteger(L, 2);
+    luaL_checkinteger(L, 3);
+    luaL_checkinteger(L, 4);
+    luaL_checkinteger(L, 5);
+
+    lua_getfield(L, 1, "_engine");
+    engine_t* e = (engine_t*)luaL_checkudata(L, -1, "engine_t");
+    lua_pop(L, 1);
+    int w = lua_tointeger(L, 2);
+    int h = lua_tointeger(L, 3);
+    int tw = lua_tointeger(L, 4);
+    int th = lua_tointeger(L, 5);
+
+    image_t* i = lua_newuserdata(L, sizeof(image_t));
+    if(!image_init_blank(i, e, w, h, tw, th)) {
+        lua_pop(L, 1);
+        lua_pushnil(L);
+        lua_pushstring(L, SDL_GetError());
+        return 2;
+    }
+    
+    set_gc_metamethod(L, "image_t", l_image_destroy);
+
+    return 1;
+}
+
 
 int l_image_draw(lua_State* L) {
     image_t* i = (image_t*)lua_touserdata(L, 1);
@@ -404,6 +448,26 @@ int l_image_draw_tile(lua_State* L) {
     image_draw_tile(i, tilex, tiley, dx, dy);
 
     return 0;
+}
+
+
+int l_image_color_mod(lua_State* L) {
+    image_t* i = (image_t*)luaL_checkudata(L, 1, "image_t");
+    int r = lua_tointeger(L, 2);
+    int g = lua_tointeger(L, 3);
+    int b = lua_tointeger(L, 4);
+
+    lua_pushboolean(L, image_color_mod(i, r, g, b));
+    return 1;
+}
+
+
+int l_image_alpha_mod(lua_State* L) {
+    image_t* i = (image_t*)luaL_checkudata(L, 1, "image_t");
+    int a = lua_tointeger(L, 2);
+
+    lua_pushboolean(L, image_alpha_mod(i, a));
+    return 1;
 }
 
 
@@ -474,6 +538,17 @@ int l_image_scale(lua_State* L) {
 }
 
 
+int l_image_target_image(lua_State* L) {
+    image_t* i = (image_t*)luaL_checkudata(L, 1, "image_t");
+    image_t* j = NULL;
+    if(!lua_isnil(L, 2))
+        j = (image_t*)luaL_checkudata(L, 2, "image_t");
+
+    lua_pushboolean(L, image_target_image(i, j));
+    return 1;
+}
+
+
 static const luaL_Reg imagelib[] = {
     {"load", l_image_load},
     {"destroy", l_image_destroy},
@@ -483,6 +558,10 @@ static const luaL_Reg imagelib[] = {
     {"drawText", l_image_draw_text},
     {"get", l_image_get},
     {"scale", l_image_scale},
+    {"colorMod", l_image_color_mod},
+    {"alphaMod", l_image_alpha_mod},
+    {"targetImage", l_image_target_image},
+    {"createBlank", l_image_create_blank},
     {NULL, NULL}
 };
 
@@ -510,6 +589,7 @@ int l_tilemap_deinit(lua_State* L) {
 }
 
 
+// Pushes o onto the stack and then replaces it with the corresponding Object table
 void get_object_table(lua_State* L, object_t* o) {
     lua_pushlightuserdata(L, o);    
     lua_gettable(L, LUA_REGISTRYINDEX);
@@ -911,6 +991,40 @@ int l_tilemap_set_camera_object(lua_State* L) {
 }
 
 
+int l_tilemap_get_camera_object(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+
+    object_t* o = tilemap_get_camera_object(t);
+    if(o) {
+        get_object_table(L, o);
+    } else {
+        lua_pushnil(L);
+    } 
+
+    return 1;
+}
+
+
+int l_tilemap_get_camera_location(lua_State* L) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    int pw = luaL_checkinteger(L, 2);
+    int ph = luaL_checkinteger(L, 3);
+
+    int x = -1;
+    int y = -1;
+    tilemap_get_camera_location(t, pw, ph, &x, &y);
+
+    if((x != -1) && (y != -1)) {
+        lua_pushinteger(L, x);
+        lua_pushinteger(L, y);
+        return 2;
+    }
+
+    lua_pushnil(L);
+    return 1;
+}
+
+
 int l_tilemap_update_objects(lua_State* L) {
     tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
 
@@ -936,12 +1050,13 @@ int l_tilemap_draw_layer_at_camera_object(lua_State* L) {
 
 int l_tilemap_draw_objects_at_camera_object(lua_State* L) {
     tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-    int layer = luaL_checkinteger(L, 2);
-    int pw = luaL_checkinteger(L, 3);
-    int ph = luaL_checkinteger(L, 4);
-    int counter = luaL_checkinteger(L, 5);
+    image_t* i = (image_t*)luaL_checkudata(L, 2, "image_t");
+    int layer = luaL_checkinteger(L, 3);
+    int pw = luaL_checkinteger(L, 4);
+    int ph = luaL_checkinteger(L, 5);
+    int counter = luaL_checkinteger(L, 6);
     
-    tilemap_draw_objects_at_camera_object(t, layer, pw, ph, counter);
+    tilemap_draw_objects_at_camera_object(t, i, layer, pw, ph, counter);
 
     return 0;
 }
@@ -984,6 +1099,13 @@ int l_tilemap_set_tile_animation_info(lua_State* L) {
     return 1;
 }
 
+int l_tilemap_abort_update_objects(lua_State* L ) {
+    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+    tilemap_abort_update_objects(t);
+
+    return 0;
+}
+
 
 static const luaL_Reg tilemaplib[] = {
     {"read", l_tilemap_read},
@@ -1004,12 +1126,18 @@ static const luaL_Reg tilemaplib[] = {
     {"addObject", l_tilemap_add_object},
     {"removeObject", l_tilemap_remove_object},
     {"setCameraObject", l_tilemap_set_camera_object},
+    {"getCameraObject", l_tilemap_get_camera_object},
+    {"getCameraLocation", l_tilemap_get_camera_location},
+
     {"updateObjects", l_tilemap_update_objects},
     {"drawLayerAtCameraObject", l_tilemap_draw_layer_at_camera_object},
     {"drawObjectsAtCameraObject", l_tilemap_draw_objects_at_camera_object},
     {"getTileAnimationInfo", l_tilemap_get_tile_animation_info},
     {"setTileAnimationInfo", l_tilemap_set_tile_animation_info},
     {"prerenderLayer", l_tilemap_prerender_layer},
+    
+    {"abortUpdateObjects", l_tilemap_abort_update_objects},
+    
     {NULL, NULL}
 };
 
@@ -1105,12 +1233,15 @@ int l_object_set_sprite(lua_State* L) {
     
     int tx = luaL_checkinteger(L, 2);
     int ty = luaL_checkinteger(L, 3);
-    int acount = luaL_checkinteger(L, 4);
-    int aperiod = luaL_checkinteger(L, 5);
-    int offX = luaL_checkinteger(L, 6);
-    int offY = luaL_checkinteger(L, 7);
+    int tw = luaL_checkinteger(L, 4);
+    int th = luaL_checkinteger(L, 5);
+
+    int acount = luaL_checkinteger(L, 6);
+    int aperiod = luaL_checkinteger(L, 7);
+    int offX = luaL_checkinteger(L, 8);
+    int offY = luaL_checkinteger(L, 9);
     
-    object_set_sprite(o, tx, ty, acount, aperiod, offX, offY);
+    object_set_sprite(o, tx, ty, tw, th, acount, aperiod, offX, offY);
     return 0;
 }
 
@@ -1161,6 +1292,25 @@ int l_object_remove_self(lua_State* L) {
 }
 
 
+int l_object_set_mass(lua_State* L) {
+    object_t* o = (object_t*)luaL_checkudata(L, 1, "object_t");
+    int mass = luaL_checkinteger(L, 2);
+    object_set_mass(o, mass);
+
+    return 0;
+}
+
+
+int l_object_set_image(lua_State* L) {
+    object_t* o = (object_t*)luaL_checkudata(L, 1, "object_t");
+    image_t* i = (image_t*)luaL_checkudata(L, 2, "image_t");
+
+    object_set_image(o, i);
+
+    return 0;
+}
+
+
 static const luaL_Reg objectlib[] = {
     {"create", l_object_create},
     {"setSprite", l_object_set_sprite},
@@ -1171,7 +1321,9 @@ static const luaL_Reg objectlib[] = {
     {"setVelocity", l_object_set_velocity},
     {"getLocation", l_object_get_location},
     {"setBoundingBox", l_object_set_bounding_box},
-    {"removeSelf", l_object_remove_self}, 
+    {"removeSelf", l_object_remove_self},
+    {"setMass", l_object_set_mass},
+    {"setImage", l_object_set_image},
     {NULL, NULL}
 };
 
@@ -1203,16 +1355,37 @@ int l_sound_play(lua_State* L) {
     sound_t* sound = luaL_checkudata(L, 1, "sound_t");
     int channel = luaL_checkinteger(L, 2);
     int nloops = luaL_checkinteger(L, 3);
+    int duration = luaL_checkinteger(L, 4);
 
-    sound_play(sound, channel, nloops);
+    sound_play(sound, channel, nloops, duration);
 
     return 1;
 }
 
 
+int l_set_sound_channel_volume(lua_State* L) {
+    int chan = luaL_checkinteger(L, 1);
+    double l = luaL_checknumber(L, 2);
+    double r = luaL_checknumber(L, 3);
+
+    lua_pushboolean(L, soundchannel_set_volume(chan, l, r));
+    return 1;
+}
+
+
+int l_sound_channel_reallocate(lua_State* L) {
+    int nchannels = luaL_checkinteger(L, 1);
+
+    soundchannel_reallocate(nchannels);
+
+    return 0;
+}
+
 static const luaL_Reg soundlib[] = {
     {"read", l_sound_read},
     {"play", l_sound_play},
+    {"setChannelVolume", l_set_sound_channel_volume},
+    {"reallocateChannels", l_sound_channel_reallocate},
     {NULL, NULL}
 };
 

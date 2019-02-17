@@ -6,6 +6,44 @@
 
 #include "sound.h"
 
+
+/*
+ *
+ *
+ * channel methods here
+ *
+ *
+ */
+
+
+int soundchannel_set_volume(int channel, double l, double r) {
+    //fprintf(stderr, "vol %f %f\n", l, r);
+    //Mix_Pause(channel-1);
+    channel--;
+    if(!Mix_SetPanning(channel, l * 254, r * 254)) {
+        fprintf(stderr, "set stereo volume on channel %d: %s\n", channel, Mix_GetError());
+        return 0;
+    }
+    //Mix_Resume(channel-1);
+    return 1;
+}
+
+
+void soundchannel_reallocate(int numChannels) {
+    fprintf(stderr, "previously: %d\n", Mix_AllocateChannels(-1));
+    Mix_AllocateChannels(numChannels);
+    fprintf(stderr, "now: %d\n", Mix_AllocateChannels(-1));
+}
+
+
+/*
+ *
+ *
+ * sound_t methods here
+ *
+ *
+ */
+
 int sound_init(sound_t* t, const char* file) {
     assert(t);
     Mix_Chunk* chunk = Mix_LoadWAV(file);
@@ -63,9 +101,9 @@ void sound_destroy(sound_t* s) {
 }
 
 
-int sound_play(const sound_t* s, int channel, int nloops) {
-    if(Mix_PlayChannel(channel, s->chunk, nloops) == -1) {
-        // TODO print error
+int sound_play(const sound_t* s, int channel, int nloops, int duration) {
+    if(Mix_PlayChannelTimed(channel-1, s->chunk, nloops, duration) == -1) {
+        fprintf(stderr, "play sound: %s\n", Mix_GetError());
         return 0;
     }
 

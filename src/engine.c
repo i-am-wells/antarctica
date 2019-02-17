@@ -68,13 +68,11 @@ int engine_init(engine_t * e, char * wtitle, int x, int y, int w, int h, int wfl
     e->running = 0;
     e->targetfps = 60;
 
-    // Set up audio -- TODO find out why Mix_CloseAudio hangs
-    
+    // Set up audio
     if(Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 1024) == -1) {
         fprintf(stderr, "failed to open audio device: %s\n", Mix_GetError());
         return 1;
     }
-    
 
     // Success
     return 1;
@@ -325,7 +323,7 @@ void engine_run(engine_t * e, lua_State* L) {
     lua_gettable(L, LUA_REGISTRYINDEX);
         
     e->running = 1;
-    uint32_t tick1 = 0, elapsed;
+    uint32_t tick1 = 0, elapsed = 1;
     uint32_t targetframetime = 1000 / e->targetfps;
 
     int counter = 0;

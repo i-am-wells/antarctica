@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 #include "object.h"
+#include "tilemap.h"
 
 #include "image.h"
 
@@ -12,23 +13,50 @@ int object_init(object_t* o, image_t* image, int tx, int ty, int tw, int th, int
     o->ty = ty;
     o->tw = tw;
     o->th = th;
+    
+    // TODO remove?
     o->animperiod = aperiod;
     o->animcount = acount;
+    
     o->x = x;
     o->y = y;
     o->layer = layer;
+    
+    // TODO remove
     o->index = -1;
+    
+   
     o->toRemove = 0;
+    
+    // TODO remove
     o->next = NULL;
 
+
+    o->offX = 0;
+    o->offY = 0;
+
     object_set_bounding_box(o, 0, 0, tw, th);
-    object_set_velocity(o, 0, 0);
+     
+    //object_set_velocity(o, 0, 0);
+    o->vx = 0;
+    o->vy = 0;
+    o->nextVx = 0;
+    o->nextVy = 0;
+    o->mass = 1;
+
+    o->activeWallBump = 0;
+
+    o->updateParity = 0;
 
     return 1;
 }
 
 void object_deinit(object_t* o) {
     // nothing yet
+}
+
+void object_set_mass(object_t* o, double mass) {
+    o->mass = mass;
 }
 
 
@@ -54,9 +82,11 @@ void object_set_bounding_box(object_t* o, int x, int y, int w, int h) {
 }
 
 
-void object_set_sprite(object_t* o, int tx, int ty, int animcount, int animperiod, int offX, int offY) {
+void object_set_sprite(object_t* o, int tx, int ty, int tw, int th, int animcount, int animperiod, int offX, int offY) {
     o->tx = tx;
     o->ty = ty;
+    o->tw = tw;
+    o->th = th;
     o->animperiod = animperiod;
     o->animcount = animcount;
     o->offX = offX;
@@ -81,19 +111,31 @@ void object_draw(const object_t* o, int vx, int vy, int counter) {
 }
 
 
-void object_set_velocity(object_t* o, int velx, int vely) {
-    o->velx = velx;
-    o->vely = vely;
+void object_set_velocity(object_t* o, double vx, double vy) {
+    object_set_x_velocity(o, vx);
+    object_set_y_velocity(o, vy);
 }
 
 
-void object_set_x_velocity(object_t* o, int velx) {
-    o->velx = velx;
+void object_set_x_velocity(object_t* o, double vx) {
+    if((vx > 0) && (o->activeWallBump & TILEMAP_BUMP_WEST_MASK))
+        return;
+
+    if((vx < 0) && (o->activeWallBump & TILEMAP_BUMP_EAST_MASK))
+        return;
+
+    o->vx = vx;
 }
 
 
-void object_set_y_velocity(object_t* o, int vely) {
-    o->vely = vely;
+void object_set_y_velocity(object_t* o, double vy) {
+    if((vy > 0) && (o->activeWallBump & TILEMAP_BUMP_NORTH_MASK))
+        return;
+
+    if((vy < 0) && (o->activeWallBump & TILEMAP_BUMP_SOUTH_MASK))
+        return;
+
+    o->vy = vy;
 }
 
 
@@ -121,5 +163,10 @@ void object_unlink_after(object_t* o) {
 
     if(o->next)
         o->next = o->next->next;
+}
+
+
+void object_set_image(object_t* o, image_t* i) {
+    o->image = i;
 }
 

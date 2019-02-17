@@ -1,0 +1,7 @@
+current process:
+hand-create shoreline/topo, use marching halves in editor
+use freshenTerrain to add some variety
+use freshenFlatWalls for more variety
+hand-edit interesting areas
+auto wall bump
+

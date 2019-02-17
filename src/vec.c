@@ -52,13 +52,17 @@ void vec_destroy(vec_t * v) {
 
 int vec_resize(vec_t * v, size_t newcap) {
     assert(v);
-    
+
+    // TODO look into problems after resize-to-zero
     void** data = (void**)realloc(v->data, newcap * sizeof(void*));
     if(!data)
         return 0;
 
     v->data = data;
     v->cap = newcap;
+    if(v->size > v->cap) {
+        v->size = v->cap;
+    }
     return 1;
 }
 
@@ -73,7 +77,7 @@ int vec_extend_if_needed(vec_t * v) {
 
 
 void vec_contract_if_needed(vec_t * v) {
-    if(v->size <= (v->cap / 4)) {
+    if((v->cap > 8) && (v->size <= (v->cap / 4))) {
         vec_resize(v, v->cap / 2);
     }
 }

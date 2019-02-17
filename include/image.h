@@ -82,6 +82,8 @@ image_t* image_create(engine_t* e, const char* filename, int tw, int th);
  */
 void image_destroy(image_t* i);
 
+int image_color_mod(image_t* i, uint8_t r, uint8_t g, uint8_t b);
+int image_alpha_mod(image_t* i, uint8_t a);
 
 /**
  *  Copies image pixels from the source rect into the destination rect in the
@@ -142,6 +144,8 @@ void image_draw_text(const image_t* i, const char* text, int dx, int dy, int wra
 
 int image_scale(image_t* i, double scaleBy);
 
+int image_target_image(image_t* i, image_t* j);
+int image_init_blank(image_t* i, engine_t* e, int w, int h, int tw, int th);
 
 #endif
 

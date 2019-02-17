@@ -1,14 +1,10 @@
 
 local ant = require 'antarctica'
 
-local class = require 'class'
+local Class = require 'class'
 
-local Sound = class.base()
+local Sound = Class()
 
--- TODO
--- ant.sound.read
--- ant.sound.play
--- ant.sound.queue
 
 function Sound:init(options)
     options = options or {}
@@ -23,12 +19,11 @@ function Sound:init(options)
     end
 end
 
-
+--[[
 function Sound:define(key, starttime, duration)
     -- TODO check if start/duration are within sound bounds?
     self.segments[key] = {start = starttime, duration = duration}
 end
-
 
 function Sound:getSegment(key, dur)
     if type(key) == 'string' then
@@ -42,6 +37,7 @@ function Sound:getSegment(key, dur)
         return key, dur
     end
 end
+--]]
 
 
 --[[function Sound:play(start, duration)
@@ -56,7 +52,8 @@ function Sound:play(options)
     if options.loop == true then
         nloops = -1
     end
-    ant.sound.play(self._sound, channel, nloops)
+    local duration = options.duration or -1
+    ant.sound.play(self._sound, channel, nloops, duration)
 end
 
 

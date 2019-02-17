@@ -1,7 +1,6 @@
 
-local class = {}
+local Class = function(...)
 
-class.deriving = function(...)
     -- our class table
     local klass = {
         initSuper = {},
@@ -9,7 +8,7 @@ class.deriving = function(...)
     }
 
     -- copy things from parent classes
-    for _, base in pairs{...} do
+    for _, base in ipairs{...} do
 
         -- copy isA table
         klass.isA[klass] = true
@@ -22,9 +21,11 @@ class.deriving = function(...)
                 for isAKey, isAValue in pairs(v) do
                     klass.isA[isAKey] = isAValue
                 end
+                --[[
             elseif k == "init" then
                 -- keep base class constructor
                 klass.initSuper[base] = v
+                --]]
             else
                 -- shallow copy base class data
                 klass[k] = v
@@ -59,8 +60,14 @@ class.deriving = function(...)
     return klass
 end
 
+
+--[[
+class.deriving = function(...)
+    return Class(...)
+end
 class.base = function()
     return class.deriving()
 end
+--]]
 
-return class
+return Class

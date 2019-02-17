@@ -1,7 +1,9 @@
 
-local class = require 'class'
+local Class = require 'class'
 
 local ant = require 'antarctica'
+
+local Engine = Class()
 
 -- TODO define these in C library loader since we're trying to hide SDL details
 local eventkeymap = {
@@ -33,9 +35,36 @@ local eventkeymap = {
     mousebuttonup   = 0x402,
     mousewheel      = 0x403
 }
-
-local Engine = class.base()
-
+Engine.eventkeymap = eventkeymap
+-- TODO define in c side
+local _lshift, _rshift, _lctrl, _rctrl, _lalt, _ralt = 0x1, 0x2, 0x40, 0x80, 0x100, 0x200
+Engine.keymod = {
+    lShift = _lshift,
+    rShift = _rshift,
+    shift = _lshift | _rshift,
+    lCtrl = _lctrl,
+    rCtrl = _rctrl,
+    ctrl = _lctrl | _rctrl,
+    lAlt = _lalt,
+    rAlt = _ralt,
+    alt = _lalt | _ralt
+}
+    
+    --[[
+    KMOD_NONE = 0x0000,
+    KMOD_LSHIFT = 0x0001,
+    KMOD_RSHIFT = 0x0002,
+    KMOD_LCTRL = 0x0040,
+    KMOD_RCTRL = 0x0080,
+    KMOD_LALT = 0x0100,
+    KMOD_RALT = 0x0200,
+    KMOD_LGUI = 0x0400,
+    KMOD_RGUI = 0x0800,
+    KMOD_NUM = 0x1000,
+    KMOD_CAPS = 0x2000,
+    KMOD_MODE = 0x4000,
+    KMOD_RESERVED = 0x8000
+--]]
 
 -- Engine constructor
 function Engine:init(...)
@@ -173,6 +202,8 @@ function Engine:on(tbl)
             else
                 error('unknown event type "'..key..'"')
             end
+
+            self['on'..key] = value
         else
             error('handler for "'..key..'" is not a function')
         end

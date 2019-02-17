@@ -69,9 +69,6 @@ local tests = {
         -- TODO
     end,
 
-    modify_map_tile = function()
-        local tilemap = Tilemap{nlayers=1, w=1,h=1}
-
 
 }
 

@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,6 +49,8 @@ void tilemap_deinit(tilemap_t* t) {
             free(t->tiles);
             t->tiles = NULL;
         }
+
+        vec_deinit(&(t->objectvec));
 
         if(t->prerender) {
             for(size_t i = 0; i < t->nlayers; i++) {
@@ -100,6 +103,8 @@ int tilemap_init(tilemap_t * t, size_t nlayers, size_t w, size_t h) {
     if(!t->prerender) {
         fprintf(stderr, "failed to allocate memory for map prerender\n");
     }
+
+    t->updateParity = 0;
 
     return 1;
 }
@@ -191,7 +196,7 @@ int tilemap_get_tile(tilemap_t* t, size_t layer, size_t x, size_t y, int* tx, in
 }
 
 
-int tilemap_get_flags(tilemap_t* t, size_t layer, size_t x, size_t y) {
+int tilemap_get_flags(const tilemap_t* t, size_t layer, size_t x, size_t y) {
     assert(t);
 
     // set the image to be used for this map square
@@ -210,7 +215,7 @@ void tilemap_set_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mask)
     // set the image to be used for this map square
     tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
     if(tileptr) {
-        tileptr->flags |= (mask & 0xffff);
+        tileptr->flags |= (uint16_t)(mask & 0xffff);
     }
 }
 
@@ -221,7 +226,7 @@ void tilemap_clear_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int mas
     // Set the image to be used for this map square
     tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
     if(tileptr) {
-        tileptr->flags &= ~(mask & 0xffff);
+        tileptr->flags &= (uint16_t)(~(mask & 0xffff));
     }
 }
 
@@ -232,7 +237,7 @@ void tilemap_overwrite_flags(tilemap_t* t, size_t layer, size_t x, size_t y, int
     // Set the image to be used for this map square
     tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
     if(tileptr) {
-        tileptr->flags = (mask & 0xffff);
+        tileptr->flags = (uint16_t)(mask & 0xffff);
     }
 }
 
@@ -423,6 +428,7 @@ void tilemap_draw_layer_at_camera_object(const tilemap_t* t, const image_t* i, i
 
 #define OBJECT_AT(ovec, i) ((object_t*)(ovec.data[(i)]))
 
+
 static size_t tilemap_binary_search_objects(const tilemap_t* t, int q, size_t first, size_t last) {
     if(last == -1)
         return -1;
@@ -432,16 +438,18 @@ static size_t tilemap_binary_search_objects(const tilemap_t* t, int q, size_t fi
         return first - 1;
 
     int lastval = OBJECT_AT(t->objectvec, last)->y;
-    if(q > lastval)
+    if(q >= lastval)
         return last;
 
-    while((last - first) > 1) {
+    while(last - first > 1) {
         size_t mid = (first + last) / 2;
 
         int midval = OBJECT_AT(t->objectvec, mid)->y;
 
         if(midval > q) {
             last = mid;
+        } else if(midval == q) {
+            return mid;
         } else {
             first = mid;
         }
@@ -471,7 +479,9 @@ void tilemap_move_object_relative(tilemap_t* t, object_t* o, int dx, int dy) {
 
     // Move object in objects vector
     vec_move(&(t->objectvec), dest_idx, object_idx);
-    for(size_t i = 0; i < t->objectvec.size; i++)
+    size_t firstI = MIN(object_idx, dest_idx);
+    size_t lastI = MAX(object_idx, dest_idx);
+    for(size_t i = firstI; i <= lastI; i++)
         OBJECT_AT(t->objectvec, i)->index = i;
 
     // Update object's coordinates on map
@@ -487,19 +497,27 @@ void tilemap_add_object(tilemap_t* t, object_t* o) {
     assert(vec_insert(&(t->objectvec), index, o));
     o->index = index;
 
+    for(size_t i = o->index + 1; i < t->objectvec.size; i++) {
+        object_t* obj = OBJECT_AT(t->objectvec, i);
+        obj->index = i;
+    }
+
+    /* TODO remove
     // link into the update list
     o->next = t->head;
     t->head = o;
+    */
 }
 
 
 void tilemap_remove_object(tilemap_t* t, object_t* o) {
     vec_remove(&(t->objectvec), o->index, 1);
-    for(size_t i = 0; i < t->objectvec.size; i++) {
+    for(size_t i = o->index; i < t->objectvec.size; i++) {
         object_t* obj = OBJECT_AT(t->objectvec, i);
         obj->index = i;
     }
 
+    /* TODO remove
     // unlink from update list
     if(t->head == o) {
         t->head = o->next;
@@ -511,6 +529,15 @@ void tilemap_remove_object(tilemap_t* t, object_t* o) {
         if(prev)
             prev->next = o->next;
     }
+    */
+}
+
+static void tilemap_remove_object_by_index(tilemap_t* t, size_t idx) {
+    vec_remove(&(t->objectvec), idx, 1);
+    for(size_t i = idx; i < t->objectvec.size; i++) {
+        object_t* obj = OBJECT_AT(t->objectvec, i);
+        obj->index = i;
+    }
 }
 
 
@@ -521,9 +548,374 @@ void tilemap_move_object_absolute(tilemap_t* t, object_t* o, int x, int y) {
     tilemap_add_object(t, o);
 }
 
+#define ABS(a) ((a)<0)?(-a):(a)
 
-void tilemap_update_objects(tilemap_t* t) {
+// True if a and b positive or a and b negative
+static inline int samesign(double a, double b) {
+    return (a * b) > 0;
+}
+
+
+/*
+// TODO untested. In theory, checks wall bumps for arbitrarily high vx, vy
+static int check_wall_bump(const tilemap* t, size_t layer, int sx, int sy, int* vx, int* vy) {
+    // TODO use actual tile dimensions instead
+    const int tw = 16;
+    const int th = 16;
     
+
+    if(*vx == 0) {
+        if(*vy == 0) {
+            return;
+        } else {
+            // move in y only
+            int direction = (*vy > 0) ? 1 : -1;
+            int mapX = sx / tw;
+            int mapY = sy / th;
+            int y = sy;
+
+            // check diagonal bump for first square
+            // TODO
+
+            while(1) {
+                int newY = y + direction * MIN(th, ABS(*vy));
+                int newMapY = newY / th;
+
+                if(newMapY != mapY) {
+                    int flags = tilemap_get_flags(t, layer, mapX, newMapY);
+
+                    // TODO check diagonal
+                    if(direction > 0) {
+                        // check north flag
+                        if(flags & TILEMAP_BUMP_NORTH_MASK) {
+                            *vy = (newMapY * th) - sy - 1;
+                            return TILEMAP_BUMP_NORTH_MASK;
+                        }
+                    } else {
+                        // check south flag
+                        if(flags & TILEMAP_BUMP_SOUTH_MASK) {
+                            *vy = (mapY * th) - sy;
+                            return TILEMAP_BUMP_SOUTH_MASK;
+                        }
+                    }
+                }
+                
+                mapY = newMapY;
+                y = newY;
+
+                if(((direction < 0) && (newY < (sy + *vy))) || ((direction > 0) && (newY > (sy + *vy)))) {
+                    break;
+                }
+            }
+        }
+    } else {
+        if(*vy == 0) {
+            // move in x only
+            int direction = (*vx > 0) ? 1 : -1;
+            int mapX = sx / tw;
+            int mapY = sy / th;
+            int x = sx;
+
+            // TODO check diagonal bump for first square
+
+            while(1) {
+                int newX = x + direction * MIN(tw, ABS(*vx));
+                int newMapX = newX / tw;
+
+                if(newMapX != mapX) {
+                    int flags = tilemap_get_flags(t, layer, newMapX, mapY);
+
+                    // TODO check diagonal
+                    if(direction > 0) {
+                        // check west flag
+                        if(flags & TILEMAP_BUMP_WEST_MASK) {
+                            *vx = (newMapX * tw) - sx - 1;
+                            return TILEMAP_BUMP_WEST_MASK;
+                        }
+                    } else {
+                        // check east flag
+                        if(flags & TILEMAP_BUMP_EAST_MASK) {
+                            *vx = (mapX * tw) - sx;
+                            return TILEMAP_BUMP_EAST_MASK;
+                        }
+                    }
+                }
+                
+                mapX = newMapX;
+                x = newX;
+
+                if(((direction < 0) && (newX < (sx + *vx))) || ((direction > 0) && (newX > (sx + *vx)))) {
+                    break;
+                }
+            }
+        } else {
+            // move in x and y 
+            // TODO diagonals
+
+            // which edges to check?
+            int flagEW, flagNS;
+            if(*vy > 0) {
+                if(*vx > 0) {
+                    flagEW = TILEMAP_BUMP_WEST_MASK;
+                    flagNS = TILEMAP_BUMP_NORTH_MASK;
+                } else {
+                    flagEW = TILEMAP_BUMP_EAST_MASK;
+                    flagNS = TILEMAP_BUMP_NORTH_MASK;
+                }
+            } else {
+                if(*vx > 0) {
+                    flagEW = TILEMAP_BUMP_WEST_MASK;
+                    flagNS = TILEMAP_BUMP_SOUTH_MASK;
+                } else {
+                    flagEW = TILEMAP_BUMP_EAST_MASK;
+                    flagNS = TILEMAP_BUMP_SOUTH_MASK;
+                }
+            }
+
+            // march to the end point checking edges
+            double x = sx;
+            double y = sy;
+            int mapX = sx / tw;
+            int mapY = sy / th;
+            double endX = sx + *vx;
+            double endY = sy + *vy;
+            
+            double slope = (double)(*vy) / (double)(*vx);
+
+            // loop until we're just past the end point
+            // (loop while endX - x has same sign as vx, etc.)
+            while(samesign(endX - x, *vx) && samesign(endY - y, *vy)) {
+                // TODO diagonals
+                
+                
+                // find boundaries of current tile
+                int x0 = mapX * tw;
+                int x1 = x0 + tw;
+                int y0 = mapY * th;
+                int y1 = y0 + th;
+
+                int checkFlag = flagEW;
+
+
+                // solve for intersections
+                double newX, newY;
+                int newMapX, newMapY;
+                if(flagEW & TILEMAP_BUMP_WEST_MASK) {
+                    newX = x1;
+                    newY = y + (x1 - x) * slope;
+                    newMapX = mapX + 1;
+                    newMapY = mapY;
+                } else {
+                    newX = x0;
+                    newY = y + (x0 - x) * slope;
+                    newMapX = mapX - 1;
+                    newMapY = mapY;
+                }
+                
+                // do we actually hit a horizontal boundary first?
+                if(newY > y1) {
+                    newX = x + (y1 - y) / slope;
+                    newY = y1;
+                    newMapX = mapX;
+                    newMapY = mapY + 1
+                    checkFlag = flagNS;
+                } else if(newY <= y0) {
+                    newX = x + (y - y0) / slope;
+                    newY = y0;
+                    newMapX = mapX;
+                    newMapY = mapY - 1;
+                    checkFlag = flagNS;
+                }
+
+                // check next tile
+                if(tilemap_get_flags(t, layer, newMapX, newMapY) & checkFlag) {
+                    *vx = newX - sx;
+                    *vy = newY - sy;
+                    return checkFlag;
+                }
+
+                // last thing: move to new position
+                mapX = newMapX;
+                mapY = newMapY;
+                x = newX;
+                y = newY;
+            }
+        }
+    }
+
+    // no bump
+    return 0;
+}
+
+// end bad check wall bump
+*/
+
+
+/*
+// Returns 1 if two rectangles overlap
+static int isOverlap(int xa0, int ya0, int xa1, int ya1, int xb0, int yb0, int xb1, int yb1) {
+    
+    int xOverlap = ((xa0 < xb0) && (xa1 > xb0)) || ((xa0 > xb0) && (xa0 < xb1));
+    int yOverlap = ((ya0 < yb0) && (ya1 > yb0)) || ((ya0 > yb0) && (ya0 < yb1));
+
+    return xOverlap && yOverlap;
+}
+*/
+
+
+// Returns a bump direction for A
+static int checkCollision(int xa0, int ya0, int xa1, int ya1, int xb0, int yb0, int xb1, int yb1) {
+    int diffX = 0;
+    int diffY = 0;
+
+    xa1--;
+    xb1--;
+    ya1--;
+    yb1--;
+
+    if(ya0 <= yb0) {
+        if(ya1 > yb0)
+            diffY = ya1 - yb0;
+        else
+            return 0;
+
+        if(xa0 <= xb0) {
+            if(xa1 > xb0)
+                diffX = xa1 - xb0;
+            else
+                return 0;
+            
+            if(diffX > diffY)
+                return TILEMAP_BUMP_NORTH_MASK;
+            else
+                return TILEMAP_BUMP_WEST_MASK;
+        } else if(xa0 > xb0) {
+            if(xb1 > xa0)
+                diffX = xb1 - xa0;
+            else
+                return 0;
+        
+            if(diffX > diffY)
+                return TILEMAP_BUMP_NORTH_MASK;
+            else
+                return TILEMAP_BUMP_EAST_MASK;
+        }
+    } else if(ya0 > yb0) {
+        if(yb1 > ya0)
+            diffY = yb1 - ya0;
+        else
+            return 0;
+        
+        if(xa0 <= xb0) {
+            if(xa1 > xb0)
+                diffX = xa1 - xb0;
+            else
+                return 0;
+            
+            if(diffX > diffY)
+                return TILEMAP_BUMP_SOUTH_MASK;
+            else
+                return TILEMAP_BUMP_WEST_MASK;
+        } else if(xa0 > xb0) {
+            if(xb1 > xa0)
+                diffX = xb1 - xa0;
+            else
+                return 0;
+        
+            if(diffX > diffY)
+                return TILEMAP_BUMP_SOUTH_MASK;
+            else
+                return TILEMAP_BUMP_EAST_MASK;
+        }
+    }
+
+    return 0;
+}
+
+
+static int check_wall_bump(const tilemap_t* t, object_t* o) {    
+    // TODO fix
+    const int tw = 16;
+    const int th = 16;
+    
+    // bounding box at starting point
+    int x0 = o->x + o->boundX;
+    int w0 = o->boundW;
+    int y0 = o->y + o->boundY;
+    int h0 = o->boundH;
+
+    // ending position
+    int x1 = x0 + o->vx;
+    int y1 = y0 + o->vy;
+
+    int bumpDir = 0;
+
+    // Check whether we've crossed tile boundaries, and if so, whether new 
+    // overlapped tiles have bump flags
+    int checkFlagX = 0;
+    int mapX0 = (x0 + w0 - 1) / tw; // FURTHEST
+    int checkMapX = (x1 + w0 - 1) / tw;    
+    if(checkMapX > mapX0) {
+        // if traveling east
+        checkFlagX = TILEMAP_BUMP_WEST_MASK;
+    } else if((x1 / tw) < (x0 / tw)) {
+        // if traveling west
+        checkMapX = x1 / tw;
+        checkFlagX = TILEMAP_BUMP_EAST_MASK;
+    }
+
+    // Check edge for bump flag
+    if(checkFlagX) {
+        int mapY0 = y1 / th;
+        int mapY1 = (y1 + h0) / th;
+        for(int y = mapY0; y <= mapY1; y++) {
+            if(tilemap_get_flags(t, o->layer, checkMapX, y) & checkFlagX) {
+                bumpDir |= checkFlagX;
+                break;
+            }
+        }
+    }
+    
+    
+    // Same thing, different axis
+    //
+    // Check whether we've crossed tile boundaries, and if so, whether new 
+    // overlapped tiles have bump flags
+    int checkFlagY = 0;
+    int mapY0 = (y0 + h0 - 1) / th;
+    int checkMapY = (y1 + h0 - 1) / th;    
+    if(checkMapY > mapY0) {
+        // traveling south
+        checkFlagY = TILEMAP_BUMP_NORTH_MASK;
+    } else if((y1 / tw) < (y0 / tw)) {
+        // if traveling north
+        checkFlagY = TILEMAP_BUMP_SOUTH_MASK;
+        checkMapY = y1 / th;
+    }
+
+    // Check edge for bump flag
+    if(checkFlagY) {
+        int mapX0 = x1 / tw;
+        int mapX1 = (x1 + w0) / tw;
+        for(int x = mapX0; x <= mapX1; x++) {
+            if(tilemap_get_flags(t, o->layer, x, checkMapY) & checkFlagY) {
+                bumpDir |= checkFlagY;
+                break;
+            }
+        }
+    }
+
+        
+    return bumpDir;
+}
+
+/*
+void tilemap_update_objects_old(tilemap_t* t) {
+    
+    // TODO store tile size with map!!
+    const int tw = 16;
+    const int th = 16;
+
     // Run update callbacks
     for(object_t* object = t->head; object != NULL; object = object->next) {
         // === Run update callback ===
@@ -534,95 +926,56 @@ void tilemap_update_objects(tilemap_t* t) {
         }
     }
     
-    // TODO update sprites as well? (edit 1/19: nvm, should happen in Lua) 
-    //for(size_t i = 0; i < t->objectvec.size; i++) {
-    for(object_t* object = t->head; object != NULL; ) {
-        //object_t* object = OBJECT_AT(t->objectvec, i);
-
+    for(object_t* o = t->head; o != NULL; o = o->next) {
         // === Update object position ===
 
-        // actual motion of object
-        int velx = object->velx;
-        int vely = object->vely;
+        // check for wall bump
+        // TODO use real tile size
+        if(o->velx || o->vely) {
+            // actual motion of object
+            int velX = o->velx;
+            int velY = o->vely;
+ 
+            int bumpDir = check_wall_bump(t, o); 
+           
+            // in case of bump, adjust final position to contact with wall
+            if(bumpDir & TILEMAP_BUMP_EAST_MASK)
+                velX = 0 - ((o->x + o->boundX) % tw);
 
-        int mapx, mapy;
-        object_get_map_location(object, &mapx, &mapy);
-        //int mapx2 = (object->x + object->tw) / object->image->tw;
-        //int mapy2 = (object->y + object->th) / object->image->th;
-        int mapx2 = (object->x + object->boundX + object->boundW) / object->image->tw;
-        int mapy2 = (object->y + object->boundY + object->boundH) / object->image->th;
-        // TODO should not assume that object tw is same as map tw       
+            if(bumpDir & TILEMAP_BUMP_NORTH_MASK) {
+                velY = (0 - (o->y + o->boundY + o->boundH)) % th;
+                
+                //int ay1 = o->y + o->boundY + o->boundH + o->vely;
+                //int npy = ay1 - (ay1 % th);
+                //velY = npy - o->boundH - o->y - o->boundY;
+            }
 
+            if(bumpDir & TILEMAP_BUMP_WEST_MASK) {
+                velX = (0 - (o->x + o->boundX + o->boundW)) % tw;
+                
+                //int ax1 = o->x + o->boundX + o->boundW + o->velx;
+                //int npx = ax1 - (ax1 % tw);
+                //velX = npx - o->boundW - o->x - o->boundX;
+            }
 
-        // TODO begin new wall bump code
-        
+            if(bumpDir & TILEMAP_BUMP_SOUTH_MASK)
+                velY = 0 - ((o->y + o->boundY) % th);
 
-
-        // TODO end new bump code
-
-        // === Run wall collision callbacks ===
-        // Check if new position would overlap any blocked squares (x direction)
-        int newx = object->x + velx;
-        int oldvelx = velx;
-        int bumpdir = 0;
-        if(velx > 0) {
-            int newmapx = (newx + object->tw) / object->image->tw;
-            if(tilemap_get_flags(t, object->layer, newmapx, mapy) & TILEMAP_BUMP_WEST_MASK)
-                velx = 0;
-            if(tilemap_get_flags(t, object->layer, newmapx, mapy2) & TILEMAP_BUMP_WEST_MASK)
-                velx = 0;
-
-            if(velx != oldvelx)
-                bumpdir |= TILEMAP_BUMP_EAST_MASK;
-
-        } else if(velx < 0) {
-            int newmapx = newx / object->image->tw;
-            if(tilemap_get_flags(t, object->layer, newmapx, mapy) & TILEMAP_BUMP_EAST_MASK)
-                velx = 0;
-            if(tilemap_get_flags(t, object->layer, newmapx, mapy2) & TILEMAP_BUMP_EAST_MASK)
-                velx = 0;
             
-            if(velx != oldvelx)
-                bumpdir |= TILEMAP_BUMP_WEST_MASK;
-        }
-        
-        // Same thing in the y direction
-        int newy = object->y + vely;
-        int oldvely = vely;
-        if(vely > 0) {
-            int newmapy = (newy + object->th) / object->image->th;
-            if(tilemap_get_flags(t, object->layer, mapx, newmapy) & TILEMAP_BUMP_NORTH_MASK)
-                vely = 0;
-            if(tilemap_get_flags(t, object->layer, mapx2, newmapy) & TILEMAP_BUMP_NORTH_MASK)
-                vely = 0;
-            
-            if(vely != oldvely)
-                bumpdir |= TILEMAP_BUMP_SOUTH_MASK;
-        } else if(vely < 0) {
-            int newmapy = newy / object->image->th;
-            if(tilemap_get_flags(t, object->layer, mapx, newmapy) & TILEMAP_BUMP_SOUTH_MASK)
-                vely = 0;
-            if(tilemap_get_flags(t, object->layer, mapx2, newmapy) & TILEMAP_BUMP_SOUTH_MASK)
-                vely = 0;
-            if(vely != oldvely)
-                bumpdir |= TILEMAP_BUMP_NORTH_MASK;
-        }
+            // Move object
+            tilemap_move_object_relative(t, o, velX, velY);
 
-        // Move object
-        tilemap_move_object_relative(t, object, velx, vely);
-        
-        // Run wall bump callback
-        if(bumpdir && t->bump_callback) {
-            t->bump_callback(t->object_callback_data, object, bumpdir);
-            if(object->toRemove) {
-                tilemap_remove_object(t, object);
-                object->toRemove = 0;
+
+            // Run wall bump callback
+            if(bumpDir && t->bump_callback) {
+                t->bump_callback(t->object_callback_data, o, bumpDir);
+                if(o->toRemove) {
+                    tilemap_remove_object(t, o);
+                    o->toRemove = 0;
+                }
             }
         }
-
-        // Next
-        object = object->next;
-    }
+    } // for
 
     // === Run object-object collision callbacks === 
     // Check for collisions between objects
@@ -634,23 +987,35 @@ void tilemap_update_objects(tilemap_t* t) {
     // some objects may be skipped or visited twice. Fixes upcoming.
 
     // Bounding box collision: must overlap in both x and y
+    //fprintf(stderr, "\n");
     for(size_t i = 0; i < t->objectvec.size; i++) {
         object_t* objectA = OBJECT_AT(t->objectvec, i);
-        
+        //fprintf(stderr,"%d\n", objectA->y);
+
         for(size_t j = i + 1; j < t->objectvec.size; j++) {
             object_t* objectB = OBJECT_AT(t->objectvec, j);
 
             // Check if they overlap in y direction
-            if((objectA->y + objectA->boundY + objectA->boundH) >= (objectB->y + objectB->boundY)) {
-                
+            if((objectA->y + objectA->boundY + objectA->boundH) > (objectB->y + objectB->boundY)) {
+
                 // Check x
                 int ax0 = objectA->x + objectA->boundX;
                 int ax1 = ax0 + objectA->boundW;
                 int bx0 = objectB->x + objectB->boundX;
                 int bx1 = bx0 + objectB->boundW;
-                if(((ax0 < bx0) && (ax1 >= bx1)) || ((ax0 >= bx0) && (ax0 <= bx1))) {
+                if(((ax0 < bx0) && (ax1 > bx0)) || ((ax0 >= bx0) && (ax0 < bx1))) {
                     // there is overlap
                     t->collision_callback(t->object_callback_data, objectA, objectB);
+
+                    // if both solid, move away
+                    if(objectA->mass > objectB->mass) {
+                        tilemap_move_object_relative(t, objectB, -objectB->velx, -objectB->vely);
+                    } else if(objectA->mass < objectB->mass) {
+                        tilemap_move_object_relative(t, objectA, -objectA->velx, -objectA->vely);
+                    } else {
+                        tilemap_move_object_relative(t, objectA, -objectA->velx, -objectA->vely);
+                        tilemap_move_object_relative(t, objectB, -objectB->velx, -objectB->vely);
+                    }
                 }
             } else {
                 // no Y overlap: move to the next objectA
@@ -667,17 +1032,186 @@ void tilemap_update_objects(tilemap_t* t) {
         }
     }
 }
+*/
+
+
+void tilemap_update_objects(tilemap_t* t) {
+    // updateParity is -1 if "abort update" has been called
+    if(t->updateParity == -1) {
+        t->updateParity = 0;
+        return;
+    }
+
+    for(size_t i = 0; i < t->objectvec.size; i++) {
+        object_t* objectA = OBJECT_AT(t->objectvec, i);
+
+        if(objectA->toRemove) {
+            tilemap_remove_object_by_index(t, i);
+            i--;
+            continue;
+        }
+
+        // If we've already seen objectA this round (meaning it moved forward
+        // in the object vector) skip it.
+        if(objectA->updateParity != t->updateParity)
+            continue;
+
+
+        objectA->updateParity = !objectA->updateParity;
+
+        // positions of corners
+        int xa0 = objectA->x + objectA->boundX;
+        int xa1 = xa0 + objectA->boundW;
+        int ya0 = objectA->y + objectA->boundY;
+        int ya1 = ya0 + objectA->boundH;
+
+        // positions of corners in next step
+        int nextXA0 = xa0 + objectA->vx;
+        int nextXA1 = xa1 + objectA->vx;
+        int nextYA0 = ya0 + objectA->vy;
+        int nextYA1 = ya1 + objectA->vy;
+            
+        double dx = objectA->vx;
+        double dy = objectA->vy;
+
+
+        // TODO break if objectB is too far away
+        for(size_t j = i + 1; j < t->objectvec.size; j++) {
+            object_t* objectB = OBJECT_AT(t->objectvec, j);
+
+            if(objectB->toRemove) {
+                tilemap_remove_object_by_index(t, j);
+                j--;
+                continue;
+            }
+
+            int xb0 = objectB->x + objectB->boundX;
+            int xb1 = xb0 + objectB->boundW;
+            int yb0 = objectB->y + objectB->boundY;
+            int yb1 = yb0 + objectB->boundH;
+
+            int nextXB0 = xb0 + objectB->vx;
+            int nextXB1 = xb1 + objectB->vx;
+            int nextYB0 = yb0 + objectB->vy;
+            int nextYB1 = yb1 + objectB->vy;
+            
+            // check collision
+
+            //if(isOverlap(nextXA0, nextYA0, nextXA1, nextYA1, nextXB0, nextYB0, nextXB1, nextYB1)) {
+            int collisionDir = checkCollision(nextXA0, nextYA0, nextXA1, nextYA1, nextXB0, nextYB0, nextXB1, nextYB1);
+            if(collisionDir) {
+                /*
+                double totalMass = objectA->mass + objectB->mass;
+                double totalInitX = objectA->mass * objectA->nextVx + objectB->mass * objectB->nextVx;
+                double totalInitY = objectA->mass * objectA->nextVy + objectB->mass * objectB->nextVy;
+                
+                objectA->nextVx = (Cr * objectB->mass * (objectB->nextVx - objectA->nextVx) + totalInitX) / totalMass;
+                objectA->nextVy = (Cr * objectB->mass * (objectB->nextVy - objectA->nextVy) + totalInitY) / totalMass;
+                objectB->nextVx = (Cr * objectA->mass * (objectA->nextVx - objectB->nextVx) + totalInitX) / totalMass;
+                objectB->nextVy = (Cr * objectA->mass * (objectA->nextVy - objectB->nextVy) + totalInitY) / totalMass;
+
+                fprintf(stderr, "%f %f %f %f\n", objectA->nextVx, objectA->nextVy, objectB->nextVx, objectB->nextVy);
+                */
+                objectA->activeWallBump |= collisionDir;
+                switch(collisionDir) {
+                    case TILEMAP_BUMP_NORTH_MASK:
+                        objectB->activeWallBump |= TILEMAP_BUMP_SOUTH_MASK;
+                        break;
+                    case TILEMAP_BUMP_SOUTH_MASK:
+                        objectB->activeWallBump |= TILEMAP_BUMP_NORTH_MASK;
+                        break;
+                    case TILEMAP_BUMP_EAST_MASK:
+                        objectB->activeWallBump |= TILEMAP_BUMP_WEST_MASK;
+                        break;
+                    case TILEMAP_BUMP_WEST_MASK:
+                        objectB->activeWallBump |= TILEMAP_BUMP_EAST_MASK;
+                        break;
+                }
+                        
+                // run collision callback
+                t->collision_callback(t->object_callback_data, objectA, objectB);
+                
+                // updateParity is -1 if "abort update" has been called
+                if(t->updateParity == -1) {
+                    t->updateParity = 0;
+                    return;
+                }
+            }
+        }
+
+        // Check wall bump. This is done last so that no objects end up overlapping
+        // walls while still traveling towards them.
+        int wallBumpDir = check_wall_bump(t, objectA);    
+        if(wallBumpDir)
+            t->bump_callback(t->object_callback_data, objectA, wallBumpDir);
+        
+        objectA->activeWallBump |= wallBumpDir;
+       
+
+        // updateParity is -1 if "abort update" has been called
+        if(t->updateParity == -1) {
+            t->updateParity = 0;
+            return;
+        }
+
+        // Wall bump: object bounces perfectly
+        if(objectA->activeWallBump & TILEMAP_BUMP_NORTH_MASK)
+            dy = MIN(0, dy);
+
+        if(objectA->activeWallBump & TILEMAP_BUMP_SOUTH_MASK)
+            dy = MAX(0, dy);
+
+        if(objectA->activeWallBump & TILEMAP_BUMP_EAST_MASK)
+            dx = MAX(0, dx);
+
+        if(objectA->activeWallBump & TILEMAP_BUMP_WEST_MASK)
+            dx = MIN(0, dx);
+
+        
+        // If object has been removed already, remove it before tilemap_move_object_relative
+        if(objectA->toRemove) {
+            tilemap_remove_object_by_index(t, i);
+            i--;
+            continue;
+        } else {
+            tilemap_move_object_relative(t, objectA, dx, dy);
+        }
+
+        // run update callback
+        t->object_update_callback(t->object_callback_data, objectA);
+        
+        // updateParity is -1 if "abort update" has been called
+        if(t->updateParity == -1) {
+            t->updateParity = 0;
+            return;
+        }
+
+        objectA->activeWallBump = 0;   
+    }
+
+    // Prepare for next round of updates
+    t->updateParity = !t->updateParity;
+}
 
 
 void tilemap_set_camera_object(tilemap_t* t, object_t* o) {
     t->cameraobject = o;
 }
 
+object_t* tilemap_get_camera_object(const tilemap_t* t) {
+    return t->cameraobject;
+}
+
+
+void tilemap_abort_update_objects(tilemap_t* t) {
+    t->updateParity = -1;
+}
+
 
 // draw objects from one map layer
 void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw, int ph, int counter) {
 
-    // Find range of objects to draw
+    // TODO Find range of objects to draw
     size_t idx0, idx1;
     //if(t->objectvec_orientation == 0) {
         //idx0 = tilemap_binary_search_objects(t, px, 0, t->objectvec.size - 1);
@@ -710,14 +1244,100 @@ void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw,
         }
     }
 }
+
+static void tilemap_draw_layer_rows(const tilemap_t* t, const image_t* img, int layer, int px, int py, int pw, int ph, int y0, int y1, int counter) {
+    // draw a few rows
+    for(int yy = y0; yy <= y1; yy++) {
+        int dy = yy * img->th - py;
+        for(int xx = px / img->tw; xx <= (px + pw) / img->tw; xx++) {
+            int dx = xx * img->tw - px;
+            tile_t* tile = tilemap_get_tile_address(t, layer, xx, yy);
+            
+            if(tile) {
+                if(!((tile->tilex == 16) && (tile->tiley == 0))) {
+                    int tiley = tile->tiley + (counter / TILE_ANIM_PERIOD(tile)) % TILE_ANIM_COUNT(tile);
+                    image_draw_tile(img, tile->tilex, tiley, dx, dy);
+                
+                }
+            }
+        }
+
+    }
+}
+
+// draw objects from one map layer
+void tilemap_draw_objects_interleaved(const tilemap_t* t, const image_t* img, int layer, int px, int py, int pw, int ph, int counter) {
+
+    // Find range of objects to draw
+    size_t idx0, idx1;
+    //if(t->objectvec_orientation == 0) {
+        //idx0 = tilemap_binary_search_objects(t, px, 0, t->objectvec.size - 1);
+        //idx1 = tilemap_binary_search_objects(t, px + pw, idx0, t->objectvec.size - 1);
+    //} else if(t->objectvec_orientation == 1) {
+        
+    /*
+        idx0 = tilemap_binary_search_objects(t, py, 0, t->objectvec.size - 1);
+        if(idx0 >= t->objectvec.size)
+            idx0 = 0;
+
+        idx1 = tilemap_binary_search_objects(t, py + ph, idx0, t->objectvec.size - 1);
+        idx1++;
+        //}
+    */
+
+    // For now, just draw all objects
+    idx0 = 0;
+    idx1 = t->objectvec.size - 1;
+
+    // top row of tiles
+    int lastMapY = py / img->th;
+
+    for(size_t i = idx0; i <= idx1; i++) {
+        object_t* obj = OBJECT_AT(t->objectvec, i);
+        
+        // bottom edge of sprite
+        int bottomY = obj->y + obj->offY + obj->th - 1;
+
+        // do we need to draw more tile rows first?
+        int bottomMapY = bottomY / img->th;
+        if(bottomMapY > lastMapY) {
+            // draw new rows
+            tilemap_draw_layer_rows(t, img, layer, px, py, pw, ph, lastMapY, bottomMapY, counter);
+
+            lastMapY = bottomMapY;
+        }
+
+        if((obj->layer == layer)
+                && (obj->x + obj->offX < px + pw)
+                && (obj->y + obj->offY < py + ph)
+                && (obj->x + obj->offX + obj->tw >= px)
+                && (obj->y + obj->offY + obj->th >= py)) {
+            object_draw(obj, px, py, counter);
+            
+            /*
+            // TODO remove
+            SDL_SetRenderDrawColor(img->renderer, 255, 0, 0, 255);
+            SDL_Rect r;
+            r.x = obj->x + obj->boundX - px;
+            r.y = obj->y + obj->boundY - py;
+            r.w = obj->boundW;
+            r.h = obj->boundH;
+            SDL_RenderDrawRect(img->renderer, &r);
+            */
+        }
+    }
+
+    // Draw remaining rows
+    tilemap_draw_layer_rows(t, img, layer, px, py, pw, ph, lastMapY, (py + ph) / img->th, counter);
+}
     
 
-void tilemap_draw_objects_at_camera_object(const tilemap_t* t, int layer, int pw, int ph, int counter) {
+void tilemap_draw_objects_at_camera_object(const tilemap_t* t, const image_t* img, int layer, int pw, int ph, int counter) {
     int px = 0;
     int py = 0;
     tilemap_get_camera_location(t, pw, ph, &px, &py);
 
-    tilemap_draw_objects(t, layer, px, py, pw, ph, counter);
+    tilemap_draw_objects_interleaved(t, img, layer, px, py, pw, ph, counter);
 }
 
 
