@@ -6,9 +6,8 @@ antarctica
 html
 latex
 
-# other
-res
-maps
-*.map
+# Autosave files
 *.swp
+*.kra~
+*.png~
 
