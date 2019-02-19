@@ -736,24 +736,6 @@ int l_tilemap_write(lua_State* L) {
     return 1;
 }
 
-
-int l_tilemap_prerender_layer(lua_State* L) {
-    tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-    int layer = luaL_checkinteger(L, 2);
-    image_t* i = (image_t*)luaL_checkudata(L, 3, "image_t");
-
-    if(tilemap_prerender_layer(t, layer, i)) {
-        lua_pushboolean(L, 1);
-    } else {
-        lua_pushboolean(L, 0);
-    }
-
-    return 1;
-}
-
-
-// TODO make layer, flags, etc. options to one function
-
 int l_tilemap_draw_layer(lua_State* L) {
     tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
     image_t* i = (image_t*)luaL_checkudata(L, 2, "image_t");
@@ -1134,7 +1116,6 @@ static const luaL_Reg tilemaplib[] = {
     {"drawObjectsAtCameraObject", l_tilemap_draw_objects_at_camera_object},
     {"getTileAnimationInfo", l_tilemap_get_tile_animation_info},
     {"setTileAnimationInfo", l_tilemap_set_tile_animation_info},
-    {"prerenderLayer", l_tilemap_prerender_layer},
     
     {"abortUpdateObjects", l_tilemap_abort_update_objects},
     
@@ -1292,15 +1273,6 @@ int l_object_remove_self(lua_State* L) {
 }
 
 
-int l_object_set_mass(lua_State* L) {
-    object_t* o = (object_t*)luaL_checkudata(L, 1, "object_t");
-    int mass = luaL_checkinteger(L, 2);
-    object_set_mass(o, mass);
-
-    return 0;
-}
-
-
 int l_object_set_image(lua_State* L) {
     object_t* o = (object_t*)luaL_checkudata(L, 1, "object_t");
     image_t* i = (image_t*)luaL_checkudata(L, 2, "image_t");
@@ -1322,7 +1294,6 @@ static const luaL_Reg objectlib[] = {
     {"getLocation", l_object_get_location},
     {"setBoundingBox", l_object_set_bounding_box},
     {"removeSelf", l_object_remove_self},
-    {"setMass", l_object_set_mass},
     {"setImage", l_object_set_image},
     {NULL, NULL}
 };

@@ -63,7 +63,6 @@ function AnimatedObject:getBbox(movement, direction)
     if frame then
         return self.sprites[movement][direction][frame].bbox
     else
-        print('pqowrinapwogjaspdkojaspokfg')
         return self.bbox
     end
 end

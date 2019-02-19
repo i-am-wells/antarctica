@@ -8,6 +8,7 @@ local Object = Class()
 
 
 Object.fromTable = function(t, resourceMan)
+    -- TODO why not include this?
     --[[
     local image = resourceMan:get(t.imageFile, Image, {
         engine = resourceMan:get('engine'),
@@ -59,10 +60,6 @@ function Object:init(options)
     self.layer = options.layer
 
     self.resourceMan = options.resourceMan
-    -- takes an image, a location, and sprite info
-    --
-    -- TODO create C object_t
-    --
     self._object = ant.object.create(
         self,
         options.image._image,
@@ -123,7 +120,8 @@ function Object:toTable()
             y = self.bbox.y,
             w = self.bbox.w,
             h = self.bbox.h
-        }
+        },
+        data = self.data
     }
 end
 
@@ -273,16 +271,8 @@ function Object:draw(x, y)
             self.tw,
             self.th
         )
-
-        --function Image:draw(sx, sy, sw, sh, dx, dy, dw, dh)
     end
 end
-
-function Object:setMass(mass)
-    ant.object.setMass(self._object, mass)
-    self.mass = mass
-end
-
 
 function Object:distanceTo(otherObject)
     local dx, dy = (otherObject.x - self.x), (otherObject.y - self.y)

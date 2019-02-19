@@ -24,13 +24,7 @@ int object_init(object_t* o, image_t* image, int tx, int ty, int tw, int th, int
     
     // TODO remove
     o->index = -1;
-    
-   
     o->toRemove = 0;
-    
-    // TODO remove
-    o->next = NULL;
-
 
     o->offX = 0;
     o->offY = 0;
@@ -40,9 +34,6 @@ int object_init(object_t* o, image_t* image, int tx, int ty, int tw, int th, int
     //object_set_velocity(o, 0, 0);
     o->vx = 0;
     o->vy = 0;
-    o->nextVx = 0;
-    o->nextVy = 0;
-    o->mass = 1;
 
     o->activeWallBump = 0;
 
@@ -54,11 +45,6 @@ int object_init(object_t* o, image_t* image, int tx, int ty, int tw, int th, int
 void object_deinit(object_t* o) {
     // nothing yet
 }
-
-void object_set_mass(object_t* o, double mass) {
-    o->mass = mass;
-}
-
 
 object_t* object_create(image_t* image, int tx, int ty, int tw, int th, int aperiod, int acount, int x, int y, int layer) {
     object_t* o = (object_t*)malloc(sizeof(object_t*));
@@ -146,25 +132,6 @@ void object_get_map_location(const object_t* o, int* mapx, int* mapy) {
     if(mapy)
         *mapy = o->y / o->image->th;
 }
-
-void object_link_after(object_t* o, object_t* n) {
-    assert(o);
-
-    object_t* original_next = o->next;
-    o->next = n;
-
-    if(n)
-        n->next = original_next;
-}
-
-
-void object_unlink_after(object_t* o) {
-    assert(o);
-
-    if(o->next)
-        o->next = o->next->next;
-}
-
 
 void object_set_image(object_t* o, image_t* i) {
     o->image = i;

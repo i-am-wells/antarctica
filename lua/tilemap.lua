@@ -34,7 +34,6 @@ end
 
 function Tilemap:populate(objects, resourceMan)
     for _, frozenObject in ipairs(objects) do
-        --print(frozenObject.class)
         local newObject = Object.fromTable(frozenObject, resourceMan)
 
         self:addObject(newObject)
@@ -69,7 +68,6 @@ end
 
 function Tilemap:createEmpty(nlayers, w, h)
     self._tilemap = ant.tilemap.createEmpty(nlayers, w, h)
-    --ant.tilemap.get(self._tilemap, self)
     self.nlayers = nlayers
     self.w = w
     self.h = h
@@ -162,8 +160,6 @@ function Tilemap:updateObjects()
     self:reallocateChannels()
     
     ant.tilemap.updateObjects(self._tilemap)
-    
-    --TODO
 end
 
 
@@ -212,10 +208,6 @@ function Tilemap:runInteractCallback(layer, mapx, mapy, object)
     if type(cb) == 'function' then
         cb(object)
     end
-end
-
-function Tilemap:prerenderLayer(layer, image)
-    return ant.tilemap.prerenderLayer(self._tilemap, layer, image._image)
 end
 
 function Tilemap:abortUpdateObjects()

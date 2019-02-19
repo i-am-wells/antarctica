@@ -7,7 +7,6 @@ local AudioSource = Class()
 
 
 AudioSource.volume = 1
-
 AudioSource.audibleRadius = 320
 
 
@@ -54,14 +53,12 @@ end
 function AudioSource:playSound(sound, listenerX, listenerY, opt)
     opt = opt or {}
     self:updateVolumeStereo(listenerX, listenerY)
-    --print('play sound: '..self.channel)
     sound:play{channel = self.channel, loop=opt.loop, duration=opt.duration}
 end
 
 
 function AudioSource:updateVolumeStereo(listenerX, listenerY)
     -- Set left and right volume
-    --print(listenerX, listenerY)
     -- TODO fix
     local l, r = self:calculateVolumeStereo(listenerX, listenerY)
     ant.sound.setChannelVolume(self.channel, l, r)

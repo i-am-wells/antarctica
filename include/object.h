@@ -19,24 +19,18 @@ typedef struct object_t {
     // map location
     int x, y, layer;
     
-    // velocity
-    //int velx, vely;
-
     // bounding box;
     int boundX, boundY, boundW, boundH;
 
     // sprite draw offset
     int offX, offY; 
 
-    // TODO remove?
-    struct object_t* next;
     size_t index;
 
     int toRemove;
 
     // physics
-    double mass;
-    double vx, vy, nextVx, nextVy;
+    double vx, vy;
 
     int activeWallBump;
 
@@ -64,11 +58,6 @@ void object_set_x_velocity(object_t* o, double vx);
 void object_set_y_velocity(object_t* o, double vy);
 
 void object_get_map_location(const object_t* o, int* mapx, int* mapy);
-
-void object_link_after(object_t* o, object_t* n);
-void object_unlink_after(object_t* o);
-
-void object_set_mass(object_t* o, double mass);
 
 void object_set_image(object_t* o, image_t* i);
 

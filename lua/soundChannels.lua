@@ -11,7 +11,6 @@ function SoundChannels:init(options)
     -- keep stack of newly available channels
     self.freedStack = {}
 
-    --TODO
     self:reallocateChannels()
 end
 
@@ -53,8 +52,6 @@ function SoundChannels:reallocateChannels()
         -- Make sure there are enough channels
         ant.sound.reallocateChannels(#self.sourceMap)
         self.numChannels = #self.sourceMap
-    
-        --print(string.format('reallocate: %d channels', self.numChannels))
     end
 end
 

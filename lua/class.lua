@@ -1,17 +1,17 @@
 
-local Class = function(...)
+local makeClass = function(...)
 
     -- our class table
     local klass = {
-        initSuper = {},
         isA = {}
     }
+
+    klass.isA[klass] = true
 
     -- copy things from parent classes
     for _, base in ipairs{...} do
 
         -- copy isA table
-        klass.isA[klass] = true
         klass.isA[base] = true
 
         -- copy base class contents
@@ -21,11 +21,6 @@ local Class = function(...)
                 for isAKey, isAValue in pairs(v) do
                     klass.isA[isAKey] = isAValue
                 end
-                --[[
-            elseif k == "init" then
-                -- keep base class constructor
-                klass.initSuper[base] = v
-                --]]
             else
                 -- shallow copy base class data
                 klass[k] = v
@@ -38,10 +33,10 @@ local Class = function(...)
 
     -- When klass is called, return new instance
     klassMT.__call = function(klassarg, ...)
-        local that = {}
-        setmetatable(that, {
+        local that = setmetatable({}, {
             -- look up instance methods from klass
             __index = klass
+            -- TODO: add option for instance to get its own copies of class fields
         })
 
         local err = nil
@@ -60,14 +55,19 @@ local Class = function(...)
     return klass
 end
 
+local Class = setmetatable({
+    cacheClassMembers = function(instance)
+        assert(type(instance) == 'table')
+        local mt = getmetatable(instance)
+        local classTable = mt.__index
+        assert(type(classTable) == 'table')
+        for k, v in pairs(classTable) do
+            instance[k] = v
+        end
+    end
+}, {
+    __call = makeClass
+})
 
---[[
-class.deriving = function(...)
-    return Class(...)
-end
-class.base = function()
-    return class.deriving()
-end
---]]
 
 return Class

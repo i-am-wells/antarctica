@@ -19,32 +19,6 @@ function Sound:init(options)
     end
 end
 
---[[
-function Sound:define(key, starttime, duration)
-    -- TODO check if start/duration are within sound bounds?
-    self.segments[key] = {start = starttime, duration = duration}
-end
-
-function Sound:getSegment(key, dur)
-    if type(key) == 'string' then
-        local seg = self.segments[key]
-        if seg then
-            return seg.start, seg.duration
-        else
-            return 0, nil
-        end
-    else
-        return key, dur
-    end
-end
---]]
-
-
---[[function Sound:play(start, duration)
-    local startTime, duration = self:getSegment(start, duration)
-    ant.sound.play(self._sound, startTime, duration)
-end--]]
-
 function Sound:play(options)
     local options = options or {}
     local channel = options.channel or -1
@@ -55,13 +29,6 @@ function Sound:play(options)
     local duration = options.duration or -1
     ant.sound.play(self._sound, channel, nloops, duration)
 end
-
-
---[[function Sound:queue(start, duration)
-    local startTime, duration = self:getSegment(start, duration)
-    ant.sound.queue(self._sound, startTime, duration)
-end--]]
-
 
 return Sound
 
