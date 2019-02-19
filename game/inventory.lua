@@ -20,10 +20,8 @@ Inventory.contentW = 240
 Inventory.contentH = 100
 
 function Inventory:init(options)
-
     -- copy in items from options?
     self.resourceMan = options.resourceMan
-
     self.engine = self.resourceMan:get('engine')
 
     Menu.init(self, options)
@@ -50,7 +48,6 @@ function Inventory:init(options)
 
     self.items = {}
     self.choices = {}
-
 
     -- populate
     for i, itemTable in ipairs(options.items) do
@@ -101,11 +98,9 @@ end
 
 
 function Inventory:draw()
-
     -- Draw background image
     self.menuShadow:drawCentered()
     self.bgImage:drawCentered()
-
 
     -- Draw items
     local w = self.rowLength

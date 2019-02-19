@@ -34,7 +34,6 @@ end
 
 
 function StatusText:draw(idx)
-
     local y = self.drawY - (self.fontH + self.margin) * (#self.overlayStack - idx)
 
     -- draw text

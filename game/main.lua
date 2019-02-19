@@ -14,7 +14,6 @@ do
     
     -- aim to fit at most 30 tiles horizontally
     local targetScale = dispW / 16 / 30 // 1 + 1
-    --local targetScale = dispH / 16 / 16 // 1
     vw = dispW // targetScale
     vh = dispH // targetScale
     logicalScale = 1
@@ -42,7 +41,6 @@ res:set('engine', engine)
 
 
 -- State machine for coordinating game, menu, and credits.
-
 local states
 states = {
     menu = function()
@@ -86,7 +84,6 @@ states = {
         end
 
         return nil,nil
-        --return states.menu, nil
     end,
 
     credits = function()

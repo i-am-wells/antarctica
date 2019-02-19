@@ -30,9 +30,6 @@ function Hero:init(options)
     self.hp = 10
     self.maxHp = 10
 
-    -- TODO remove
-    self:setMass(9)
-
     self.moveDirectionStack = {}
 end
 

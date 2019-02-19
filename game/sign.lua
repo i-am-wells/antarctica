@@ -77,7 +77,6 @@ function Sign:onInteract(other)
             other.moveDirectionStack = {}
         end
 
-        --local sx, sy = self:getScreenLocation(self.engine.vw, self.engine.vh)
         self.textBar = TextBar{
             resourceMan = self.resourceMan,
             text = self.data.says,

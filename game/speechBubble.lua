@@ -62,15 +62,6 @@ function SpeechBubble:draw()
     else
         self.bgImage:draw(stem.x, stem.y, stem.w, stem.h, self.dx-stem.w+1, self.dy+self.margin+1, stem.w, stem.h)
     end
-    --[[
-    -- Background
-    self.engine:setColor(bg.r, bg.g, bg.b, bg.a or 255)
-    self.engine:fillRect(self.dx, self.dy, self.dw, self.dh)
-
-    -- Border
-    self.engine:setColor(border.r, border.g, border.b, border.a or 255)
-    self.engine:drawRect(self.dx, self.dy, self.dw, self.dh)
-    --]]
 
     -- Text
     self.font:drawText(

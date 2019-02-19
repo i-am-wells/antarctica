@@ -10,12 +10,9 @@ local AudioSource = require 'audioSource'
 local MovingObject = require 'game.movingObject'
 local resourceInfo = require 'game.resourceInfo'
 local util = require 'game.util'
---local SpeechBubble = require 'game.speechBubble'
 local TextBar = require 'game.textBar'
 
 local LeopardSeal = Class(AnimatedObject, AudioSource, MovingObject)
-
---local footstepSoundFile = 'res/sound/footstep0.wav'
 
 LeopardSeal.imageFile = 'res/leopardseal.png'
 
@@ -129,7 +126,6 @@ end
 function LeopardSeal:onupdate()
     -- Update sprite if necessary
     self:updateSprite()
-    --self:updateVolumeStereo()
 
     -- TODO chase hero or other penguins
 
@@ -176,7 +172,6 @@ function LeopardSeal:onupdate()
 
 end
 
-
 function LeopardSeal:onInteract(other)
     local engine = self.resourceMan:get('engine')
 
@@ -185,7 +180,6 @@ function LeopardSeal:onInteract(other)
     if other.moveDirectionStack then
         other.moveDirectionStack = {}
     end
-
     
     -- Open speech bar
     self.textBar = TextBar{

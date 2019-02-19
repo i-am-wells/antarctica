@@ -176,10 +176,6 @@ local footprints = {
     
 }
 
--- TODO remove
-Penguin.copyInSprite = {
-    grandma = {x=128, y=96, w=64, h=96}
-}
 
 function Penguin:init(options)    
     self.direction = options.direction or 'south'
@@ -190,16 +186,7 @@ function Penguin:init(options)
 
     self.data = options.data
     
-
-    --[[
-    -- load sounds
-    self.footstepSounds = {}
-    for i, file in ipairs(footstepFiles) do
-        self.footstepSounds[i] = options.resourceMan:get(file, Sound, {
-            file = file
-        })
-    end
-    --]]
+    -- TODO load sounds
 
     local file = footstepSoundFile
     self.footstepSound = options.resourceMan:get(file, Sound, {
@@ -231,8 +218,6 @@ function Penguin:init(options)
     end
 
     self.footprints = {}
-
-    self:setMass(10)
 end
 
 
@@ -274,26 +259,6 @@ function Penguin:onupdate()
         end
     end
 
-    --[[
-    if self.speechBubble then
-        
-        local sx, sy = self:getScreenLocation(self.engine.vw, self.engine.vh)
-        self.speechBubble:updatePosition(sx, sy)
-        self.speechBubble:draw()
-        self.speechCounter = self.speechCounter - 1
-
-        -- face speaker
-        self:getLocation()
-        self.interacter:getLocation()
-        
-        self:turn(util.getOppositeDirection(self.x - self.interacter.x, self.y - self.interacter.y))
-
-        if self.speechCounter == 0 then
-            self.speechBubble = nil
-        end
-    end
-    --]]
-    
     if self.textBar and self.textBar.isOpen then
         -- face speaker
         self:getLocation()
@@ -313,18 +278,6 @@ function Penguin:onInteract(other)
         other.moveDirectionStack = {}
     end
 
-    --[[
-    local sx, sy = self:getScreenLocation(engine.vw, engine.vh)
-    self.speechBubble = SpeechBubble{
-        resourceMan = self.resourceMan,
-        text = self.data.says,
-        bg = {r=255,g=255,b=255},
-        border = {r=0,g=0,b=0},
-        sx = sx + 8,
-        sy = sy - 8
-    }
-    --]]
-    
     -- Open speech bar
     self.textBar = TextBar{
         resourceMan = self.resourceMan,
@@ -372,30 +325,6 @@ end
 
 
 function Penguin:slide()
-    --[[
-    -- check if bbox change would put us across bump boundaries
-    local bbox = self:getBbox('slide', self.direction)
-    local x0, y0 = self.x + bbox.x, self.y + bbox.y
-    local x1, y1 = x0 + bbox.w - 1, y0 + bbox.h - 1
-    
-    local stop = false
-    if ant.tilemap.getFlags(self._tilemap, self.layer, x0 // tileW, y0 // tileH) ~= 0 then
-        stop = true
-    elseif ant.tilemap.getFlags(self._tilemap, self.layer, x1 // tileW, y0 // tileH) ~= 0 then
-        stop = true
-    elseif ant.tilemap.getFlags(self._tilemap, self.layer, x0 // tileW, y1 // tileH) ~= 0 then
-        stop = true
-    elseif ant.tilemap.getFlags(self._tilemap, self.layer, x1 // tileW, y1 // tileH) ~= 0 then
-        stop = true
-    end
-
-    if stop then
-        self:setVelocity(0, 0)
-        self:stand()
-        return
-    end
-    --]]
-
     self.movement = 'slide'
     self:setStepSize(4)
     self.updateCounter = 0
@@ -434,5 +363,3 @@ function Penguin:updateVolumeStereo()
 end
 
 return Penguin
-
-

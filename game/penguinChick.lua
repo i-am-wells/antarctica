@@ -3,8 +3,7 @@ local Penguin = require 'game.penguin'
 
 local PenguinChick = Class(Penguin)
 
--- need tx, ty, 
--- PenguinChick is just a Penguin with different sprites
+-- PenguinChick is just a Penguin with different sprites and bounding box.
 PenguinChick.sprites = {
     stand = {
         north = {{tx=1, ty=8, tw=16, th=32, bbox={x=0, y=0, w=14, h=14}, offX=0, offY=-16}},
