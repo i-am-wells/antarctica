@@ -1,0 +1,3 @@
+
+Organize maps and resources, get them out of root
+Fix hard-coded tile dimensions (16, 16)
