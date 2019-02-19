@@ -1,6 +1,7 @@
 
 -- which resource goes with which map, named locations, etc.
 return {
+    mapdir = 'res/maps/',
     maps = {
         antarcticaSurface = {
             file = 'antarctica-fresher-flags.map',

@@ -240,7 +240,8 @@ function Game:changeMap(newMapName, heroPos)
         self:fade(255, 0, 32)
 
         local mapInfo = resourceInfo.maps[newMapName]
-        local newMapFilename = mapInfo.file
+        local mapDir = resourceInfo.mapdir or ""
+        local newMapFilename = mapDir..mapInfo.file
 
         if self.map then
             -- remove hero
