@@ -21,8 +21,8 @@ local StatusText = require 'game.statusText'
 -- TODO remove for release
 local DevSession = require 'devtools.devSession'
 
-
 local Game = Class()
+
 
 function Game:init(opt)
     
@@ -54,7 +54,8 @@ function Game:init(opt)
     self.hero:turn('south')
 
     self.hero:on{
-        -- Door 
+        -- Door
+        -- TODO consider moving this into its own class: dooruser.lua
         wallbump = function(hero, direction)
             
             local mx, my = hero:getTileLocation()
@@ -86,7 +87,6 @@ function Game:init(opt)
         end
     }
 
-
     self.controlMap = opt.controlMap or self.state.controlMap or {
         D = 'goEast',
         W = 'goNorth',
@@ -98,7 +98,6 @@ function Game:init(opt)
         I = 'inventory'
     }
     self.controlMap.L = 'printLocation'
-
 
     -- Actions
     self.onkeydown = setmetatable({
@@ -188,6 +187,7 @@ function Game:init(opt)
         }
     )
 
+    -- TODO move the body of this function into a method of Game.
     self.redraw = function(time, elapsed, counter)
         self.engine:setColor(self.bgColor.r, self.bgColor.g, self.bgColor.b, 255)
         self.engine:clear()
@@ -196,10 +196,10 @@ function Game:init(opt)
         -- TODO store vw, vh in C engine_t
         local image, vw, vh = self.tileImage, self.engine.vw, self.engine.vh
 
+        -- TODO make "ordinary map redraw" its own method.
         self.map:drawLayerAtCameraObject(image, 0, vw, vh, counter)
         self.map:drawObjectsAtCameraObject(image, 1, vw, vh, counter)
         --self.map:drawLayerAtCameraObject(image, 1, vw, vh, counter)
-
 
         -- Draw menus
         for _, v in ipairs(self.menuStack) do
@@ -212,7 +212,6 @@ function Game:init(opt)
             o:update()
         end
 
-
         -- Update object positions, run update callbacks
         -- TODO pass arguments through to object callbacks
         self.map:updateObjects()
@@ -223,7 +222,10 @@ function Game:init(opt)
     self:changeMap(self.state.hero.mapName, {x=self.hero.x, y=self.hero.y})
 end
 
-
+--- Creates a StatusText to be drawn on over the map.
+--
+-- @param text string Text to be rendered and shown
+-- @see game.statustext.StatusText
 function Game:status(text)
     StatusText{
         text = text,
@@ -233,7 +235,10 @@ function Game:status(text)
     }
 end
 
-
+--- Loads a new map and places the hero on it.
+--
+-- @param newMapName (string) Name of the new map for lookup in resourceInfo.
+-- @param heroPos {int x, int y} Position of the hero on the new map.
 function Game:changeMap(newMapName, heroPos)
     if self.mapName ~= newMapName then
         -- TODO fade out
@@ -289,9 +294,6 @@ function Game:changeMap(newMapName, heroPos)
 
         self.bgColor = mapInfo.background
         self.engine:setColor(self.bgColor.r, self.bgColor.g, self.bgColor.b, self.bgColor.a or 255)
-    
-        -- TODO fade in
-        --self:run()
     end
 
     self.hero:warp(heroPos.x, heroPos.y)
@@ -299,7 +301,18 @@ function Game:changeMap(newMapName, heroPos)
     print('changed map: '..self.mapName)
 end
 
-
+--- Run a simple fade-in or fade-out effect.
+--
+-- Does ordinary redraw but targets an image instead of the screen. That image
+-- is then drawn to the screen over a background color with opacity changing 
+-- from startAlpha to endAlpha linearly over the specified frame count.
+--
+-- @param startAlpha (int) Starting opacity value in [0, 255]
+-- @param endAlpha   (int) Ending opacity value in [0, 255]
+-- @param frames     (int) Duration of fade as number of frames
+--
+-- @see Game:fadeIn
+-- @see Game:fadeOut
 function Game:fade(startAlpha, endAlpha, frames)
     -- TODO do this better
     if not self.tileImage then
@@ -324,14 +337,12 @@ function Game:fade(startAlpha, endAlpha, frames)
     self.engine:run{
         redraw = function()
             if frame == frames then
-                --print('end fade')
                 self.engine:stop()
                 return
             end
 
             self.engine:clear()
             local alpha = frame / frames * (endAlpha - startAlpha) + startAlpha
-            --print(alpha)
             dummy:alphaMod(alpha // 1)
             dummy:drawWhole()
 
@@ -340,13 +351,39 @@ function Game:fade(startAlpha, endAlpha, frames)
     }
 end
 
+--- Fade in from the background color to full picture.
+--
+-- @param frames (int) Duration of fade in frames.
+--
+-- @see Game:fade
+function Game:fadeIn(frames)
+    self:fade(0, 255, frames)
+end
 
+--- Fade out from full picture to the background color.
+--
+-- @param frames (int) Duration of fade in frames.
+--
+-- @see Game:fade
+function Game:fadeOut(frames)
+    self:fade(255, 0, frames)
+end
+
+--- Stops everything, causing Game:run() to return.
+function Game:quit()
+    self.isRunning = false
+    self.engine:stop()
+end
+
+--- Run the game loop.
+--
+-- Takes input, runs game logic, and redraws until the window is closed or an
+-- event handler calls Game:quit().
 function Game:run()
+    -- Outer loop allowing the engine to start and stop for other running modes
+    -- (fades/transitions, etc.)
     self.isRunning = true
     while self.isRunning do
-
-        local fElapsed = 0
-
         -- Install handlers and run
         self.engine:run{
             redraw = self.redraw,
@@ -375,12 +412,10 @@ function Game:run()
 
             quit = function()
                 print('received quit')
-                self.isRunning = false
-                self.engine:stop()
+                self:quit()
             end
         }
     end
 end
-
 
 return Game

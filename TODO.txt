@@ -1,3 +1,7 @@
-
-Organize maps and resources, get them out of root
 Fix hard-coded tile dimensions (16, 16)
+Write LDoc documentation
+Replace print() calls with new log class
+
+Dev tools:
+    object editor
+    map editor

@@ -97,8 +97,6 @@ function LeopardSeal:init(options)
     AnimatedObject.init(self, options)
     AudioSource.init(self, options)
 
-    self:setMass(20)
-
     self.hp = 10
     self.maxHp = 10
 
@@ -198,7 +196,6 @@ function LeopardSeal:walk()
     self.movement = 'walk'
     self:setStepSize(2)
     self.updateCounter = 0
-    self:setMass(5)
 end
 
 
@@ -206,7 +203,6 @@ function LeopardSeal:attack()
     self.movement = 'attack'
     self:setStepSize(0)
     self.updateCounter = 0
-    self:setMass(20)
 
     if self:isFacing(self.target) and self:isTouching(self.target) then
         -- TODO calculate damage

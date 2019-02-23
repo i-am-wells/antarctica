@@ -62,8 +62,6 @@ function Sign:init(options)
         end
     }
 
-    self:setMass(10000)
-
     self.data = options.data
 end
 

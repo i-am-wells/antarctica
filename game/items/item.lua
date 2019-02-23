@@ -38,8 +38,6 @@ function Item:init(options)
         1, 1, 
         self.offX, self.offY
     )
-
-    self:setMass(1000)
 end
 
 
