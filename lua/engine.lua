@@ -50,6 +50,16 @@ Engine.keymod = {
     alt = _lalt | _ralt
 }
 
+-- TODO define in c side
+-- see SDL_mouse.h
+Engine.mousebutton = {
+    left = 1,
+    middle = 2,
+    right = 3,
+    x1 = 4,
+    x2 = 5
+}
+
 -- Engine constructor
 function Engine:init(...)
     self._engine = ant.engine.create(...)
