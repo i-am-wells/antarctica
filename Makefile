@@ -1,6 +1,6 @@
 CC=gcc
 
-CFLAGS=-std=c99 -O0 -g -Wall `sdl2-config --cflags` -Iinclude
+CFLAGS=-std=c99 -O0 -g -Wall `sdl2-config --cflags` -Isrc
 
 LIBS=-llua -lSDL2_image -lSDL2_mixer `sdl2-config --libs`
 
