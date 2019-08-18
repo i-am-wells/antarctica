@@ -64,24 +64,6 @@ int image_init(image_t* i, engine_t* e, const char* filename, int tw, int th);
  */
 void image_deinit(image_t* i);
 
-
-/**
- *  Mallocs and initializes an image_t.
- *
- *  \sa image_init
- *
- *  \return newly created image_t* on success, or NULL on failure
- */
-image_t* image_create(engine_t* e, const char* filename, int tw, int th);
-
-
-/**
- *  Deinitializes and frees an image_t created with image_create.
- *
- *  \param i    image pointer
- */
-void image_destroy(image_t* i);
-
 int image_color_mod(image_t* i, uint8_t r, uint8_t g, uint8_t b);
 int image_alpha_mod(image_t* i, uint8_t a);
 

@@ -27,7 +27,6 @@ typedef struct engine_t {
  */
 void engine_deinit(engine_t * e);
 
-
 /**
  *  Create a window and renderer for an engine. See SDL documentation for
  *  special values for window and renderer creation arguments.
@@ -46,25 +45,6 @@ void engine_deinit(engine_t * e);
  */
 int engine_init(engine_t * e, char * wtitle, int x, int y, int w, int h, int wflags,
         int ridx, int rflags);
-
-
-/**
- *  Deinitializes and frees a malloced engine_t. \sa engine_deinit
- *
- *  \param e    engine_t pointer
- */
-void engine_destroy(engine_t * e);
-
-
-/**
- *  Malloc and initialize and engine_t. \sa engine_init
- *
- *  \return A newly malloced and initialized engine_t pointer, or NULL on
- *  failure.
- */
-engine_t * engine_create(char * wtitle, int x, int y, int w, int h, int wflags,
-        int ridx, int rflags);
-
 
 /**
  *  Starts the engine's event loop. The loop will exit when the engine's

@@ -1,4 +1,8 @@
+local package = require 'package'
+package.path = package.path..';./lua/?.lua'
+
 local ant = require 'antarctica'
+ant.init()
 
 local Engine = require 'engine'
 local ResourceManager = require 'resourceManager'
@@ -99,3 +103,4 @@ while state do
     state, args = state(args)
 end
 
+ant.quit()

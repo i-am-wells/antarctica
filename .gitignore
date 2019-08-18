@@ -1,13 +1,9 @@
 # Ignore compiled things
 *.o
-antarctica
+antarctica.so
 
 # Ignore log files
 *.log
-
-# Ignore doxygen output
-html
-latex
 
 # Autosave files
 *.swp
