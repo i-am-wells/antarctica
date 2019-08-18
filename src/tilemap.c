@@ -13,30 +13,6 @@
 
 #include "vec.h"
 
-
-tilemap_t * tilemap_create(size_t nlayers, size_t w, size_t h) {
-    // Try to allocate a tilemap_t
-    tilemap_t * t = (tilemap_t*)malloc(sizeof(tilemap_t));
-    if(!t)
-        return NULL;
-
-    // Initialize
-    if(!tilemap_init(t, w, h, nlayers)) {
-        free(t);
-        return NULL;
-    }
-
-    return t;
-}
-
-
-void tilemap_destroy(tilemap_t * t) {
-    // Deinitialize and free
-    tilemap_deinit(t);
-    free(t);
-}
-
-
 void tilemap_deinit(tilemap_t* t) {
     if(t) {
         // Free tiles arrays
@@ -69,7 +45,7 @@ int tilemap_init(tilemap_t * t, size_t nlayers, size_t w, size_t h) {
         for(size_t i = 0; i < nlayers; i++) {
             maplayers[i] = (tile_t*)calloc(w * h, sizeof(tile_t));
             if(!(maplayers[i])) {
-                tilemap_destroy(t);
+                tilemap_deinit(t);
                 return 0;
             }
         }
@@ -1083,18 +1059,7 @@ void tilemap_draw_objects_interleaved(const tilemap_t* t, const image_t* img, in
                 && (obj->y + obj->offY < py + ph)
                 && (obj->x + obj->offX + obj->tw >= px)
                 && (obj->y + obj->offY + obj->th >= py)) {
-            object_draw(obj, px, py, counter);
-            
-            /*
-            // TODO remove
-            SDL_SetRenderDrawColor(img->renderer, 255, 0, 0, 255);
-            SDL_Rect r;
-            r.x = obj->x + obj->boundX - px;
-            r.y = obj->y + obj->boundY - py;
-            r.w = obj->boundW;
-            r.h = obj->boundH;
-            SDL_RenderDrawRect(img->renderer, &r);
-            */
+            object_draw(obj, px, py, counter);    
         }
     }
 

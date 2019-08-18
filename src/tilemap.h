@@ -103,29 +103,6 @@ void tilemap_deinit(tilemap_t * t);
  */
 int tilemap_init(tilemap_t * t, size_t nlayers, size_t w, size_t h);
 
-
-/**
- *  Create a tilemap_t with malloc and initialize it.
- *
- *  \sa tilemap_init
- *
- *  \param nlayers  number of tile layers to allocate
- *  \param w    width (tiles) of each map layer
- *  \param h    height (tiles) of each map layer
- *
- *  \return pointer to newly created tilemap
- */
-tilemap_t * tilemap_create(size_t nlayers, size_t w, size_t h);
-
-
-/**
- *  Deinitialize and free a tilemap_t created with tilemap_create.
- *
- *  \param t    tilemap pointer
- */
-void tilemap_destroy(tilemap_t * t);
-
-
 /**
  *  Gets the address of the tile at (\param layer, \param x, \param y).
  *

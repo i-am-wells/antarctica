@@ -7,26 +7,8 @@
 #include <SDL.h>
 #include <SDL_mixer.h>
 
+#include "lua_helpers.h"
 #include "engine.h"
-
-
-void engine_deinit(engine_t * e) {
-    if(e) {
-        Mix_CloseAudio();
-
-        // Destroy the window and the renderer
-        if(e->renderer) {
-            SDL_DestroyRenderer(e->renderer);
-            e->renderer = NULL;
-        }
-
-        if(e->window) {
-            SDL_DestroyWindow(e->window);
-            e->window = NULL;
-        }
-    }
-}
-
 
 int engine_init(engine_t * e, char * wtitle, int x, int y, int w, int h, int wflags,
         int ridx, int rflags) {
@@ -82,30 +64,22 @@ engine_init_fail:
     return 0;
 }
 
+void engine_deinit(engine_t * e) {
+    if(e) {
+        Mix_CloseAudio();
 
-// Deinitializes and frees a malloced engine struct
-void engine_destroy(engine_t * e) {
-    engine_deinit(e);
-    if(e)
-        free(e);
-}
+        // Destroy the window and the renderer
+        if(e->renderer) {
+            SDL_DestroyRenderer(e->renderer);
+            e->renderer = NULL;
+        }
 
-
-// Mallocs and initializes a new engine struct
-engine_t * engine_create(char * wtitle, int x, int y, int w, int h, int wflags,
-        int ridx, int rflags) {
-    engine_t * e = (engine_t*)calloc(1, sizeof(engine_t));
-    if(!e)
-        return NULL;
-
-    if(!engine_init(e, wtitle, x, y, w, h, wflags, ridx, rflags)) {
-        engine_destroy(e);
-        return NULL;
+        if(e->window) {
+            SDL_DestroyWindow(e->window);
+            e->window = NULL;
+        }
     }
-
-    return e;
 }
-
 
 // Retrieve an event handler associated with key
 static int get_event_handler(lua_State* L, int key) {
@@ -120,13 +94,10 @@ static int get_event_handler(lua_State* L, int key) {
     return 1;
 }
 
-
 void engine_set_scale(engine_t* e, float scaleX, float scaleY) {
     SDL_RenderSetScale(e->renderer, scaleX, scaleY);
 }
 
-
-// Basic drawing functions //
 void engine_draw_point(engine_t* e, int x, int y) {
     SDL_RenderDrawPoint(e->renderer, x, y);
 }
@@ -189,10 +160,8 @@ void engine_get_render_size(const engine_t* e, int* w, int* h) {
 // For each event received by SDL, check if a handler exists and run it.
 // Returns SDL_QUIT if a quit event was received, or 0 otherwise.
 static int engine_run_event_handlers(engine_t* e, lua_State* L) {
-
     SDL_Event ev;
     while(SDL_PollEvent(&ev)) {
-
         if(ev.type == SDL_WINDOWEVENT && get_event_handler(L, ev.type | ev.window.event)) {
             switch(ev.window.event) {
                 // Window events with windowID and timestamp only

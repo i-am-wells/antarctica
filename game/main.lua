@@ -1,3 +1,6 @@
+local package = require 'package'
+package.path = package.path..';./lua/?.lua'
+
 local ant = require 'antarctica'
 
 local Engine = require 'engine'

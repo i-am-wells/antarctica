@@ -70,36 +70,11 @@ int sound_init(sound_t* t, const char* file) {
     return 1;
 };
 
-
 void sound_deinit(sound_t* t) {
     if(t) {
         Mix_FreeChunk(t->chunk);
     }
 }
-
-
-sound_t* sound_create(const char* file) {
-    sound_t* s = (sound_t*)calloc(1, sizeof(sound_t));
-    if(!s) {
-        return NULL;
-    }
-
-    if(!sound_init(s, file)) {
-        free(s);
-        return NULL;
-    }
-
-    return s;
-}
-
-
-void sound_destroy(sound_t* s) {
-    if(s) {
-        sound_deinit(s);
-        free(s);
-    }
-}
-
 
 int sound_play(const sound_t* s, int channel, int nloops, int duration) {
     if(Mix_PlayChannelTimed(channel-1, s->chunk, nloops, duration) == -1) {
@@ -109,4 +84,3 @@ int sound_play(const sound_t* s, int channel, int nloops, int duration) {
 
     return 1;
 }
-

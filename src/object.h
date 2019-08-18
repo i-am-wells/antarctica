@@ -45,11 +45,7 @@ void object_deinit(object_t* o);
 
 void object_set_bounding_box(object_t* o, int x, int y, int w, int h);
 
-object_t* object_create(image_t* image, int tx, int ty, int tw, int th, int aperiod, int acount, int x, int y, int layer);
-
 void object_set_sprite(object_t* o, int tx, int ty, int tw, int th, int animcount, int animperiod, int offX, int offY);
-
-void object_destroy(object_t* o);
 
 void object_draw(const object_t* o, int vx, int vy, int counter);
 
