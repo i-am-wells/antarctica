@@ -8,7 +8,7 @@
 #include "image.h"
 #include "lua_helpers.h"
 
-int l_image_destroy(lua_State* L) {
+int l_image_deinit(lua_State* L) {
     image_t* i = (image_t*)lua_touserdata(L, 1);
     image_deinit(i);
     return 0;
@@ -19,6 +19,7 @@ int l_image_load(lua_State* L) {
     luaL_checkstring(L, 2);
     luaL_checkinteger(L, 3);
     luaL_checkinteger(L, 4);
+    // TODO check 5?
 
     lua_getfield(L, 1, "_engine");
     engine_t* e = (engine_t*)luaL_checkudata(L, -1, "engine_t");
@@ -26,17 +27,18 @@ int l_image_load(lua_State* L) {
     const char* filename = lua_tostring(L, 2);
     int tw = lua_tointeger(L, 3);
     int th = lua_tointeger(L, 4);
+    int keep_surface = lua_toboolean(L, 5);
 
     image_t* i = lua_newuserdata(L, sizeof(image_t));
 
-    if(!image_init(i, e, filename, tw, th)) {
+    if(!image_init(i, e, filename, tw, th, keep_surface)) {
         lua_pop(L, 1);
         lua_pushnil(L);
         lua_pushstring(L, SDL_GetError());
         return 2;
     }
 
-    set_gc_metamethod(L, "image_t", l_image_destroy);
+    set_gc_metamethod(L, "image_t", l_image_deinit);
     return 1;
 }
 
@@ -63,7 +65,7 @@ int l_image_create_blank(lua_State* L) {
         return 2;
     }
     
-    set_gc_metamethod(L, "image_t", l_image_destroy);
+    set_gc_metamethod(L, "image_t", l_image_deinit);
     return 1;
 }
 
@@ -196,10 +198,47 @@ int l_image_target_image(lua_State* L) {
     return 1;
 }
 
+int l_image_get_pixels(lua_State* L) {
+  image_t* i = (image_t*)luaL_checkudata(L, 1, "image_t");
+  if (!i->surface)
+    return 0;
+  
+  // Get pixels according to pixelformat
+  SDL_PixelFormat* fmt = i->surface->format;
+  uint8_t* pixels = (uint8_t*)i->surface->pixels;
+  int w = i->surface->w;
+  int h = i->surface->h;
+
+  lua_createtable(L, h, 0);
+  for (int y = 0; y < h; y++) {
+    // Create row
+    lua_createtable(L, w, 0);
+    for (int x = 0; x < w; x++) {
+      size_t pixel_offset = y * w + x;
+      size_t offset = pixel_offset * fmt->BytesPerPixel;
+      
+      uint32_t pixel = *(uint32_t*)(pixels + offset);
+
+      // Set pixels
+      lua_createtable(L, 0, 3);
+      lua_pushinteger(L, (pixel & fmt->Rmask) >> fmt->Rshift);
+      lua_setfield(L, -2, "r");
+      lua_pushinteger(L, (pixel & fmt->Gmask) >> fmt->Gshift);
+      lua_setfield(L, -2, "g");
+      lua_pushinteger(L, (pixel & fmt->Bmask) >> fmt->Bshift);
+      lua_setfield(L, -2, "b");
+      lua_rawseti(L, -2, x+1);
+    }
+    lua_rawseti(L, -2, y+1);
+  }
+  
+  return 1;
+}
+
 void load_image_bridge(lua_State* L) {
   const luaL_Reg imagelib[] = {
     {"load", l_image_load},
-    {"destroy", l_image_destroy},
+    {"destroy", l_image_deinit},
     {"draw", l_image_draw},
     {"drawWhole", l_image_draw_whole},
     {"drawTile", l_image_draw_tile},
@@ -210,6 +249,7 @@ void load_image_bridge(lua_State* L) {
     {"alphaMod", l_image_alpha_mod},
     {"targetImage", l_image_target_image},
     {"createBlank", l_image_create_blank},
+    {"getPixels", l_image_get_pixels},
     {NULL, NULL}
   };
   luaL_newlib(L, imagelib);

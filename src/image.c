@@ -9,20 +9,19 @@
 #include "image.h"
 
 
-int image_load(image_t* i, engine_t* e, const char* filename) {
-    SDL_Surface* surf = IMG_Load(filename);
-    if(!surf)
+int image_load(image_t* i, engine_t* e, const char* filename, int keep_surface) {
+    i->surface = IMG_Load(filename);
+    if(!i->surface)
         return 0;
 
-    SDL_Texture* tex = SDL_CreateTextureFromSurface(e->renderer, surf);
+    SDL_Texture* tex = SDL_CreateTextureFromSurface(e->renderer, i->surface);
     if(!tex) {
-        SDL_FreeSurface(surf);
         return 0;
     }
 
     i->texture = tex;
-    i->texturewidth = surf->w;
-    i->textureheight = surf->h;
+    i->texturewidth = i->surface->w;
+    i->textureheight = i->surface->h;
     i->renderer = e->renderer;
 
     if(i->scaled_texture)
@@ -30,12 +29,15 @@ int image_load(image_t* i, engine_t* e, const char* filename) {
 
     i->scaled_texture = i->texture;
 
-    SDL_FreeSurface(surf);
+    if (!keep_surface) {
+      SDL_FreeSurface(i->surface);
+      i->surface = NULL;
+    }
     return 1;
 }
 
 
-int image_init(image_t* i, engine_t* e, const char* filename, int tw, int th) {
+int image_init(image_t* i, engine_t* e, const char* filename, int tw, int th, int keep_surface) {
     assert(i);
 
     i->tw = tw;
@@ -43,10 +45,12 @@ int image_init(image_t* i, engine_t* e, const char* filename, int tw, int th) {
     i->orig_tw = tw;
     i->orig_th = th;
     i->scaled_texture = NULL;
+    i->surface = NULL;
+    i->texture = NULL;
 
     i->scale = 1.0;
 
-    return image_load(i, e, filename);
+    return image_load(i, e, filename, keep_surface);
 }
 
 
@@ -82,6 +86,7 @@ int image_init_blank(image_t* i, engine_t* e, int w, int h, int tw, int th) {
     i->textureheight = h;
     i->tw = tw;
     i->th = th;
+    i->pixel_format = texformat;
 
     // Target new texture
     SDL_SetRenderTarget(i->renderer, tex);
@@ -113,31 +118,11 @@ void image_deinit(image_t* i) {
             if(i->scaled_texture)
                 SDL_DestroyTexture(i->scaled_texture);
         }
+
+        if (i->surface)
+          SDL_FreeSurface(i->surface);
     }
 }
-
-
-image_t* image_create(engine_t* e, const char* filename, int tw, int th) {
-    image_t* i = (image_t*)calloc(1, sizeof(image_t));
-    if(!i)
-        return NULL;
-
-    if(!image_init(i, e, filename, tw, th)) {
-        free(i);
-        return NULL;
-    }
-
-    return i;
-}
-
-
-void image_destroy(image_t* i) {
-    if(i) {
-        image_deinit(i);
-        free(i);
-    }
-}
-
 
 int image_color_mod(image_t* i, uint8_t r, uint8_t g, uint8_t b) {
     assert(i);
@@ -352,4 +337,5 @@ int image_scale(image_t* i, double scale) {
 
     return 1;
 }
+
 

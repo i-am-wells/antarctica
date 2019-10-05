@@ -20,11 +20,13 @@
 typedef struct image_t {
     SDL_Renderer* renderer; /**< SDL rendering context */
     SDL_Texture* texture;   /**< SDL texture data */
+    SDL_Surface* surface; // optional software surface
 
     int texturewidth, textureheight;    /**< Pixel width and height of the texture */
 
     int tw, th; /**< Pixel width and height used to divide the image into tiles */
     int orig_tw, orig_th;
+    uint32_t pixel_format;
 
     SDL_Texture* scaled_texture;
     double scale;
@@ -40,7 +42,7 @@ typedef struct image_t {
  *
  *  \return 1 on success, 0 on failure
  */
-int image_load(image_t* i, engine_t* e, const char* filename);
+int image_load(image_t* i, engine_t* e, const char* filename, int keep_surface);
 
 
 /**
@@ -54,7 +56,7 @@ int image_load(image_t* i, engine_t* e, const char* filename);
  *
  *  \return 1 on success, 0 on failure
  */
-int image_init(image_t* i, engine_t* e, const char* filename, int tw, int th);
+int image_init(image_t* i, engine_t* e, const char* filename, int tw, int th, int keep_surface);
 
 
 /**
