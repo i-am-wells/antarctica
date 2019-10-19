@@ -8,6 +8,16 @@ local Object = require 'object'
 
 local Tilemap = Class(SoundChannels)
 
+-- Keep in sync with flags in tilemap.h
+local flags = {
+  bumpSouth = 0x100,
+  bumpWest = 0x200,
+  bumpNorth = 0x400,
+  bumpEast = 0x800,
+}
+flags.bumpAll = flags.bumpSouth | flags.bumpWest | flags.bumpNorth | flags.bumpEast
+Tilemap.flags = flags
+
 
 function Tilemap:init(options)
     if options.file then

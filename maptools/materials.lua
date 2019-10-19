@@ -15,6 +15,24 @@ return {
   tundra = 600,
   snowfield = 700,
 
-  caveFloor = 800,
-  caveNothing = 801
+  caveNothing = 800,
+  caveInnerNW = 801,
+  caveInnerNE = 802,
+  caveNorthWall = 803,
+  caveInnerSW = 804,
+  caveWestWall = 805,
+  caveX1 = 806,
+  caveOuterNW = 807,
+  caveInnerSE = 808,
+  caveX2 = 809,
+  caveEastWall = 810,
+  caveOuterNE = 811,
+  caveSouthWall = 812,
+  caveOuterSW = 813,
+  caveOuterSE = 814,
+  caveFloor = 815,
+
+  caveNorthWallHigh = 816,
+  caveNEWallHigh = 817,
+  caveNWWallHigh = 818,
 }

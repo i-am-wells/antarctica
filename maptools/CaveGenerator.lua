@@ -86,7 +86,6 @@ function CaveGenerator:generate()
   -- subdivide/jag edges
   local jaggedEdges = {}
   for _, edge in ipairs(edges) do
-    print(edge.a, edge.b)
     local a, b = self.roomCenters[edge.a]:copy(), self.roomCenters[edge.b]:copy()
     self:makeJaggedEdge(self.jaggedCuts, a, b)
     table.insert(jaggedEdges, a)
@@ -126,8 +125,6 @@ end
 local halfPi = 0.5 * math.pi
 
 function CaveGenerator:carvePassage(a, b)
-  print(a, b)
-
   -- Angle b/a rotated 90 degrees
   local dx, dy = (b.x - a.x), (b.y - a.y)
   local razorAngle = math.atan(dy / dx) + halfPi
