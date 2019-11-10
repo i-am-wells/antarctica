@@ -28,6 +28,7 @@ int engine_init(engine_t * e, char * wtitle, int x, int y, int w, int h, int wfl
     if(SDL_GetRendererInfo(e->renderer, &rinfo) == -1) {
         fprintf(stderr, "warning: failed to get renderer info\n");
     } else {
+      /*
         printf("Renderer name: %s\n", rinfo.name);
         printf("Max texture dimensions: %dx%d\n", rinfo.max_texture_width, rinfo.max_texture_height);
         if(rinfo.flags & SDL_RENDERER_SOFTWARE)
@@ -38,8 +39,8 @@ int engine_init(engine_t * e, char * wtitle, int x, int y, int w, int h, int wfl
             printf("Vsync enabled\n");
         if(rinfo.flags & SDL_RENDERER_TARGETTEXTURE)
             printf("Rendering to texture supported\n");
+      */
     }
-
 
     // Clear screen
     SDL_SetRenderDrawColor(e->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
