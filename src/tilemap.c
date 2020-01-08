@@ -13,6 +13,9 @@
 
 #include "vec.h"
 
+#define TILEMAP_FILE_FORMAT_LATEST_VERSION 1
+#define DEFAULT_NON_EMPTY 4294967295
+
 void tilemap_deinit(tilemap_t* t) {
     if(t) {
         // Free tiles arrays
@@ -25,6 +28,12 @@ void tilemap_deinit(tilemap_t* t) {
             free(t->tiles);
             t->tiles = NULL;
         }
+        
+        if (t->should_store_sparse_layer)
+          free(t->should_store_sparse_layer);
+        
+        if (t->last_non_empty_tile)
+          free(t->last_non_empty_tile);
 
         vec_deinit(&(t->objectvec));
     }
@@ -69,9 +78,23 @@ int tilemap_init(tilemap_t * t, size_t nlayers, size_t w, size_t h) {
 
     t->updateParity = 0;
 
+    t->should_store_sparse_layer = (int*)calloc(nlayers, sizeof(int));
+    if (!t->should_store_sparse_layer) {
+      tilemap_deinit(t);
+      return 0;
+    }
+
+    t->last_non_empty_tile = (uint32_t*)malloc(nlayers * sizeof(uint32_t));
+    if (!t->last_non_empty_tile) {
+      tilemap_deinit(t);
+      return 0;
+    }
+    for (size_t i = 0; i < nlayers; i++) {
+      t->last_non_empty_tile[i] = DEFAULT_NON_EMPTY;
+    }
+
     return 1;
 }
-
 
 tile_t * tilemap_get_tile_address(const tilemap_t * t, size_t layer, size_t x, size_t y) {
     assert(t);
@@ -85,6 +108,21 @@ tile_t * tilemap_get_tile_address(const tilemap_t * t, size_t layer, size_t x, s
     return NULL;
 }
 
+// TODO x, y should always be int
+int tilemap_empty(const tilemap_t* t, size_t layer, int x, int y) {
+  tile_t* tile = tilemap_get_tile_address(t, layer, x, y);
+  return (tile->tilex || tile->tiley || tile->flags) == 0;
+}
+
+static void tilemap_set_last_non_empty_tile(tilemap_t* t, size_t layer, uint32_t x, uint32_t y) {
+    if (t->should_store_sparse_layer[layer]) {
+      uint32_t pos = y * t->w + x;
+      if (t->last_non_empty_tile[layer] == DEFAULT_NON_EMPTY || 
+          pos > t->last_non_empty_tile[layer]) {
+        t->last_non_empty_tile[layer] = pos;
+      }
+    }
+}
 
 void tilemap_set_tile(tilemap_t* t, size_t layer, size_t x, size_t y, int tilex, int tiley) {
     assert(t);
@@ -94,9 +132,10 @@ void tilemap_set_tile(tilemap_t* t, size_t layer, size_t x, size_t y, int tilex,
     if(tileptr) {
         tileptr->tilex = tilex & 0xff;
         tileptr->tiley = tiley & 0xff;
+    
+        tilemap_set_last_non_empty_tile(t, layer, x, y);
     }
 }
-
 
 int tilemap_get_tile(tilemap_t* t, size_t layer, size_t x, size_t y, int* tx, int* ty) {
     assert(t);
@@ -1123,79 +1162,183 @@ void tilemap_patch(tilemap_t* t, tile_t* patch, int x, int y, int w, int h) {
     }
 }
 
+static int tilemap_read_v0(tilemap_t* t, FILE* f, const char* path) { 
+  t->tiles = (tile_t**)malloc(t->nlayers * sizeof(tile_t*));
+  if(!t->tiles) {
+    fclose(f);
+    return 0;
+  }
+
+  // Read each layer
+  for(size_t i = 0; i < t->nlayers; i++) {
+
+    // Allocate layer
+    size_t layer_bytes_size = t->w * t->h * sizeof(tile_t);
+    t->tiles[i] = (tile_t*)malloc(layer_bytes_size);
+    if(!t->tiles[i])
+      goto tilemap_read_fail;
+
+    // Read layer
+    if(fread(t->tiles[i], layer_bytes_size, 1, f) != 1) {
+      fprintf(stderr, "couldn't load %s: file ends unexpectedly\n", path);
+      goto tilemap_read_fail;
+    }
+  }
+
+  // TODO check
+  vec_init(&(t->objectvec), 8);
+
+  // Success
+  fclose(f);
+  return 1;
+
+tilemap_read_fail:
+  tilemap_deinit(t);
+  fclose(f);
+  return 0;
+}
+
+static int read_pos(FILE* f, uint32_t* out) {
+  char buf[4];
+  if (fread(buf, 4, 1, f) != 1)
+    return 0;
+
+  *out = buf[0];
+  for (int i = 1; i < 4; i++) {
+    *out <<= 8;
+    *out |= 0xff & buf[i];
+  }
+  return 1;
+}
+
+static int write_pos(FILE* f, uint32_t pos) {
+  char buf[4];
+  buf[0] = (pos & 0xff000000) >> 24;
+  buf[1] = (pos & 0xff0000) >> 16;
+  buf[2] = (pos & 0xff00) >> 8;
+  buf[3] = pos & 0xff;
+  if (fwrite(buf, 4, 1, f) != 1)
+    return 0;
+  return 1;
+}
+
+static int tilemap_read_v1(tilemap_t* t, FILE* f, const char* path) {
+  t->tiles = (tile_t**)malloc(t->nlayers * sizeof(tile_t*));
+  if(!t->tiles) {
+    fclose(f);
+    return 0;
+  }
+  
+  if(fread(t->should_store_sparse_layer, t->nlayers * sizeof(int), 1, f) != 1)
+    goto tilemap_read_fail;
+
+  // Read each layer
+  for(size_t i = 0; i < t->nlayers; i++) {
+    // Allocate layer
+    size_t layer_bytes_size = t->w * t->h * sizeof(tile_t);
+    t->tiles[i] = (tile_t*)malloc(layer_bytes_size);
+    if(!t->tiles[i])
+      goto tilemap_read_fail;
+    
+    // Read layer
+    if (t->should_store_sparse_layer[i]) {
+      fprintf(stderr, "offset: %lu\n", ftell(f));
+      // Get position of last non-empty tile
+      if (!read_pos(f, t->last_non_empty_tile + i)) {
+        fprintf(stderr, "couldn't load %s: file ends unexpectedly\n", path);
+        goto tilemap_read_fail;
+      }
+
+      uint32_t pos = DEFAULT_NON_EMPTY;
+      fprintf(stderr, "last non empty for layer %zu: %u\n", i, t->last_non_empty_tile[i]);
+      while (pos != t->last_non_empty_tile[i]) {
+        // Read tile position
+        if (!read_pos(f, &pos)) {
+          fprintf(stderr, "couldn't load %s: file ends unexpectedly\n", path);
+          goto tilemap_read_fail;
+        }
+
+        int px = pos % t->w;
+        int py = pos / t->h;
+        fprintf(stderr, "sparse read at %zu, %d, %d\n", i, px, py);
+        
+        // Read tile
+        if (fread(t->tiles[i] + pos, sizeof(tile_t), 1, f) != 1) {
+          fprintf(stderr, "couldn't load %s: file ends unexpectedly\n", path);
+          goto tilemap_read_fail;
+        }
+      }
+    } else {
+      if(fread(t->tiles[i], layer_bytes_size, 1, f) != 1) {
+        fprintf(stderr, "couldn't load %s: file ends unexpectedly\n", path);
+        goto tilemap_read_fail;
+      }
+    }
+  }
+
+  // Success
+  fclose(f);
+  return 1;
+
+tilemap_read_fail:
+  tilemap_deinit(t);
+  fclose(f);
+  return 0;
+}
 
 int tilemap_read_from_file(tilemap_t * t, const char * path) {
     assert(t);
 
-    // Start with a fresh tilemap_t
-    tilemap_init(t, 0, 0, 0);
-    
     FILE * f = fopen(path, "rb");
-    if(!f)
-        return 0;
+    if(!f) {
+      fprintf(stderr, "failed to open %s for reading\n", path);
+      return 0;
+    }
 
     // Read map file header (magic(2) + version(2) + nlayers(1) + w(2) + h(2) = 9 bytes)
     char buffer[32];
     int nread = fread(buffer, 9, 1, f);
     if(nread != 1) {
+        fprintf(stderr, "failed to read from %s\n", path);
         fclose(f);
         return 0;
     }
 
+    // magic
     if(!((buffer[0] == (char)0xac) && (buffer[1] == (char)0xc0))) {
+        fprintf(stderr, "%s missing magic bytes\n", path);
         fclose(f);
         return 0;
     }
 
-    //int majversion = buffer[2];
-    //int minversion = buffer[3];
-
-    // TODO check version?
-    //
     t->nlayers = 0;
     t->w = 0;
     t->h = 0;
 
     // Get dimensions
-    t->nlayers = buffer[4];
-    t->w = ((buffer[5] << 8) & 0xff00) | (buffer[6] & 0xff);
-    t->h = ((buffer[7] << 8) & 0xff00) | (buffer[8] & 0xff);
+    int nlayers = buffer[4];
+    int w = ((buffer[5] << 8) & 0xff00) | (buffer[6] & 0xff);
+    int h = ((buffer[7] << 8) & 0xff00) | (buffer[8] & 0xff);
     
-    t->tiles = (tile_t**)malloc(t->nlayers * sizeof(tile_t*));
-    if(!t->tiles) {
-        fclose(f);
+    tilemap_init(t, nlayers, w, h);
+    
+    //int majversion = buffer[2];
+    int minor_version = buffer[3];
+    switch (minor_version) {
+      case 0:
+        return tilemap_read_v0(t, f, path);
+      case 1:
+        return tilemap_read_v1(t, f, path);
+      default:
+        fprintf(stderr, "%s has unknown map version %d\n", path, minor_version);
         return 0;
     }
-
-    // Read each layer
-    for(size_t i = 0; i < t->nlayers; i++) {
-    
-        // Allocate layer
-        size_t layer_bytes_size = t->w * t->h * sizeof(tile_t);
-        t->tiles[i] = (tile_t*)malloc(layer_bytes_size);
-        if(!t->tiles[i])
-            goto tilemap_read_fail;
-
-        // Read layer
-        if(fread(t->tiles[i], layer_bytes_size, 1, f) != 1) {
-            fprintf(stderr, "couldn't load %s: file ends unexpectedly\n", path);
-            goto tilemap_read_fail;
-        }
-    }
-
-    // TODO check
-    vec_init(&(t->objectvec), 8);
-
-    // Success
-    fclose(f);
-    return 1;
-
-tilemap_read_fail:
-    tilemap_deinit(t);
-    fclose(f);
-    return 0;
 }
 
+static void serialize_int16(int i, char* buffer, size_t offset) {
+  buffer[offset] = (i & 0xff00) >> 8;
+  buffer[offset+1] = i & 0xff;
+}
 
 int tilemap_write_to_file(const tilemap_t * t, const char * path) {
     assert(t);
@@ -1212,32 +1355,70 @@ int tilemap_write_to_file(const tilemap_t * t, const char * path) {
     
     // version info
     buffer[2] = 0;
-    buffer[3] = 0;
+    buffer[3] = TILEMAP_FILE_FORMAT_LATEST_VERSION;
 
     // number of layers
     buffer[4] = t->nlayers & 0xff;
     
-    // width
-    buffer[5] = (t->w & 0xff00) >> 8;
-    buffer[6] = t->w & 0xff;
-
-    // height
-    buffer[7] = (t->h & 0xff00) >> 8;
-    buffer[8] = t->h & 0xff;
+    // width and height
+    serialize_int16(t->w, buffer, 5);
+    serialize_int16(t->h, buffer, 7);
 
     if(fwrite(buffer, 9, 1, f) != 1) {
         goto tilemap_write_fail;
     }
 
-    // Write each layer
-    size_t layer_bytes_size = t->w * t->h * sizeof(tile_t);
-    for(size_t i = 0; i < t->nlayers; i++) {
-        if(t->tiles[i]) {
-            if(fwrite(t->tiles[i], layer_bytes_size, 1, f) != 1)
-                goto tilemap_write_fail;
-        } else {
+    if (TILEMAP_FILE_FORMAT_LATEST_VERSION == 0) {
+      fprintf(stderr, "version 0\n");
+      // Write each layer
+      size_t layer_bytes_size = t->w * t->h * sizeof(tile_t);
+      for(size_t i = 0; i < t->nlayers; i++) {
+          if(t->tiles[i]) {
+              if(fwrite(t->tiles[i], layer_bytes_size, 1, f) != 1)
+                  goto tilemap_write_fail;
+          } else {
+              goto tilemap_write_fail;
+          }
+      }
+    } else if (TILEMAP_FILE_FORMAT_LATEST_VERSION == 1) {
+      fprintf(stderr, "version 1\n");
+      if (fwrite(t->should_store_sparse_layer, sizeof(int), t->nlayers, f) != t->nlayers)
+        goto tilemap_write_fail;
+      
+      fprintf(stderr, "wrote sparse\n");
+
+      for (size_t i = 0; i < t->nlayers; i++) {
+        if (t->should_store_sparse_layer[i]) {
+          fprintf(stderr, "last non-empty: %u\n", t->last_non_empty_tile[i]);
+          // Write last non-empty position
+          
+          fprintf(stderr, "offset: %lu\n", ftell(f));
+          if (!write_pos(f, t->last_non_empty_tile[i]))
             goto tilemap_write_fail;
+
+          for (int y = 0; y < t->h; y++) {
+            for (int x = 0; x < t->w; x++) {
+              if (!tilemap_empty(t, i, x, y)) {
+                fprintf(stderr, "write %zu, %d, %d\n", i, x, y);
+                // Store as offset:tile
+                if (!write_pos(f, y * t->w + x))
+                  goto tilemap_write_fail;
+
+                tile_t* tile = tilemap_get_tile_address(t, i, x, y);
+                if(fwrite(tile, sizeof(tile_t), 1, f) != 1)
+                  goto tilemap_write_fail;
+              }
+            }
+          }
+        } else {
+          if(t->tiles[i]) {
+              if(fwrite(t->tiles[i], t->w * t->h * sizeof(tile_t), 1, f) != 1)
+                  goto tilemap_write_fail;
+          } else {
+              goto tilemap_write_fail;
+          }
         }
+      }
     }
 
     // Success
@@ -1246,9 +1427,14 @@ int tilemap_write_to_file(const tilemap_t * t, const char * path) {
 
 tilemap_write_fail:
     fclose(f);
+    fprintf(stderr, "write failed\n");
     return 0;
 }
 
+void tilemap_set_sparse_layer(tilemap_t* t, int layer, int sparse) {
+  assert(layer >= 0 && layer < t->nlayers);
+  t->should_store_sparse_layer[layer] = sparse;
+}
 
 int tilemap_get_tile_animation_info(const tilemap_t* t, size_t layer, int x, int y, int* period, int* count) {
     assert(t);
@@ -1271,6 +1457,8 @@ int tilemap_set_tile_animation_info(tilemap_t* t, size_t layer, int x, int y, in
     tile_t* tile = tilemap_get_tile_address(t, layer, x, y);
     if(!tile)
         return 0;
+
+    tilemap_set_last_non_empty_tile(t, layer, x, y);
 
     if(period != -1) {
         // set period (take log2 by right-shifting)
@@ -1296,7 +1484,4 @@ int tilemap_set_tile_animation_info(tilemap_t* t, size_t layer, int x, int y, in
 
     return 1;
 };
-
-
-
 

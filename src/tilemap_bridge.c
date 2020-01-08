@@ -430,7 +430,13 @@ int l_tilemap_abort_update_objects(lua_State* L ) {
     return 0;
 }
 
-
+int l_tilemap_set_sparse_layer(lua_State* L) {
+  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+  int layer = luaL_checkinteger(L, 2);
+  int sparse = lua_toboolean(L, 3);
+  tilemap_set_sparse_layer(t, layer, sparse);
+  return 0;
+}
 
 void load_tilemap_bridge(lua_State* L) {
   const luaL_Reg tilemaplib[] = {
@@ -460,6 +466,7 @@ void load_tilemap_bridge(lua_State* L) {
     {"drawObjectsAtCameraObject", l_tilemap_draw_objects_at_camera_object},
     {"getTileAnimationInfo", l_tilemap_get_tile_animation_info},
     {"setTileAnimationInfo", l_tilemap_set_tile_animation_info},
+    {"setSparseLayer", l_tilemap_set_sparse_layer},
 
     {"abortUpdateObjects", l_tilemap_abort_update_objects},
 

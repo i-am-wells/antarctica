@@ -37,6 +37,8 @@ typedef struct tilemap_t {
     size_t w;           /**< map width (tiles) */
     size_t h;           /**< map height (tiles) */
     size_t  nlayers;    /**< number of layers */
+    int* should_store_sparse_layer;
+    uint32_t* last_non_empty_tile;
 
     vec_t objectvec; /**< vector containing "moving" objects on map */
     //int objectvec_orientation; /**< 0 if objectvec is sorted by x, 1 if sorted by y */
@@ -227,6 +229,10 @@ int tilemap_get_tile_animation_info(const tilemap_t* t, size_t layer, int x, int
 int tilemap_set_tile_animation_info(tilemap_t* t, size_t layer, int x, int y, int period, int count);
 
 void tilemap_abort_update_objects(tilemap_t* t);
+
+void tilemap_set_sparse_layer(tilemap_t* t, int layer, int sparse);
+
+int tilemap_empty(const tilemap_t* t, size_t layer, int x, int y);
 
 #endif
 
