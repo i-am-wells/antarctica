@@ -1,12 +1,14 @@
 
 local ant = require 'antarctica'
-local SoundChannels = require 'soundChannels'
+--local SoundChannels = require 'soundChannels'
 local AudioSource = require 'audioSource'
 local Class = require 'class'
 
 local Object = require 'object'
 
-local Tilemap = Class(SoundChannels)
+-- TODO make a wrapper class for tilemap + soundchannels
+--local Tilemap = Class(SoundChannels)
+local Tilemap = Class()
 
 -- Keep in sync with flags in tilemap.h
 local flags = {
@@ -17,7 +19,6 @@ local flags = {
 }
 flags.bumpAll = flags.bumpSouth | flags.bumpWest | flags.bumpNorth | flags.bumpEast
 Tilemap.flags = flags
-
 
 function Tilemap:init(options)
     if options.file then
@@ -34,13 +35,12 @@ function Tilemap:init(options)
     self.name = options.file
 
     -- Set up sound channels
-    SoundChannels.init(self, options)
+    --SoundChannels.init(self, options)
 
     if options.objects then
         self:populate(options.objects, options.resourceMan)
     end
 end
-
 
 function Tilemap:populate(objects, resourceMan)
     for _, frozenObject in ipairs(objects) do
@@ -49,7 +49,6 @@ function Tilemap:populate(objects, resourceMan)
         self:addObject(newObject)
     end
 end
-
 
 function Tilemap:dumpObjects()
     local frozenObjects = {}
@@ -60,7 +59,6 @@ function Tilemap:dumpObjects()
     return frozenObjects
 end
 
-
 function Tilemap:read(filename)
     self._tilemap = ant.tilemap.read(filename)
     if self._tilemap == nil then
@@ -70,11 +68,9 @@ function Tilemap:read(filename)
     ant.tilemap.get(self._tilemap, self)
 end
 
-
 function Tilemap:write(filename)
     return ant.tilemap.write(self._tilemap, filename)
 end
-
 
 function Tilemap:createEmpty(nlayers, w, h)
     self._tilemap = ant.tilemap.createEmpty(nlayers, w, h)
@@ -82,7 +78,6 @@ function Tilemap:createEmpty(nlayers, w, h)
     self.w = w
     self.h = h
 end
-
 
 function Tilemap:clean(cleanX, cleanY)
     for l = 0, self.nlayers - 1 do
@@ -93,7 +88,6 @@ function Tilemap:clean(cleanX, cleanY)
         end
     end
 end
-
 
 function Tilemap:drawLayer(image, layer, px, py, pw, ph, counter)
     ant.tilemap.drawLayer(self._tilemap, image._image, layer, px, py, pw, ph, counter)
@@ -147,9 +141,11 @@ function Tilemap:addObject(object)
 
     self.objects[object] = object
 
+    --[[
     if object.isA[AudioSource] then
         self:addSource(object)
     end
+    --]]
 end
 
 function Tilemap:removeObject(object)
@@ -159,15 +155,17 @@ function Tilemap:removeObject(object)
 
     self.objects[object] = nil
 
+    --[[
     if object.isA[AudioSource] then
         self:removeSource(object)
     end
+    --]]
 end
 
 
 function Tilemap:updateObjects()
     -- reallocate sound channels
-    self:reallocateChannels()
+    --self:reallocateChannels()
     
     ant.tilemap.updateObjects(self._tilemap)
 end
@@ -222,6 +220,10 @@ end
 
 function Tilemap:abortUpdateObjects()
     ant.tilemap.abortUpdateObjects(self._tilemap)
+end
+
+function Tilemap:setSparseLayer(layer, isSparse)
+  ant.tilemap.setSparseLayer(self._tilemap, layer, isSparse)
 end
 
 function Tilemap:print(selX, selY)

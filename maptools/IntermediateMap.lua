@@ -7,17 +7,32 @@ local IntermediateMap = Class()
 function IntermediateMap:init(args)
   self.w = args.w or 0
   self.h = args.h or 0
-  self.initial = args.initial or 1
+  self.defaultGridValue = args.defaultGridValue or 1
 
   if self.w * self.h == 0 then
     error('IntermediateMap needs non-zero dimensions')
   end
 
+  -- Set metamethods to avoid storing defaultGridValue
+  local gridRowMt = {
+    __index = function(row, k)
+      -- TODO do we need bounds check?
+      if k > 0 and k <= self.w then return self.defaultGridValue end
+    end,
+    __newindex = function(row, k, val)
+      if val ~= self.defaultGridValue then
+        rawset(row, k, val)
+      end
+    end
+  }
+
   self.grid = {}
   for y = 1, self.h do
-    self.grid[y] = {}
-    for x = 1, self.w do
-      self.grid[y][x] = self.initial
+    self.grid[y] = setmetatable({}, gridRowMt)
+    if not args.slim then
+      for x = 1, self.w do
+        self.grid[y][x] = self.defaultGridValue
+      end
     end
   end
 end
@@ -50,8 +65,9 @@ function IntermediateMap:upsample(factor)
   return newMap
 end
 
-function IntermediateMap:toTilemap(tilesetInfo)
-  local tilemap = Tilemap{nlayers=1, w=self.w, h=self.h}
+function IntermediateMap:toBaseTilemap(tilesetInfo, nlayers)
+  nlayers = nlayers or 1
+  local tilemap = Tilemap{nlayers=nlayers, w=self.w, h=self.h}
   for y = 1, self.h do
     local row = self.grid[y]
     for x = 1, self.w do
@@ -60,10 +76,14 @@ function IntermediateMap:toTilemap(tilesetInfo)
         local tile = tilesetInfo:getTile(key)
         tilemap:setTile(0, x-1, y-1, tile.x, tile.y)
 
-        if not tilesetInfo:getWalkable(tile) then
+        -- TODO rethink?
+        --[[
+        if not tilesetInfo:isWalkable(key) then
           tilemap:setFlags(0, x-1, y-1, Tilemap.flags.bumpAll)
         end
+        --]]
       else
+        -- TODO: this should not happen now
         error(string.format("nil at (%d,%d)", x, y))
       end
     end
@@ -124,7 +144,7 @@ end
 function IntermediateMap:layDownPatch(x, y, patch)
   for yy = 0, patch.h-1 do
     for xx = 0, patch.w-1 do
-      self:set(x + xx, y + yy, TilesetInfo.getPatchKey(patch, xx, yy))
+      self:set(x + xx, y + yy, TilesetInfo.getPointKey(patch, xx, yy))
     end
   end
 end

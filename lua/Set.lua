@@ -3,9 +3,15 @@ local Class = require 'class'
 
 local Set = Class()
 
-function Set:init()
+function Set:init(members)
   self.members = {}
   self.count = 0
+
+  if type(members) == 'table' then
+    for _, thing in ipairs(members) do
+      self:insert(thing)
+    end
+  end
 end
 
 function Set:has(thing)
@@ -47,6 +53,15 @@ function Set:random()
     end
     i = i + 1
   end
+end
+
+-- avoid
+function Set:asArray()
+  local array = {}
+  for thing, _ in pairs(self.members) do
+    array[#array+1] = thing
+  end
+  return array
 end
 
 return Set

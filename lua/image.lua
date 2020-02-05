@@ -81,5 +81,13 @@ function Image:getPixels()
   return ant.image.getPixels(self._image)
 end
 
+function Image:getPixel(x, y)
+  return ant.image.getPixel(self._image, x, y)
+end
+
+function Image:destroy()
+  ant.image.destroy(self._image)
+end
+
 return Image
 

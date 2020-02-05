@@ -1,7 +1,32 @@
+maps:
+  - row-by-row image to intermediate step
+  - fix edges
+  - add wall bump
+  - add objects
+
+cave:
+  - generate intermediate
+
 Fix hard-coded tile dimensions (16, 16)
-Write LDoc documentation
-Replace print() calls with new log class
 
 Dev tools:
     object editor
     map editor
+
+Game: what to do with items?
+  make things/build things
+  - unlock inventions/technologies/processes
+  - need to develop resources/manpower to implement
+  - example: mine, transportation, refinery/forge, factories
+  -- supported by big workforce: need housing, food, education?
+
+UI/game: should have a stack of "contexts"
+
+game context -> menu context -> another menu context
+(draw those in reverse order; have later controls supersede earlier)
+
+Recap of how control works:
+  controlMap: keyboard -> name of an action
+  onkeydown/up: name of action -> handler
+
+  

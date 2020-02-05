@@ -65,8 +65,8 @@ enum {
     TILEMAP_ANIM_PERIOD_MASK =    0x4   /**< number (again log2) of redraw cycles each animation frame lasts for */
                                 | 0x8,
     TILEMAP_UNUSED_MASK =         0x10  /**< unused bits */
-                                | 0x20
-                                | 0x40,
+                                | 0x20,
+    TILEMAP_UNDERWATER_MASK =     0x40,
     TILEMAP_ACTION_MASK =         0x80,     /**< indicates that the tile fires an interaction event */
     TILEMAP_BUMP_SOUTH_MASK =     0x100,    /**< objects can't enter the square from the south */
     TILEMAP_BUMP_WEST_MASK =      0x200,    /**< objects can't enter from the west */

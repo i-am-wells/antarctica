@@ -99,7 +99,6 @@ function MapGenerator:init(w, h)
     end
     self.all16[i] = true
   end
-
 end
 
 function MapGenerator:getSquareIndex(x, y)
@@ -217,10 +216,16 @@ function MapGenerator:make16Weights(val)
   return weights
 end
 
-function MapGenerator:createTilemap(mapping)
+function MapGenerator:createTilemap(...)
+  local mappings = {...}
+  for k,v in pairs(mappings) do
+    print(k,v)
+  end
+
   local tilemap = Tilemap{nlayers=1, w=self.w, h=self.h}
   for y = 0, (self.h-1) do
     for x = 0, (self.w-1) do
+      local mapping = mappings[math.random(#mappings)]
       local tile = mapping[self:getSquareIndex(x, y)]
       if not tile then
         print(x, y, self:getSquareIndex(x, y))

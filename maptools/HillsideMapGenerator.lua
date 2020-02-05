@@ -4,15 +4,17 @@ local MapGenerator = require 'maptools.MapGenerator'
 local HillsideMapGenerator = Class(MapGenerator)
 
 do
-  local weights = MapGenerator.make16Weights(2)
-  weights[1] = 128
+  local weights = MapGenerator.make16Weights(4)
+  weights[1] = 64
+  weights[6] = 1 -- vertical grass | dirt
   weights[7] = 1
   weights[10] = 1
-  weights[16] = 16
+  weights[11] = 1 -- vertical dirt | grass
+  weights[16] = 8
   HillsideMapGenerator.weights = weights
 end
 
-function HillsideMapGenerator:generate(mapping)
+function HillsideMapGenerator:generate(...)
   -- Fill in map top to bottom, back and forth.
   for y = 0, (self.h-1) do
     if (y % 2) == 0 then
@@ -26,7 +28,7 @@ function HillsideMapGenerator:generate(mapping)
     end
   end
 
-  return self:createTilemap(mapping)
+  return self:createTilemap(...)
 end
 
 return HillsideMapGenerator

@@ -1,3 +1,5 @@
+local package = require 'package'
+package.path = package.path..';./lua/?.lua'
 
 local ant = require 'antarctica'
 local Engine = require 'engine'
@@ -6,16 +8,18 @@ local Image = require 'image'
 
 local CaveGen = require 'game.cavegen'
 
-local drawTerrain = require 'maptools.drawterrain'
-local makeShoreline = require 'maptools.makeshoreline'
+local drawTerrain = require 'maptools.old.drawterrain'
+local makeShoreline = require 'maptools.old.makeshoreline'
 
 local white = {r=255, g=255, b=255, a=255}
 
 local editor = function(engine, tilemap, tileset, mapFilename, messageText)
     --local screenW, screenH = engine:getLogicalSize()
     local screenW, screenH = engine:getSize()
-    local viewScale = 1
-    print(screenW, screenH)
+    local viewScale = 0.25
+    tileset:scale(viewScale)
+
+    --print(screenW, screenH)
 
     local mapSelection = {l=0, x=0, y=0, w=1, h=1}
     local paletteSelection = {x=0, y=0, w=1, h=1}
@@ -60,6 +64,8 @@ local editor = function(engine, tilemap, tileset, mapFilename, messageText)
     for l = 0, (tilemap.nlayers - 1) do
         layerMask[l] = true
     end
+    -- TODO reset
+    --local mapx, mapy = 2500, 4000
     local mapx, mapy = 0, 0
     local mouseX, mouseY = 0, 0
 
@@ -716,7 +722,8 @@ local editor = function(engine, tilemap, tileset, mapFilename, messageText)
                 else
                     -- draw on map
                     local mapX, mapY = screentomap(x, y)
-                    
+                   
+                    print(string.format('draw %d, %d', mapX, mapY))
                     -- draw from palette
                     if showFlags then
                         edit.drawBumpFlagsToggle(true)
@@ -816,23 +823,23 @@ do
     -- get arguments
     local printUsage = function(msg)
         print(msg)
-        local usageprefix = arg[0]..' '..arg[1]..' '
+        local usageprefix = arg[-1]..' '..arg[0]..' '
         print('To edit an existing map: '..usageprefix..'<mapfile> <tileset>')
         print('To create a new map: '..usageprefix..'<mapfile> <tileset> <layers> <w> <h>')
     end
 
     -- next two should always be present
-    local mapFilename, tilesetFilename = arg[2], arg[3]
+    local mapFilename, tilesetFilename = arg[1], arg[2]
     if not (mapFilename and tilesetFilename) then
         return printUsage('Please provide a map file and tileset')
     end
 
     -- dimensions (for creating new map)
-    local numLayers, w, h = tonumber(arg[4]), tonumber(arg[5]), tonumber(arg[6])
+    local numLayers, w, h = tonumber(arg[3]), tonumber(arg[4]), tonumber(arg[5])
    
     local tilemap
     if numLayers and w and h then
-        if arg[7] == 'cavegen' then
+        if arg[6] == 'cavegen' then
             local cavegen = CaveGen{
                 w = w,
                 h = h,

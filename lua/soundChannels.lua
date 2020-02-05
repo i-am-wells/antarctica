@@ -14,7 +14,6 @@ function SoundChannels:init(options)
     self:reallocateChannels()
 end
 
-
 function SoundChannels:addSource(source)
     if #self.freedStack > 0 then
         source.channel = table.remove(self.freedStack)
@@ -32,7 +31,6 @@ function SoundChannels:addSources(sources)
     end
 end
 
-
 function SoundChannels:removeSource(source)
     -- look up and remove
     self.sourceMap[source.channel] = nil
@@ -46,7 +44,6 @@ function SoundChannels:removeSources(sources)
     end
 end
 
-
 function SoundChannels:reallocateChannels()
     if self.numChannels ~= #self.sourceMap then
         -- Make sure there are enough channels
@@ -55,6 +52,4 @@ function SoundChannels:reallocateChannels()
     end
 end
 
-
 return SoundChannels
-

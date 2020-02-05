@@ -209,13 +209,16 @@ void tilemap_set_object_callbacks(tilemap_t* t, void* data, void (*bump)(void*, 
 
 
 void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph, int counter) {
+  int anim_counter = counter / 2;
     // Get the starting position and dimensions for drawing in map square coordinates
     int startx = (px / i->tw);
     int starty = (py / i->th);
     int nx = (pw / i->tw) + 2;
     int ny = (ph / i->th) + 2;
+  
+    int underwater = is_underwater(t, l, startx
+    
 
-    // Allow for drawing tiles offset from map square boundaries
     int offx = px % i->tw;
     int offy = py % i->th;
 
@@ -238,7 +241,7 @@ void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int
                    
                     if((tile->tilex != 16) || (tile->tiley != 0)) {
                         // Animation
-                        int tiley = tile->tiley + (counter / TILE_ANIM_PERIOD(tile)) % TILE_ANIM_COUNT(tile);
+                        int tiley = tile->tiley + (anim_counter / TILE_ANIM_PERIOD(tile)) % TILE_ANIM_COUNT(tile);
 
                         image_draw_tile(i, tile->tilex, tiley, x * i->tw - offx, y * i->th - offy);
                     }
@@ -344,6 +347,8 @@ void tilemap_draw_layer_flags(const tilemap_t* t, const image_t* i, int l, int p
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
+// TODO move centering math into drawing functions
+//
 void tilemap_get_camera_location(const tilemap_t* t, int pw, int ph, int* x, int* y) {
     if(!t->cameraobject)
         return;
@@ -1032,6 +1037,8 @@ void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw,
 }
 
 static void tilemap_draw_layer_rows(const tilemap_t* t, const image_t* img, int layer, int px, int py, int pw, int ph, int y0, int y1, int counter) {
+    int anim_counter = counter / 2;
+    
     // draw a few rows
     for(int yy = y0; yy <= y1; yy++) {
         int dy = yy * img->th - py;
@@ -1041,7 +1048,7 @@ static void tilemap_draw_layer_rows(const tilemap_t* t, const image_t* img, int 
             
             if(tile) {
                 if(!((tile->tilex == 16) && (tile->tiley == 0))) {
-                    int tiley = tile->tiley + (counter / TILE_ANIM_PERIOD(tile)) % TILE_ANIM_COUNT(tile);
+                    int tiley = tile->tiley + (anim_counter / TILE_ANIM_PERIOD(tile)) % TILE_ANIM_COUNT(tile);
                     image_draw_tile(img, tile->tilex, tiley, dx, dy);
                 
                 }
@@ -1054,6 +1061,7 @@ static void tilemap_draw_layer_rows(const tilemap_t* t, const image_t* img, int 
 // draw objects from one map layer
 void tilemap_draw_objects_interleaved(const tilemap_t* t, const image_t* img, int layer, int px, int py, int pw, int ph, int counter) {
 
+    int anim_counter = counter / 2;
     // Find range of objects to draw
     size_t idx0, idx1;
     //if(t->objectvec_orientation == 0) {

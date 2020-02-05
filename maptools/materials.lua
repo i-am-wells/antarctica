@@ -1,4 +1,6 @@
 return {
+  any = -1,
+
   ocean = 0,
   ocean0 = 1,
 
@@ -10,6 +12,7 @@ return {
   -- beach/cliff transition
   beachCliff = 200,
   pineForest = 300,
+
   grassland = 400,
   rockyDesert = 500,
   tundra = 600,
@@ -35,4 +38,19 @@ return {
   caveNorthWallHigh = 816,
   caveNEWallHigh = 817,
   caveNWWallHigh = 818,
+
+  forest = 900,
+  forestRoad = 901,
+  black = 1000,
+  dark = 1001,
+  house = 1002,
+
+  conifer = 1003,
+  brown = 1004,
+  smallRock = 1005,
+  bigRock = 1006,
+  fern = 1007,
+  underbrush = 1008,
+  darkForestFloor = 1009,
+  cliffside = 1010,
 }

@@ -235,6 +235,42 @@ int l_image_get_pixels(lua_State* L) {
   return 1;
 }
 
+int l_image_get_pixel(lua_State* L) {
+  image_t* i = (image_t*)luaL_checkudata(L, 1, "image_t");
+  if (!i->surface)
+    return 0;
+  
+  int w = i->surface->w;
+  int h = i->surface->h;
+  
+  int x = lua_tointeger(L, 2);
+  int y = lua_tointeger(L, 3);
+
+  if (x < 0 || x >= w)
+    return luaL_error(L, "get pixel: x=%d out of bounds (max: %d)", x, w);
+  if (y < 0 || y >= h)
+    return luaL_error(L, "get pixel: y=%d out of bounds (max: %d)", y, h);
+
+  SDL_PixelFormat* fmt = i->surface->format;
+  uint8_t* pixels = (uint8_t*)i->surface->pixels;
+  
+  size_t pixel_offset = y * w + x;
+  size_t offset = pixel_offset * fmt->BytesPerPixel;
+
+  uint32_t pixel = *(uint32_t*)(pixels + offset);
+ 
+  // Create pixel table
+  lua_createtable(L, 0, 3);
+  lua_pushinteger(L, (pixel & fmt->Rmask) >> fmt->Rshift);
+  lua_setfield(L, -2, "r");
+  lua_pushinteger(L, (pixel & fmt->Gmask) >> fmt->Gshift);
+  lua_setfield(L, -2, "g");
+  lua_pushinteger(L, (pixel & fmt->Bmask) >> fmt->Bshift);
+  lua_setfield(L, -2, "b");
+
+  return 1;
+}
+
 void load_image_bridge(lua_State* L) {
   const luaL_Reg imagelib[] = {
     {"load", l_image_load},
@@ -250,6 +286,7 @@ void load_image_bridge(lua_State* L) {
     {"targetImage", l_image_target_image},
     {"createBlank", l_image_create_blank},
     {"getPixels", l_image_get_pixels},
+    {"getPixel", l_image_get_pixel},
     {NULL, NULL}
   };
   luaL_newlib(L, imagelib);
