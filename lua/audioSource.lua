@@ -5,13 +5,11 @@ local Class = require 'class'
 
 local AudioSource = Class()
 
-
 AudioSource.volume = 1
 AudioSource.audibleRadius = 320
 
-
 function AudioSource:init(opt)
-    self.channel = opt.channel or nil
+    self.channel = opt.channel or 0
 
     self.sameSideCoef = self.sameSideCoef or opt.sameSideCoef
     self.oppositeSideCoef = self.oppositeSideCoef or opt.oppositeSideCoef
@@ -21,7 +19,6 @@ function AudioSource:init(opt)
     self.x = self.x or opt.x
     self.y = self.y or opt.y
 end
-
 
 function AudioSource:calculateVolumeStereo(listenerX, listenerY)
     local dx, dy = ((self.x - listenerX) / self.audibleRadius), ((self.y - listenerY) / self.audibleRadius)

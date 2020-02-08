@@ -13,6 +13,7 @@ return {
         layer = 1,
         
         class = 'game.hero',
+				channel = 0, -- TODO
 
         data = {
             -- TODO set name
@@ -23,7 +24,6 @@ return {
             accessory = Penguin.accessories.backpack
         },
     },
-
 
     objects = {
         antarcticaSurface = {

@@ -13,9 +13,7 @@ local Hero = Class(Penguin)
 function Hero:init(options)
     local engine = options.resourceMan:get('engine')
     self.engine = engine
-
     self.controller = options.controller
-
     self.data = options.data
     
     Penguin.init(self, options)

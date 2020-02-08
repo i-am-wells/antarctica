@@ -47,7 +47,8 @@ Object.fromTable = function(t, resourceMan)
         vely = t.vely,
         facing = t.facing,
         bbox = t.bbox,
-        data = objData
+        data = objData,
+        channel = t.channel,
     }
 
     return obj
