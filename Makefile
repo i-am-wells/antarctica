@@ -29,3 +29,6 @@ antarctica.so: $(OBJS)
 
 clean:
 	-rm -rf src/*.o antarctica.so
+
+format:
+	clang-format -i --style=Chromium src/*.c src/*.h

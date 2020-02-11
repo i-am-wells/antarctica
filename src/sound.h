@@ -4,8 +4,8 @@
 #include <SDL_mixer.h>
 
 typedef struct sound_t {
-    Mix_Chunk* chunk;
-    double duration;
+  Mix_Chunk* chunk;
+  double duration;
 } sound_t;
 
 int soundchannel_set_volume(int channel, double l, double r);
@@ -18,4 +18,3 @@ void sound_destroy(sound_t* s);
 int sound_play(const sound_t* s, int channel, int nloops, int duration);
 
 #endif
-

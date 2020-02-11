@@ -7,45 +7,60 @@
 
 #include "image.h"
 
-
 typedef struct object_t {
-    // image and animation info
-    image_t* image;
-    int tx, ty, tw, th;
+  // image and animation info
+  image_t* image;
+  int tx, ty, tw, th;
 
-    // TODO remove?
-    int animperiod, animcount;
+  // TODO remove?
+  int animperiod, animcount;
 
-    // map location
-    int x, y, layer;
-    
-    // bounding box;
-    int boundX, boundY, boundW, boundH;
+  // map location
+  int x, y, layer;
 
-    // sprite draw offset
-    int offX, offY; 
+  // bounding box;
+  int boundX, boundY, boundW, boundH;
 
-    size_t index;
+  // sprite draw offset
+  int offX, offY;
 
-    int toRemove;
+  size_t index;
 
-    // physics
-    double vx, vy;
+  int toRemove;
 
-    int activeWallBump;
+  // physics
+  double vx, vy;
 
-    int updateParity;
+  int activeWallBump;
+
+  int updateParity;
 } object_t;
 
-
-int object_init(object_t* o, image_t* image, int tx, int ty, int tw, int th, int aperiod, int acount, int x, int y, int layer);
+int object_init(object_t* o,
+                image_t* image,
+                int tx,
+                int ty,
+                int tw,
+                int th,
+                int aperiod,
+                int acount,
+                int x,
+                int y,
+                int layer);
 
 void object_deinit(object_t* o);
 
-
 void object_set_bounding_box(object_t* o, int x, int y, int w, int h);
 
-void object_set_sprite(object_t* o, int tx, int ty, int tw, int th, int animcount, int animperiod, int offX, int offY);
+void object_set_sprite(object_t* o,
+                       int tx,
+                       int ty,
+                       int tw,
+                       int th,
+                       int animcount,
+                       int animperiod,
+                       int offX,
+                       int offY);
 
 void object_draw(const object_t* o, int vx, int vy, int counter);
 
@@ -58,4 +73,3 @@ void object_get_map_location(const object_t* o, int* mapx, int* mapy);
 void object_set_image(object_t* o, image_t* i);
 
 #endif
-

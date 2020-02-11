@@ -5,6 +5,6 @@
 
 #include <lua.h>
 
-int luaopen_antarctica(lua_State * L);
+int luaopen_antarctica(lua_State* L);
 
 #endif

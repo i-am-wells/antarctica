@@ -3,8 +3,8 @@
 #ifndef LUA_HELPERS_H_
 #define LUA_HELPERS_H_
 
-#include <lua.h>
 #include <lauxlib.h>
+#include <lua.h>
 
 #include "object.h"
 

@@ -9,7 +9,6 @@
 
 #include "engine.h"
 
-
 /**
  *  \struct image_t
  *
@@ -18,20 +17,19 @@
  *  used by the renderer it was created with.
  */
 typedef struct image_t {
-    SDL_Renderer* renderer; /**< SDL rendering context */
-    SDL_Texture* texture;   /**< SDL texture data */
-    SDL_Surface* surface; // optional software surface
+  SDL_Renderer* renderer; /**< SDL rendering context */
+  SDL_Texture* texture;   /**< SDL texture data */
+  SDL_Surface* surface;   // optional software surface
 
-    int texturewidth, textureheight;    /**< Pixel width and height of the texture */
+  int texturewidth, textureheight; /**< Pixel width and height of the texture */
 
-    int tw, th; /**< Pixel width and height used to divide the image into tiles */
-    int orig_tw, orig_th;
-    uint32_t pixel_format;
+  int tw, th; /**< Pixel width and height used to divide the image into tiles */
+  int orig_tw, orig_th;
+  uint32_t pixel_format;
 
-    SDL_Texture* scaled_texture;
-    double scale;
+  SDL_Texture* scaled_texture;
+  double scale;
 } image_t;
-
 
 /**
  *  Loads an image from a file (png, jpg, bmp).
@@ -44,7 +42,6 @@ typedef struct image_t {
  */
 int image_load(image_t* i, engine_t* e, const char* filename, int keep_surface);
 
-
 /**
  *  Initializes an image_t by loading an image file and setting tile dimensions.
  *
@@ -56,8 +53,12 @@ int image_load(image_t* i, engine_t* e, const char* filename, int keep_surface);
  *
  *  \return 1 on success, 0 on failure
  */
-int image_init(image_t* i, engine_t* e, const char* filename, int tw, int th, int keep_surface);
-
+int image_init(image_t* i,
+               engine_t* e,
+               const char* filename,
+               int tw,
+               int th,
+               int keep_surface);
 
 /**
  *  Frees image data by destroying the SDL texture.
@@ -83,14 +84,22 @@ int image_alpha_mod(image_t* i, uint8_t a);
  *  \param dw   destination width
  *  \param dh   destination height
  */
-void image_draw(const image_t* i, int sx, int sy, int sw, int sh, int dx, int dy, int dw, int dh);
-
+void image_draw(const image_t* i,
+                int sx,
+                int sy,
+                int sw,
+                int sh,
+                int dx,
+                int dy,
+                int dw,
+                int dh);
 
 /**
  *  Copies the image tile from tile coordinates (tx, ty) to renderer pixel
  *  location (dx, dy) with no scaling. Equivalent to
  *
- *      image_draw(i, tx * i->tw, ty * i->th, i->tw, i->th, dx, dy, i->tw, i->th);
+ *      image_draw(i, tx * i->tw, ty * i->th, i->tw, i->th, dx, dy, i->tw,
+ * i->th);
  *
  *  \param i    image pointer
  *  \param tx   tile x (unit: tile width)
@@ -100,7 +109,6 @@ void image_draw(const image_t* i, int sx, int sy, int sw, int sh, int dx, int dy
  */
 void image_draw_tile(const image_t* i, int tx, int ty, int dx, int dy);
 
-
 /**
  *  Copies the entire image into the renderer without scaling.
  *
@@ -109,7 +117,6 @@ void image_draw_tile(const image_t* i, int tx, int ty, int dx, int dy);
  *  \param dy   destination y (pixels)
  */
 void image_draw_whole(const image_t* i, int dx, int dy);
-
 
 /**
  *  Sets *w and *h to the pixel width and height of the image texture,
@@ -123,8 +130,11 @@ void image_draw_whole(const image_t* i, int dx, int dy);
  */
 void image_get_size(const image_t* i, int* w, int* h);
 
-
-void image_draw_text(const image_t* i, const char* text, int dx, int dy, int wrapw);
+void image_draw_text(const image_t* i,
+                     const char* text,
+                     int dx,
+                     int dy,
+                     int wrapw);
 
 int image_scale(image_t* i, double scaleBy);
 
@@ -132,4 +142,3 @@ int image_target_image(image_t* i, image_t* j);
 int image_init_blank(image_t* i, engine_t* e, int w, int h, int tw, int th);
 
 #endif
-
