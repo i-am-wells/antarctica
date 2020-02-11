@@ -78,6 +78,7 @@ int l_tilemap_write(lua_State* L) {
     return 1;
 }
 
+// TODO get rid of one of these?
 int l_tilemap_draw_layer(lua_State* L) {
     tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
     image_t* i = (image_t*)luaL_checkudata(L, 2, "image_t");
@@ -87,9 +88,9 @@ int l_tilemap_draw_layer(lua_State* L) {
     int pw = luaL_checkinteger(L, 6);
     int ph = luaL_checkinteger(L, 7);
     int counter = luaL_checkinteger(L, 8);
+    int draw_flags = lua_toboolean(L, 9);
     
-    tilemap_draw_layer(t, i, layer, px, py, pw, ph, counter);
-
+    tilemap_draw_layer(t, i, layer, px, py, pw, ph, counter, draw_flags);
     return 0;
 }
 
@@ -102,9 +103,9 @@ int l_tilemap_draw_layer_flags(lua_State* L) {
     int py = luaL_checkinteger(L, 5);
     int pw = luaL_checkinteger(L, 6);
     int ph = luaL_checkinteger(L, 7);
+    int counter = luaL_checkinteger(L, 8);
     
-    tilemap_draw_layer_flags(t, i, layer, px, py, pw, ph);
-
+    tilemap_draw_layer(t, i, layer, px, py, pw, ph, counter, /*draw_flags=*/1);
     return 0;
 }
 
@@ -365,9 +366,8 @@ int l_tilemap_draw_layer_at_camera_object(lua_State* L) {
     int pw = luaL_checkinteger(L, 4);
     int ph = luaL_checkinteger(L, 5);
     int counter = luaL_checkinteger(L, 6);
-    
-    tilemap_draw_layer_at_camera_object(t, i, layer, pw, ph, counter);
-
+    int draw_flags = lua_toboolean(L, 7); 
+    tilemap_draw_layer_at_camera_object(t, i, layer, pw, ph, counter, draw_flags);
     return 0;
 }
 
@@ -379,8 +379,8 @@ int l_tilemap_draw_objects_at_camera_object(lua_State* L) {
     int pw = luaL_checkinteger(L, 4);
     int ph = luaL_checkinteger(L, 5);
     int counter = luaL_checkinteger(L, 6);
-    
-    tilemap_draw_objects_at_camera_object(t, i, layer, pw, ph, counter);
+    int draw_flags = lua_toboolean(L, 7); 
+    tilemap_draw_objects_at_camera_object(t, i, layer, pw, ph, counter, draw_flags);
 
     return 0;
 }

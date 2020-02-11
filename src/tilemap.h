@@ -145,8 +145,7 @@ int tilemap_get_tile(tilemap_t* t, size_t layer, size_t x, size_t y, int* tx, in
  *  \param ph   pixel height of the view
  *  \param counter  used for animation
  */
-void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph, int counter);
-
+void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph, int counter, int draw_flags);
 
 /**
  *  Create a copy of tile data from all layers within a rectangular region.
@@ -200,7 +199,6 @@ int tilemap_write_to_file(const tilemap_t * t, const char * path);
 
 
 void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw, int ph, int counter);
-void tilemap_draw_layer_flags(const tilemap_t* t, const image_t* i, int layer, int px, int py, int pw, int ph);
 
 void tilemap_add_object(tilemap_t* t, object_t* o);
 void tilemap_remove_object(tilemap_t* t, object_t* o);
@@ -222,8 +220,9 @@ void tilemap_update_objects(tilemap_t* t);
 void tilemap_set_camera_object(tilemap_t* t, object_t* o);
 object_t* tilemap_get_camera_object(const tilemap_t* t);
 void tilemap_get_camera_location(const tilemap_t* t, int pw, int ph, int* x, int* y);
-void tilemap_draw_layer_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph, int counter);
-void tilemap_draw_objects_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph, int counter);
+
+void tilemap_draw_layer_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph, int counter, int draw_flags);
+void tilemap_draw_objects_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph, int counter, int draw_flags);
 
 int tilemap_get_tile_animation_info(const tilemap_t* t, size_t layer, int x, int y, int* period, int* count);
 int tilemap_set_tile_animation_info(tilemap_t* t, size_t layer, int x, int y, int period, int count);

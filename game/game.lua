@@ -212,6 +212,7 @@ end
 function Game:redrawMap(counter)
   local image, vw, vh = self.tileImage, self.engine.vw, self.engine.vh
   self.map:drawLayerAtCameraObject(image, 0, vw, vh, counter)
+  -- TODO should have map in name
   self.map:drawObjectsAtCameraObject(image, 1, vw, vh, counter)
   --self.map:drawLayerAtCameraObject(image, 1, vw, vh, counter)
     

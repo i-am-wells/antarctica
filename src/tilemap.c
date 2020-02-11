@@ -97,7 +97,6 @@ int tilemap_init(tilemap_t * t, size_t nlayers, size_t w, size_t h) {
 }
 
 tile_t * tilemap_get_tile_address(const tilemap_t * t, size_t layer, size_t x, size_t y) {
-    assert(t);
     if((layer < t->nlayers)
             && (x < t->w)
             && (y < t->h)) {
@@ -208,141 +207,6 @@ void tilemap_set_object_callbacks(tilemap_t* t, void* data, void (*bump)(void*, 
 }
 
 
-void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph, int counter) {
-  int anim_counter = counter / 2;
-    // Get the starting position and dimensions for drawing in map square coordinates
-    int startx = (px / i->tw);
-    int starty = (py / i->th);
-    int nx = (pw / i->tw) + 2;
-    int ny = (ph / i->th) + 2;
-  
-	// TODO underwater
-
-    int offx = px % i->tw;
-    int offy = py % i->th;
-
-    // get tile tile array for the layer we're drawing
-    tile_t* layer = t->tiles[l];
-
-    // For each map square within our view, draw the corresponding tile
-    for(int y = 0; y < ny; y++) {
-        int drawy = starty + y; // map square y to draw
-
-        // are we on the map vertically?
-        if((drawy > -1) && (drawy < t->h)) {
-            for(int x = 0; x < nx; x++) {
-                int drawx = startx + x; // map square x to draw
-
-                // are we on the map horizontally?
-                if((drawx > -1) && (drawx < t->w)) {
-                    // draw the tile at (layer, drawx, drawy)
-                    tile_t* tile = layer + drawy * t->w + drawx;
-                   
-                    if((tile->tilex != 16) || (tile->tiley != 0)) {
-                        // Animation
-                        int tiley = tile->tiley + (anim_counter / TILE_ANIM_PERIOD(tile)) % TILE_ANIM_COUNT(tile);
-
-                        image_draw_tile(i, tile->tilex, tiley, x * i->tw - offx, y * i->th - offy);
-                    }
-                }
-            } // loop x
-        }
-    } // loop y
-}
-
-
-
-void tilemap_draw_layer_flags(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph) {
-    // see tilemap_draw_layer
-    int startx = (px / i->tw);
-    int starty = (py / i->th);
-    int nx = (pw / i->tw) + 2;
-    int ny = (ph / i->th) + 2;
-
-    int offx = px % i->tw;
-    int offy = py % i->th;
-
-    tile_t* layer = t->tiles[l];
-
-    int thickness = 2;
-    SDL_Rect dst;
-
-    // save current drawing color
-    Uint8 or, og, ob, oa;
-    SDL_GetRenderDrawColor(i->renderer, &or, &og, &ob, &oa);
-
-    for(int y = 0; y < ny; y++) {
-        int drawy = starty + y;
-        if((drawy > -1) && (drawy < t->h)) {
-            for(int x = 0; x < nx; x++) {
-                int drawx = startx + x;
-                if((drawx > -1) && (drawx < t->w)) {
-                    tile_t* tile = layer + drawy * t->w + drawx;
-                    
-                    int x0 = x * i->tw - offx;
-                    int x1 = x0 + i->tw - thickness;
-                    int y0 = y * i->th - offy;
-                    int y1 = y0 + i->th - thickness;
-                    
-                    image_draw_tile(i, tile->tilex, tile->tiley, x * i->tw - offx, y * i->th - offy);
-
-                    // draw map square borders in red to show directional bump flags
-                    SDL_SetRenderDrawColor(i->renderer, 255, 0, 0, SDL_ALPHA_OPAQUE);
-                    if(tile->flags & TILEMAP_BUMP_EAST_MASK) {
-                        dst.x = x1;
-                        dst.y = y0;
-                        dst.w = thickness;
-                        dst.h = i->th;
-                        SDL_RenderFillRect(i->renderer, &dst);
-                    }
-                    if(tile->flags & TILEMAP_BUMP_NORTH_MASK) {
-                        dst.x = x0;
-                        dst.y = y0;
-                        dst.w = i->tw;
-                        dst.h = thickness;
-                        SDL_RenderFillRect(i->renderer, &dst);
-                    }
-                    if(tile->flags & TILEMAP_BUMP_WEST_MASK) {
-                        dst.x = x0;
-                        dst.y = y0;
-                        dst.w = thickness;
-                        dst.h = i->th;
-                        SDL_RenderFillRect(i->renderer, &dst);
-                    }
-                    if(tile->flags & TILEMAP_BUMP_SOUTH_MASK) {
-                        dst.x = x0;
-                        dst.y = y1;
-                        dst.w = i->tw;
-                        dst.h = thickness;
-                        SDL_RenderFillRect(i->renderer, &dst);
-                    }
-
-                    if(tile->flags & (TILEMAP_BUMP_NORTHWEST_MASK | TILEMAP_BUMP_SOUTHEAST_MASK)) {
-                        SDL_RenderDrawLine(i->renderer, x0, y0+i->th, x0+i->tw, y0);
-                    }
-                    if(tile->flags & (TILEMAP_BUMP_NORTHEAST_MASK | TILEMAP_BUMP_SOUTHWEST_MASK)) {
-                        SDL_RenderDrawLine(i->renderer, x0, y0, x0+i->tw, y0+i->th);
-                    }
-                    
-                    // draw a green rectangle in the center of map squares with
-                    // the "action" flag set
-                    SDL_SetRenderDrawColor(i->renderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
-                    if(tile->flags & TILEMAP_ACTION_MASK) {
-                        dst.x = x0 + i->tw / 4;
-                        dst.y = y0 + i->th / 4;
-                        dst.w = i->tw / 2;
-                        dst.h = i->th / 2;
-                        SDL_RenderFillRect(i->renderer, &dst);
-                    }
-                }
-            }
-        }
-    }
-
-    // restore original drawing color
-    SDL_SetRenderDrawColor(i->renderer, or, og, ob, oa);
-}
-
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
@@ -364,12 +228,11 @@ void tilemap_get_camera_location(const tilemap_t* t, int pw, int ph, int* x, int
         *y = py;
 }
 
-void tilemap_draw_layer_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph, int counter) {
+void tilemap_draw_layer_at_camera_object(const tilemap_t* t, const image_t* i, int layer, int pw, int ph, int counter, int draw_flags) {
     int px = 0;
     int py = 0;
     tilemap_get_camera_location(t, pw, ph, &px, &py);
-
-    tilemap_draw_layer(t, i, layer, px, py, pw, ph, counter);
+    tilemap_draw_layer(t, i, layer, px, py, pw, ph, counter, draw_flags);
 }
 
 
@@ -1035,48 +898,122 @@ void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py, int pw,
     }
 }
 
-static void tilemap_draw_layer_rows(const tilemap_t* t, const image_t* img, int layer, int px, int py, int pw, int ph, int y0, int y1, int counter) {
-    int anim_counter = counter / 2;
-    
-    // draw a few rows
-    for(int yy = y0; yy <= y1; yy++) {
-        int dy = yy * img->th - py;
-        for(int xx = px / img->tw; xx <= (px + pw) / img->tw; xx++) {
-            int dx = xx * img->tw - px;
-            tile_t* tile = tilemap_get_tile_address(t, layer, xx, yy);
-            
-            if(tile) {
-                if(!((tile->tilex == 16) && (tile->tiley == 0))) {
-                    int tiley = tile->tiley + (anim_counter / TILE_ANIM_PERIOD(tile)) % TILE_ANIM_COUNT(tile);
-                    image_draw_tile(img, tile->tilex, tiley, dx, dy);
-                
-                }
-            }
-        }
+static void tilemap_draw_flags(SDL_Renderer* renderer, uint16_t flags, int x, int y, int tw, int th) {
+    int thickness = 2;
+    SDL_Rect dst;
 
+    int x1 = x + tw - thickness;
+    int y1 = y + th - thickness;
+
+    // draw map square borders in red to show directional bump flags
+    SDL_SetRenderDrawColor(renderer, 255, 0, 0, SDL_ALPHA_OPAQUE);
+    if(flags & TILEMAP_BUMP_EAST_MASK) {
+      dst.x = x1;
+      dst.y = y;
+      dst.w = thickness;
+      dst.h = th;
+      SDL_RenderFillRect(renderer, &dst);
+    }
+    if(flags & TILEMAP_BUMP_NORTH_MASK) {
+      dst.x = x;
+      dst.y = y;
+      dst.w = tw;
+      dst.h = thickness;
+      SDL_RenderFillRect(renderer, &dst);
+    }
+    if(flags & TILEMAP_BUMP_WEST_MASK) {
+      dst.x = x;
+      dst.y = y;
+      dst.w = thickness;
+      dst.h = th;
+      SDL_RenderFillRect(renderer, &dst);
+    }
+    if(flags & TILEMAP_BUMP_SOUTH_MASK) {
+      dst.x = x;
+      dst.y = y1;
+      dst.w = tw;
+      dst.h = thickness;
+      SDL_RenderFillRect(renderer, &dst);
+    }
+
+    // TODO remove
+    if(flags & (TILEMAP_BUMP_NORTHWEST_MASK | TILEMAP_BUMP_SOUTHEAST_MASK)) {
+      SDL_RenderDrawLine(renderer, x, y+th, x+tw, y);
+    }
+    if(flags & (TILEMAP_BUMP_NORTHEAST_MASK | TILEMAP_BUMP_SOUTHWEST_MASK)) {
+      SDL_RenderDrawLine(renderer, x, y, x+tw, y+th);
+    }
+
+    // draw a green rectangle in the center of map squares with
+    // the "action" flag set
+    SDL_SetRenderDrawColor(renderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
+    if(flags & TILEMAP_ACTION_MASK) {
+      dst.x = x + tw / 4;
+      dst.y = y + th / 4;
+      dst.w = tw / 2;
+      dst.h = th / 2;
+      SDL_RenderFillRect(renderer, &dst);
     }
 }
 
-// draw objects from one map layer
-void tilemap_draw_objects_interleaved(const tilemap_t* t, const image_t* img, int layer, int px, int py, int pw, int ph, int counter) {
+static void tilemap_draw_row(
+    const tilemap_t* t, 
+    const image_t* i, 
+    int layer, 
+    int px, 
+    int dy, 
+    int pw, 
+    int row, 
+    int counter,
+    int draw_flags) {
 
-    int anim_counter = counter / 2;
+  // TODO change this
+  counter /= 2;
+  
+  for(int xx = px / i->tw; xx <= (px + pw) / i->tw; xx++) {
+    int dx = xx * i->tw - px;
+    tile_t* tile = tilemap_get_tile_address(t, layer, xx, row);
+
+    if(tile) {
+      // TODO what is this? remove
+      if(!((tile->tilex == 16) && (tile->tiley == 0))) {
+        // TODO rewrite animation
+        int tiley = tile->tiley + (counter / TILE_ANIM_PERIOD(tile)) % TILE_ANIM_COUNT(tile);
+        image_draw_tile(i, tile->tilex, tiley, dx, dy);
+
+        if (draw_flags)
+          tilemap_draw_flags(i->renderer, tile->flags, dx, dy, i->tw, i->th);
+      }
+    }
+  }
+}
+
+static void tilemap_draw_layer_rows(const tilemap_t* t, const image_t* i, int layer, int px, int py, int pw, int row_start, int row_end, int counter, int draw_flags) { 
+    // if drawing flags, save current drawing color
+    Uint8 or, og, ob, oa;
+    if (draw_flags)
+      SDL_GetRenderDrawColor(i->renderer, &or, &og, &ob, &oa);
+
+    for(int row = row_start; row <= row_end; row++) {
+        int dy = row * i->th - py;
+        tilemap_draw_row(t, i, layer, px, dy, pw, row, counter, draw_flags);
+    }
+
+    if (draw_flags)
+      SDL_SetRenderDrawColor(i->renderer, or, og, ob, oa);
+}
+
+void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int py, int pw, int ph, int counter, int draw_flags) {
+  int row_start = py / i->th;
+  int row_end = row_start + (ph / i->th) + 2;
+  tilemap_draw_layer_rows(t, i, l, px, py, pw, row_start, row_end, counter, draw_flags);
+}
+
+
+// draw objects from one map layer
+void tilemap_draw_objects_interleaved(const tilemap_t* t, const image_t* img, int layer, int px, int py, int pw, int ph, int counter, int draw_flags) {
     // Find range of objects to draw
     size_t idx0, idx1;
-    //if(t->objectvec_orientation == 0) {
-        //idx0 = tilemap_binary_search_objects(t, px, 0, t->objectvec.size - 1);
-        //idx1 = tilemap_binary_search_objects(t, px + pw, idx0, t->objectvec.size - 1);
-    //} else if(t->objectvec_orientation == 1) {
-        
-    /*
-        idx0 = tilemap_binary_search_objects(t, py, 0, t->objectvec.size - 1);
-        if(idx0 >= t->objectvec.size)
-            idx0 = 0;
-
-        idx1 = tilemap_binary_search_objects(t, py + ph, idx0, t->objectvec.size - 1);
-        idx1++;
-        //}
-    */
 
     // For now, just draw all objects
     idx0 = 0;
@@ -1095,7 +1032,7 @@ void tilemap_draw_objects_interleaved(const tilemap_t* t, const image_t* img, in
         int bottomMapY = bottomY / img->th;
         if(bottomMapY > lastMapY) {
             // draw new rows
-            tilemap_draw_layer_rows(t, img, layer, px, py, pw, ph, lastMapY, bottomMapY, counter);
+            tilemap_draw_layer_rows(t, img, layer, px, py, pw, lastMapY, bottomMapY, counter, draw_flags);
 
             lastMapY = bottomMapY;
         }
@@ -1110,16 +1047,15 @@ void tilemap_draw_objects_interleaved(const tilemap_t* t, const image_t* img, in
     }
 
     // Draw remaining rows
-    tilemap_draw_layer_rows(t, img, layer, px, py, pw, ph, lastMapY, (py + ph) / img->th, counter);
+    tilemap_draw_layer_rows(t, img, layer, px, py, pw, lastMapY, (py + ph) / img->th, counter, draw_flags);
 }
     
 
-void tilemap_draw_objects_at_camera_object(const tilemap_t* t, const image_t* img, int layer, int pw, int ph, int counter) {
+void tilemap_draw_objects_at_camera_object(const tilemap_t* t, const image_t* img, int layer, int pw, int ph, int counter, int draw_flags) {
     int px = 0;
     int py = 0;
     tilemap_get_camera_location(t, pw, ph, &px, &py);
-
-    tilemap_draw_objects_interleaved(t, img, layer, px, py, pw, ph, counter);
+    tilemap_draw_objects_interleaved(t, img, layer, px, py, pw, ph, counter, draw_flags);
 }
 
 

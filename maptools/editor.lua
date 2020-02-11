@@ -561,7 +561,7 @@ local editor = function(engine, tilemap, tileset, mapFilename, messageText)
             for l = 0, tilemap.nlayers - 1 do
                 if layerMask[l] then
                     if showFlags then
-                        tilemap:drawLayerFlags(tileset, l, mapx * tileset.tw, mapy * tileset.th, screenW, screenH)
+                        tilemap:drawLayerFlags(tileset, l, mapx * tileset.tw, mapy * tileset.th, screenW, screenH, counter)
                     else
                         tilemap:drawLayer(tileset, l, mapx * tileset.tw, mapy * tileset.th, screenW, screenH, counter)
                     end
