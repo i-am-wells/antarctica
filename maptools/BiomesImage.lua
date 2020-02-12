@@ -55,7 +55,7 @@ function BiomesImage:applyFeaturesToTilemap(keyToColor, keyToFeature, tilemap)
   --[[
   -- Make sure a feature is present for each key in keyToColor
   for key, color in pairs(keyToColor) do
-    assert(type(keyToFeature[key]) == 'function')
+  assert(type(keyToFeature[key]) == 'function')
   end
   --]]
 

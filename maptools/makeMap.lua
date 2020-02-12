@@ -172,7 +172,7 @@ do
   printf('Reading %s...', featuresImageFile)
   local featuresImg, err = BiomesImage(Engine(), featuresImageFile)
   if not featuresImg then error(err) end
- 
+
   printf('Adding features...')
   featuresImg:applyFeaturesToTilemap(keyToColor, keyToFeature, tilemap)
 

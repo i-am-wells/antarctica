@@ -8,7 +8,7 @@ local SparseMap = Class(IntermediateMap)
 function SparseMap:init(args)
   args.slim = true
   IntermediateMap.init(self, args)
-   
+
   self.emptyKey = 0
 
   local gridRowMt = {
@@ -24,17 +24,17 @@ function SparseMap:init(args)
 
       local left = row[k-1]
       if left == self.emptyKey then
+      end
+    }
+
+    for _, row in ipairs(self.grid) do
+      setmetatable(row, gridRowMt)
     end
-  }
-
-  for _, row in ipairs(self.grid) do
-    setmetatable(row, gridRowMt)
   end
-end
 
-function SparseMap:set(x, y, val)
+  function SparseMap:set(x, y, val)
 
-end
+  end
 
-return SparseMap
+  return SparseMap
 

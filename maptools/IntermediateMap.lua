@@ -79,7 +79,7 @@ function IntermediateMap:toBaseTilemap(tilesetInfo, nlayers)
         -- TODO rethink?
         --[[
         if not tilesetInfo:isWalkable(key) then
-          tilemap:setFlags(0, x-1, y-1, Tilemap.flags.bumpAll)
+        tilemap:setFlags(0, x-1, y-1, Tilemap.flags.bumpAll)
         end
         --]]
       else

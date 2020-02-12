@@ -188,7 +188,7 @@ function Game:init(opt)
 
     -- Redraw
     self:redrawMap(counter)
-    
+
     -- Draw menus
     for _, v in ipairs(self.menuStack) do
       v.menu:draw()
@@ -215,7 +215,7 @@ function Game:redrawMap(counter)
   -- TODO should have map in name
   self.map:drawObjectsAtCameraObject(image, 1, vw, vh, counter)
   --self.map:drawLayerAtCameraObject(image, 1, vw, vh, counter)
-    
+
   -- TODO map overlays should draw here
 end
 

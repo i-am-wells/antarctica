@@ -11,9 +11,9 @@ end
 function NewMapGenerator:generate(mapgenInfo)
   if mapgenInfo.strategy ~= 'biomesImage' then
     error(string.format('unknown map generation strategy "%s"',
-      mapgenInfo.strategy))
+    mapgenInfo.strategy))
   end
-  
+
   local biomesImage = BiomesImage(self.engine, mapgenInfo.biomesImage)
   local intermediateMap = biomesImage:createIntermediateMap(mapgenInfo.colors)
 

@@ -6,73 +6,73 @@ local Engine = require 'engine'
 local Image = require 'image'
 
 local assertequal = function(actual, expected, name)
-    assert(a == b, 'expected '..name..' to be '..tostring(expected)..' but got '..tostring(actual))
+  assert(a == b, 'expected '..name..' to be '..tostring(expected)..' but got '..tostring(actual))
 end
 
 
 
 
 local tests = {
-    create_engine = function()
-        -- create an engine with default values
-        local engine = Engine{}
-        assert(engine._engine ~= nil, 'failed to create engine')
-        assertequal(engine.title, 'antarctica', 'engine title')
-        
-        -- TODO check position, size, window flags
+  create_engine = function()
+    -- create an engine with default values
+    local engine = Engine{}
+    assert(engine._engine ~= nil, 'failed to create engine')
+    assertequal(engine.title, 'antarctica', 'engine title')
 
-        local engine2 = Engine{title='test'}
-        assert(engine._engine ~= nil, 'failed to create engine')
-        assertequal(engine.title, 'test', 'engine title')
+    -- TODO check position, size, window flags
 
-    end,
+    local engine2 = Engine{title='test'}
+    assert(engine._engine ~= nil, 'failed to create engine')
+    assertequal(engine.title, 'test', 'engine title')
 
-    load_image = function()
-        local engine = Engine{}
+  end,
 
-        local image = Image{file='res/terrain.png'}
+  load_image = function()
+    local engine = Engine{}
 
-        assert(image._image ~= nil, 'failed to load image')
-    end,
+    local image = Image{file='res/terrain.png'}
 
-    draw_image = function()
-        local engine = Engine{}
+    assert(image._image ~= nil, 'failed to load image')
+  end,
 
-        local image = Image{file='res/terrain.png'}
+  draw_image = function()
+    local engine = Engine{}
 
-        -- TODO draw image and compare engine output with another image
-    end,
+    local image = Image{file='res/terrain.png'}
 
-    create_map = function()
-        local tilemap = Tilemap{nlayers=1, w=1,h=1}
+    -- TODO draw image and compare engine output with another image
+  end,
 
-        assert(tilemap._tilemap ~= nil, 'failed to create tile map')
-        assert(tilemap.nlayers == 1, 'wrong number of layers')
-        assert(tilemap.w == 1, 'wrong width')
-        assert(tilemap.h == 1, 'wrong height')
-    end,
+  create_map = function()
+    local tilemap = Tilemap{nlayers=1, w=1,h=1}
 
-    save_and_load_map = function()
-        local tilemap = Tilemap{nlayers=1, w=1,h=1}
-        
-        tilemap:write('/tmp/testmapfile.map');
-        
-        local newtilemap = Tilemap{filename='/tmp/testmapfile.map'}
+    assert(tilemap._tilemap ~= nil, 'failed to create tile map')
+    assert(tilemap.nlayers == 1, 'wrong number of layers')
+    assert(tilemap.w == 1, 'wrong width')
+    assert(tilemap.h == 1, 'wrong height')
+  end,
 
-        assert(tilemap._tilemap ~= nil, 'failed to load map file')
-        assert(tilemap.nlayers == 1, 'wrong number of layers')
-        assert(tilemap.w == 1, 'wrong width')
-        assert(tilemap.h == 1, 'wrong height')
-    end,
+  save_and_load_map = function()
+    local tilemap = Tilemap{nlayers=1, w=1,h=1}
 
-    draw_map = function()
-        -- TODO
-    end,
+    tilemap:write('/tmp/testmapfile.map');
+
+    local newtilemap = Tilemap{filename='/tmp/testmapfile.map'}
+
+    assert(tilemap._tilemap ~= nil, 'failed to load map file')
+    assert(tilemap.nlayers == 1, 'wrong number of layers')
+    assert(tilemap.w == 1, 'wrong width')
+    assert(tilemap.h == 1, 'wrong height')
+  end,
+
+  draw_map = function()
+    -- TODO
+  end,
 
 
 }
 
 for name, fn in pairs(tests) do
-    print('running '..name..'...')
-    fn()
+  print('running '..name..'...')
+  fn()
 end

@@ -10,9 +10,9 @@ ScrapSteel.tx = 0
 local tys = {0, 1, 2, 3}
 
 function ScrapSteel:init(options)
-    self.ty = tys[options.data.variety or 1]
+  self.ty = tys[options.data.variety or 1]
 
-    Item.init(self, options)
+  Item.init(self, options)
 end
 
 return ScrapSteel

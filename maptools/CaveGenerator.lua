@@ -41,7 +41,7 @@ function CaveGenerator:makeJaggedEdge(nCuts, a, b)
 
   -- Choose a random direction and distance
   local midpoint = Point((a.x + b.x) // 2, (a.y + b.y) // 2)
-  
+
   local angle = math.atan((b.y - a.y) / (b.x - a.x)) + 0.5 * math.pi
   --local angle = math.random() * 2 * math.pi
   local distance = (math.random() - 1) * a:distanceTo(b) * self.jagScale
@@ -111,7 +111,7 @@ local rootHalf = math.sqrt(0.5)
 local getSquaresOnLine = function(a, b, callback)
   local nSquaresMax = (a:distanceTo(b) + 1) / rootHalf
   local diff = b - a
-  
+
   local lastSquare
   for f = 0, 1, (1 / nSquaresMax) do
     local possibleSquare = Point(a.x + f * diff.x, a.y + f * diff.y)
@@ -143,7 +143,7 @@ end
 
 function CaveGenerator:makeRoom(center)
   local x, y = center.x, center.y
-  
+
   -- Random walk
   for i = 1, self.roomSize do
     self.intermediate:set(x, y, materials.caveFloor)

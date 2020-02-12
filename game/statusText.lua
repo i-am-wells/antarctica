@@ -14,32 +14,32 @@ StatusText.margin = 5
 StatusText.color = {r=20, g=12, b=28}
 
 function StatusText:init(opt)
-    local engine = opt.resourceMan:get('engine')
+  local engine = opt.resourceMan:get('engine')
 
-    self.font = opt.resourceMan:get(self.fontFile, Image, {
-        engine = engine,
-        file = self.fontFile,
-        tilew = self.fontW,
-        tileh = self.fontH
-    })
+  self.font = opt.resourceMan:get(self.fontFile, Image, {
+    engine = engine,
+    file = self.fontFile,
+    tilew = self.fontW,
+    tileh = self.fontH
+  })
 
-    self.drawX = self.margin
-    self.drawY = engine.vh - self.margin - self.fontH
-    self.drawW = engine.vw - 2 * self.margin
+  self.drawX = self.margin
+  self.drawY = engine.vh - self.margin - self.fontH
+  self.drawW = engine.vw - 2 * self.margin
 
-    self.text = opt.text
+  self.text = opt.text
 
-    Overlay.init(self, opt)
+  Overlay.init(self, opt)
 end
 
 
 function StatusText:draw(idx)
-    local y = self.drawY - (self.fontH + self.margin) * (#self.overlayStack - idx)
+  local y = self.drawY - (self.fontH + self.margin) * (#self.overlayStack - idx)
 
-    -- draw text
-    self.font:colorMod(self.color.r, self.color.g, self.color.b)
-    self.font:drawText(self.text, self.drawX, y, self.drawW)
+  -- draw text
+  self.font:colorMod(self.color.r, self.color.g, self.color.b)
+  self.font:drawText(self.text, self.drawX, y, self.drawW)
 end
 
 return StatusText
-    
+

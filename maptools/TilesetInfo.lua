@@ -36,11 +36,11 @@ function TilesetInfo:init(info)
   -- TODO rethink
   --[[
   if info.patches then
-    for k, patches in pairs(info.patches) do
-      for _, patch in ipairs(patches) do
-        storePatch(self.mapping, patch)
-      end
-    end
+  for k, patches in pairs(info.patches) do
+  for _, patch in ipairs(patches) do
+  storePatch(self.mapping, patch)
+  end
+  end
   end
   --]]
   --
