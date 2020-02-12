@@ -5,6 +5,8 @@
 #ifndef _TILEMAP_H
 #define _TILEMAP_H
 
+#include <SDL_pixels.h>
+
 #include "image.h"
 #include "object.h"
 #include "vec.h"
@@ -55,6 +57,7 @@ typedef struct tilemap_t {
   tile_t** tiles; /**< tile data */
 
   int updateParity;
+  SDL_Color underwater_color;
 } tilemap_t;
 
 enum {
@@ -108,22 +111,6 @@ void tilemap_deinit(tilemap_t* t);
 int tilemap_init(tilemap_t* t, size_t nlayers, size_t w, size_t h);
 
 /**
- *  Gets the address of the tile at (\param layer, \param x, \param y).
- *
- *  \param t    tilemap pointer
- *  \param layer    layer index
- *  \param x    map square x
- *  \param y    map square y
- *
- *  \return address of the tile at (layer, x, y), or NULL if that position isn't
- *  on the map.
- */
-tile_t* tilemap_get_tile_address(const tilemap_t* t,
-                                 size_t layer,
-                                 size_t x,
-                                 size_t y);
-
-/**
  *  Sets the image to be used for the tile at (layer, x, y).
  *
  *  \param t    tilemap pointer
@@ -133,18 +120,18 @@ tile_t* tilemap_get_tile_address(const tilemap_t* t,
  *  \param tilex    x index of tile in image
  *  \param tiley    y index of tile in image
  */
-void tilemap_set_tile(tilemap_t* t,
-                      size_t layer,
-                      size_t x,
-                      size_t y,
-                      int tilex,
-                      int tiley);
-int tilemap_get_tile(tilemap_t* t,
-                     size_t layer,
-                     size_t x,
-                     size_t y,
-                     int* tx,
-                     int* ty);
+void tilemap_set_tile_coords(tilemap_t* t,
+                             size_t layer,
+                             size_t x,
+                             size_t y,
+                             int tilex,
+                             int tiley);
+int tilemap_get_tile_coords(tilemap_t* t,
+                            size_t layer,
+                            size_t x,
+                            size_t y,
+                            int* tx,
+                            int* ty);
 
 /**
  *  Given the pixel dimensions of the renderer and a location on the map in
@@ -259,11 +246,11 @@ void tilemap_update_objects(tilemap_t* t);
 // Camera object
 void tilemap_set_camera_object(tilemap_t* t, object_t* o);
 object_t* tilemap_get_camera_object(const tilemap_t* t);
-void tilemap_get_camera_location(const tilemap_t* t,
-                                 int pw,
-                                 int ph,
-                                 int* x,
-                                 int* y);
+int tilemap_get_camera_location(const tilemap_t* t,
+                                int pw,
+                                int ph,
+                                int* x,
+                                int* y);
 
 void tilemap_draw_layer_at_camera_object(const tilemap_t* t,
                                          const image_t* i,
@@ -298,5 +285,16 @@ void tilemap_abort_update_objects(tilemap_t* t);
 void tilemap_set_sparse_layer(tilemap_t* t, int layer, int sparse);
 
 int tilemap_empty(const tilemap_t* t, size_t layer, int x, int y);
+
+void tilemap_set_underwater_color(tilemap_t* t,
+                                  uint8_t r,
+                                  uint8_t g,
+                                  uint8_t b,
+                                  uint8_t a);
+void tilemap_set_underwater(tilemap_t* t,
+                            int layer,
+                            int x,
+                            int y,
+                            int underwater);
 
 #endif

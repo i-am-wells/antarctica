@@ -129,7 +129,7 @@ int l_tilemap_set_tile(lua_State* L) {
   int tx = luaL_checkinteger(L, 5);
   int ty = luaL_checkinteger(L, 6);
 
-  tilemap_set_tile(t, layer, x, y, tx, ty);
+  tilemap_set_tile_coords(t, layer, x, y, tx, ty);
 
   return 0;
 }
@@ -142,7 +142,7 @@ int l_tilemap_get_tile(lua_State* L) {
 
   int tx = -1;
   int ty = -1;
-  if (!tilemap_get_tile(t, layer, x, y, &tx, &ty)) {
+  if (!tilemap_get_tile_coords(t, layer, x, y, &tx, &ty)) {
     lua_pushnil(L);
     return 1;
   }
@@ -321,25 +321,18 @@ int l_tilemap_get_camera_location(lua_State* L) {
   int pw = luaL_checkinteger(L, 2);
   int ph = luaL_checkinteger(L, 3);
 
-  int x = -1;
-  int y = -1;
-  tilemap_get_camera_location(t, pw, ph, &x, &y);
-
-  if ((x != -1) && (y != -1)) {
+  int x, y;
+  if (tilemap_get_camera_location(t, pw, ph, &x, &y)) {
     lua_pushinteger(L, x);
     lua_pushinteger(L, y);
     return 2;
   }
-
-  lua_pushnil(L);
-  return 1;
+  return 0;
 }
 
 int l_tilemap_update_objects(lua_State* L) {
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-
   tilemap_update_objects(t);
-
   return 0;
 }
 
@@ -420,6 +413,26 @@ int l_tilemap_set_sparse_layer(lua_State* L) {
   return 0;
 }
 
+int l_tilemap_set_underwater_color(lua_State* L) {
+  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+  int r = luaL_checkinteger(L, 2);
+  int g = luaL_checkinteger(L, 3);
+  int b = luaL_checkinteger(L, 4);
+  int a = luaL_checkinteger(L, 5);
+  tilemap_set_underwater_color(t, r, g, b, a);
+  return 0;
+}
+
+int l_tilemap_set_underwater(lua_State* L) {
+  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+  int layer = luaL_checkinteger(L, 2);
+  int x = luaL_checkinteger(L, 3);
+  int y = luaL_checkinteger(L, 4);
+  int underwater = lua_toboolean(L, 5);
+  tilemap_set_underwater(t, layer, x, y, underwater);
+  return 0;
+}
+
 void load_tilemap_bridge(lua_State* L) {
   const luaL_Reg tilemaplib[] = {
       {"read", l_tilemap_read},
@@ -449,6 +462,7 @@ void load_tilemap_bridge(lua_State* L) {
       {"getTileAnimationInfo", l_tilemap_get_tile_animation_info},
       {"setTileAnimationInfo", l_tilemap_set_tile_animation_info},
       {"setSparseLayer", l_tilemap_set_sparse_layer},
+      {"setUnderwaterColor", l_tilemap_set_underwater},
 
       {"abortUpdateObjects", l_tilemap_abort_update_objects},
 

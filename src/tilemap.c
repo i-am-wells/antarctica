@@ -75,6 +75,7 @@ int tilemap_init(tilemap_t* t, size_t nlayers, size_t w, size_t h) {
   t->nlayers = nlayers;
 
   t->updateParity = 0;
+  tilemap_set_underwater_color(t, 0, 0, 0, SDL_ALPHA_OPAQUE);
 
   t->should_store_sparse_layer = (int*)calloc(nlayers, sizeof(int));
   if (!t->should_store_sparse_layer) {
@@ -94,10 +95,7 @@ int tilemap_init(tilemap_t* t, size_t nlayers, size_t w, size_t h) {
   return 1;
 }
 
-tile_t* tilemap_get_tile_address(const tilemap_t* t,
-                                 size_t layer,
-                                 size_t x,
-                                 size_t y) {
+tile_t* tilemap_get_tile(const tilemap_t* t, size_t layer, size_t x, size_t y) {
   if ((layer < t->nlayers) && (x < t->w) && (y < t->h)) {
     return t->tiles[layer] + y * t->w + x;
   }
@@ -108,7 +106,7 @@ tile_t* tilemap_get_tile_address(const tilemap_t* t,
 
 // TODO x, y should always be int
 int tilemap_empty(const tilemap_t* t, size_t layer, int x, int y) {
-  tile_t* tile = tilemap_get_tile_address(t, layer, x, y);
+  tile_t* tile = tilemap_get_tile(t, layer, x, y);
   return (tile->tilex || tile->tiley || tile->flags) == 0;
 }
 
@@ -125,16 +123,16 @@ static void tilemap_set_last_non_empty_tile(tilemap_t* t,
   }
 }
 
-void tilemap_set_tile(tilemap_t* t,
-                      size_t layer,
-                      size_t x,
-                      size_t y,
-                      int tilex,
-                      int tiley) {
+void tilemap_set_tile_coords(tilemap_t* t,
+                             size_t layer,
+                             size_t x,
+                             size_t y,
+                             int tilex,
+                             int tiley) {
   assert(t);
 
   // Set the image to be used for this map square
-  tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
+  tile_t* tileptr = tilemap_get_tile(t, layer, x, y);
   if (tileptr) {
     tileptr->tilex = tilex & 0xff;
     tileptr->tiley = tiley & 0xff;
@@ -143,15 +141,15 @@ void tilemap_set_tile(tilemap_t* t,
   }
 }
 
-int tilemap_get_tile(tilemap_t* t,
-                     size_t layer,
-                     size_t x,
-                     size_t y,
-                     int* tx,
-                     int* ty) {
+int tilemap_get_tile_coords(tilemap_t* t,
+                            size_t layer,
+                            size_t x,
+                            size_t y,
+                            int* tx,
+                            int* ty) {
   assert(t);
 
-  tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
+  tile_t* tileptr = tilemap_get_tile(t, layer, x, y);
   if (tileptr) {
     if (tx)
       *tx = tileptr->tilex;
@@ -168,7 +166,7 @@ int tilemap_get_flags(const tilemap_t* t, size_t layer, size_t x, size_t y) {
   assert(t);
 
   // set the image to be used for this map square
-  tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
+  tile_t* tileptr = tilemap_get_tile(t, layer, x, y);
   if (tileptr) {
     return tileptr->flags;
   }
@@ -184,7 +182,7 @@ void tilemap_set_flags(tilemap_t* t,
   assert(t);
 
   // set the image to be used for this map square
-  tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
+  tile_t* tileptr = tilemap_get_tile(t, layer, x, y);
   if (tileptr) {
     tileptr->flags |= (uint16_t)(mask & 0xffff);
   }
@@ -198,7 +196,7 @@ void tilemap_clear_flags(tilemap_t* t,
   assert(t);
 
   // Set the image to be used for this map square
-  tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
+  tile_t* tileptr = tilemap_get_tile(t, layer, x, y);
   if (tileptr) {
     tileptr->flags &= (uint16_t)(~(mask & 0xffff));
   }
@@ -212,7 +210,7 @@ void tilemap_overwrite_flags(tilemap_t* t,
   assert(t);
 
   // Set the image to be used for this map square
-  tile_t* tileptr = tilemap_get_tile_address(t, layer, x, y);
+  tile_t* tileptr = tilemap_get_tile(t, layer, x, y);
   if (tileptr) {
     tileptr->flags = (uint16_t)(mask & 0xffff);
   }
@@ -235,13 +233,13 @@ void tilemap_set_object_callbacks(tilemap_t* t,
 
 // TODO move centering math into drawing functions
 //
-void tilemap_get_camera_location(const tilemap_t* t,
-                                 int pw,
-                                 int ph,
-                                 int* x,
-                                 int* y) {
+int tilemap_get_camera_location(const tilemap_t* t,
+                                int pw,
+                                int ph,
+                                int* x,
+                                int* y) {
   if (!t->cameraobject)
-    return;
+    return 0;
 
   int px = MAX(0, t->cameraobject->x - (pw / 2));
   int py = MAX(0, t->cameraobject->y - (ph / 2));
@@ -253,6 +251,8 @@ void tilemap_get_camera_location(const tilemap_t* t,
 
   if (y)
     *y = py;
+
+  return 1;
 }
 
 void tilemap_draw_layer_at_camera_object(const tilemap_t* t,
@@ -262,10 +262,24 @@ void tilemap_draw_layer_at_camera_object(const tilemap_t* t,
                                          int ph,
                                          int counter,
                                          int draw_flags) {
-  int px = 0;
-  int py = 0;
-  tilemap_get_camera_location(t, pw, ph, &px, &py);
+  int px, py;
+  if (!tilemap_get_camera_location(t, pw, ph, &px, &py)) {
+    px = 0;
+    py = 0;
+  }
   tilemap_draw_layer(t, i, layer, px, py, pw, ph, counter, draw_flags);
+}
+
+int tilemap_is_camera_underwater(const tilemap_t* t,
+                                 int layer,
+                                 int pw,
+                                 int ph) {
+  int x, y;
+  if (!tilemap_get_camera_location(t, pw, ph, &x, &y))
+    return 0;
+
+  int flags = tilemap_get_flags(t, layer, x, y);
+  return (flags & TILEMAP_UNDERWATER_MASK) ? 1 : 0;
 }
 
 #define OBJECT_AT(ovec, i) ((object_t*)(ovec.data[(i)]))
@@ -995,6 +1009,44 @@ static void tilemap_draw_flags(SDL_Renderer* renderer,
   }
 }
 
+static void tilemap_draw_tile(const tilemap_t* t,
+                              const image_t* i,
+                              const tile_t* tile,
+                              int dx,
+                              int dy,
+                              int counter,
+                              int draw_flags) {
+  // TODO rewrite animation
+  int tiley =
+      tile->tiley + (counter / TILE_ANIM_PERIOD(tile)) % TILE_ANIM_COUNT(tile);
+  image_draw_tile(i, tile->tilex, tiley, dx, dy);
+
+  if (draw_flags)
+    tilemap_draw_flags(i->renderer, tile->flags, dx, dy, i->tw, i->th);
+}
+
+static void fill_underwater_color(const tilemap_t* t,
+                                  SDL_Renderer* renderer,
+                                  int x,
+                                  int y,
+                                  int w,
+                                  int h) {
+  // Save current draw color
+  Uint8 or, og, ob, oa;
+  if (SDL_GetRenderDrawColor(renderer, & or, &og, &ob, &oa) == -1)
+    return;
+
+  SDL_Rect rect = {x, y, w, h};
+  if (SDL_SetRenderDrawColor(renderer, t->underwater_color.r,
+                             t->underwater_color.g, t->underwater_color.b,
+                             t->underwater_color.a) != -1) {
+    SDL_RenderFillRect(renderer, &rect);
+  }
+
+  // Restore original draw color
+  SDL_SetRenderDrawColor(renderer, or, og, ob, oa);
+}
+
 static void tilemap_draw_row(const tilemap_t* t,
                              const image_t* i,
                              int layer,
@@ -1003,24 +1055,31 @@ static void tilemap_draw_row(const tilemap_t* t,
                              int pw,
                              int row,
                              int counter,
-                             int draw_flags) {
+                             int draw_flags,
+                             int camera_underwater) {
   // TODO change this
   counter /= 2;
 
   for (int xx = px / i->tw; xx <= (px + pw) / i->tw; xx++) {
     int dx = xx * i->tw - px;
-    tile_t* tile = tilemap_get_tile_address(t, layer, xx, row);
+    tile_t* tile = tilemap_get_tile(t, layer, xx, row);
+    if (!tile)
+      return;
 
-    if (tile) {
-      // TODO what is this? remove
-      if (!((tile->tilex == 16) && (tile->tiley == 0))) {
-        // TODO rewrite animation
-        int tiley = tile->tiley +
-                    (counter / TILE_ANIM_PERIOD(tile)) % TILE_ANIM_COUNT(tile);
-        image_draw_tile(i, tile->tilex, tiley, dx, dy);
-
-        if (draw_flags)
-          tilemap_draw_flags(i->renderer, tile->flags, dx, dy, i->tw, i->th);
+    if (camera_underwater) {
+      if (tile->flags & TILEMAP_UNDERWATER_MASK) {
+        // camera is underwater and tile is underwater; normal tile draw
+        tilemap_draw_tile(t, i, tile, dx, dy, counter, draw_flags);
+      } else {
+        // camera is underwater but tile is not; fill underwater color
+        fill_underwater_color(t, i->renderer, dx, dy, i->tw, i->th);
+      }
+    } else {
+      if (tile->flags & TILEMAP_UNDERWATER_MASK) {
+        // draw water surface
+        tilemap_draw_tile(t, i, tile, dx, dy, counter, draw_flags);
+      } else {
+        tilemap_draw_tile(t, i, tile, dx, dy, counter, draw_flags);
       }
     }
   }
@@ -1035,7 +1094,8 @@ static void tilemap_draw_layer_rows(const tilemap_t* t,
                                     int row_start,
                                     int row_end,
                                     int counter,
-                                    int draw_flags) {
+                                    int draw_flags,
+                                    int underwater) {
   // if drawing flags, save current drawing color
   Uint8 or, og, ob, oa;
   if (draw_flags)
@@ -1043,7 +1103,8 @@ static void tilemap_draw_layer_rows(const tilemap_t* t,
 
   for (int row = row_start; row <= row_end; row++) {
     int dy = row * i->th - py;
-    tilemap_draw_row(t, i, layer, px, dy, pw, row, counter, draw_flags);
+    tilemap_draw_row(t, i, layer, px, dy, pw, row, counter, draw_flags,
+                     underwater);
   }
 
   if (draw_flags)
@@ -1059,10 +1120,11 @@ void tilemap_draw_layer(const tilemap_t* t,
                         int ph,
                         int counter,
                         int draw_flags) {
+  int camera_underwater = tilemap_is_camera_underwater(t, l, pw, ph);
   int row_start = py / i->th;
   int row_end = row_start + (ph / i->th) + 2;
   tilemap_draw_layer_rows(t, i, l, px, py, pw, row_start, row_end, counter,
-                          draw_flags);
+                          draw_flags, camera_underwater);
 }
 
 // draw objects from one map layer
@@ -1075,6 +1137,8 @@ void tilemap_draw_objects_interleaved(const tilemap_t* t,
                                       int ph,
                                       int counter,
                                       int draw_flags) {
+  int camera_underwater = tilemap_is_camera_underwater(t, layer, pw, ph);
+
   // Find range of objects to draw
   size_t idx0, idx1;
 
@@ -1096,7 +1160,7 @@ void tilemap_draw_objects_interleaved(const tilemap_t* t,
     if (bottomMapY > lastMapY) {
       // draw new rows
       tilemap_draw_layer_rows(t, img, layer, px, py, pw, lastMapY, bottomMapY,
-                              counter, draw_flags);
+                              counter, draw_flags, camera_underwater);
 
       lastMapY = bottomMapY;
     }
@@ -1111,7 +1175,8 @@ void tilemap_draw_objects_interleaved(const tilemap_t* t,
 
   // Draw remaining rows
   tilemap_draw_layer_rows(t, img, layer, px, py, pw, lastMapY,
-                          (py + ph) / img->th, counter, draw_flags);
+                          (py + ph) / img->th, counter, draw_flags,
+                          camera_underwater);
 }
 
 void tilemap_draw_objects_at_camera_object(const tilemap_t* t,
@@ -1418,7 +1483,7 @@ int tilemap_write_to_file(const tilemap_t* t, const char* path) {
               if (!write_pos(f, y * t->w + x))
                 goto tilemap_write_fail;
 
-              tile_t* tile = tilemap_get_tile_address(t, i, x, y);
+              tile_t* tile = tilemap_get_tile(t, i, x, y);
               if (fwrite(tile, sizeof(tile_t), 1, f) != 1)
                 goto tilemap_write_fail;
             }
@@ -1457,7 +1522,7 @@ int tilemap_get_tile_animation_info(const tilemap_t* t,
                                     int* period,
                                     int* count) {
   assert(t);
-  tile_t* tile = tilemap_get_tile_address(t, layer, x, y);
+  tile_t* tile = tilemap_get_tile(t, layer, x, y);
   if (!tile)
     return 0;
 
@@ -1477,7 +1542,7 @@ int tilemap_set_tile_animation_info(tilemap_t* t,
                                     int period,
                                     int count) {
   assert(t);
-  tile_t* tile = tilemap_get_tile_address(t, layer, x, y);
+  tile_t* tile = tilemap_get_tile(t, layer, x, y);
   if (!tile)
     return 0;
 
@@ -1507,3 +1572,25 @@ int tilemap_set_tile_animation_info(tilemap_t* t,
 
   return 1;
 };
+
+void tilemap_set_underwater_color(tilemap_t* t,
+                                  uint8_t r,
+                                  uint8_t g,
+                                  uint8_t b,
+                                  uint8_t a) {
+  t->underwater_color.r = r;
+  t->underwater_color.g = g;
+  t->underwater_color.b = b;
+  t->underwater_color.a = a;
+}
+
+void tilemap_set_underwater(tilemap_t* t,
+                            int layer,
+                            int x,
+                            int y,
+                            int underwater) {
+  if (underwater)
+    tilemap_set_flags(t, layer, x, y, TILEMAP_UNDERWATER_MASK);
+  else
+    tilemap_clear_flags(t, layer, x, y, TILEMAP_UNDERWATER_MASK);
+}
