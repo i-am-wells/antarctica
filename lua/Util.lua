@@ -6,5 +6,24 @@ end
 
 return {
   printf = fmt(print),
-  errorf = fmt(error)
+  errorf = fmt(error),
+
+  -- Temporarily set globals.
+  using = function(dict, fn)
+    local orig = {}
+    for k, v in pairs(dict) do
+      orig[k] = _G[k]
+      _G[k] = v
+    end
+    local ret = fn()
+    for k, v in pairs(dict) do
+      _G[k] = orig[k]
+    end
+    return ret
+  end
+
+  bind = function(fn, ...)
+    local a = {...}
+    return function() fn(table.unpack(a)) end
+  end
 }

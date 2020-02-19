@@ -8,19 +8,19 @@ function Image:init(opt)
   local tilew = opt.tilew or 16
   local tileh = opt.tileh or 16
   local keepSurface = opt.keepSurface or false
+  self.engine = engine or opt.engine
   if opt.file then
-    self._image = ant.image.load(opt.engine, opt.file, tilew, tileh, keepSurface)
+    self._image = ant.image.load(self.engine, opt.file, tilew, tileh, keepSurface)
     if not self._image then
       return nil, 'failed to load image'
     end
   elseif opt.w and opt.h then
-    self._image = ant.image.createBlank(opt.engine, opt.w, opt.h, tilew, tileh)
+    self._image = ant.image.createBlank(self.engine, opt.w, opt.h, tilew, tileh)
     if not self._image then
       return nil, 'failed to create image'
     end
   end
 
-  self.engine = opt.engine
   ant.image.get(self._image, self)
 
   self.tw = tilew
