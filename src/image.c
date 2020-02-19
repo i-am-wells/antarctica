@@ -215,12 +215,17 @@ void image_draw_text_word(const image_t* i,
   }
 }
 
-void image_draw_text(const image_t* i,
-                     const char* text,
-                     int dx,
-                     int dy,
-                     int wrapw) {
-  int linec = wrapw / i->tw;
+static void image_draw_text_internal(const image_t* i,
+                                     const char* text,
+                                     int dx,
+                                     int dy,
+                                     int wrap_width,
+                                     int dry_run,
+                                     int* w,
+                                     int* h) {
+  int max_w = 0;
+
+  int linec = wrap_width / i->tw;
 
   int firstword = 1;
   int drawx = dx;
@@ -238,22 +243,31 @@ void image_draw_text(const image_t* i,
     if (wordlen + linepos > linec) {
       if (firstword) {
         // draw word, advance line
-        image_draw_text_word(i, text, wordlen, drawx, dy);
+        if (!dry_run)
+          image_draw_text_word(i, text, wordlen, drawx, dy);
+        if (drawx + wordlen * i->tw > max_w)
+          max_w = drawx + wordlen * i->tw;
         drawx = dx;
         dy += i->th;
         linepos = 0;
+
       } else {
         // advance line, draw word
         drawx = dx;
         dy += i->th;
         linepos = wordlen + 1;
-        image_draw_text_word(i, text, wordlen, drawx, dy);
+        if (!dry_run)
+          image_draw_text_word(i, text, wordlen, drawx, dy);
         firstword = 0;
         drawx += i->tw * (wordlen + 1);
+
+        if (drawx - dx > max_w)
+          max_w = drawx - dx;
       }
     } else {
-      // TODO draw word, move forward
-      image_draw_text_word(i, text, wordlen, drawx, dy);
+      // draw word, move forward
+      if (!dry_run)
+        image_draw_text_word(i, text, wordlen, drawx, dy);
       linepos += wordlen;
       drawx += i->tw * wordlen;
       if (firstword)
@@ -262,6 +276,9 @@ void image_draw_text(const image_t* i,
       // space
       linepos++;
       drawx += i->tw;
+
+      if (drawx - dx > max_w)
+        max_w = drawx - dx;
     }
 
     if (*wordend) {
@@ -270,6 +287,30 @@ void image_draw_text(const image_t* i,
       text = wordend;
     }
   } while (*text);
+
+  if (w)
+    *w = max_w;
+
+  if (h)
+    *h = dy + i->th;
+}
+
+void image_draw_text(const image_t* i,
+                     const char* text,
+                     int dx,
+                     int dy,
+                     int wrap_width) {
+  image_draw_text_internal(i, text, dx, dy, wrap_width, /*dry_run=*/0,
+                           /*w=*/NULL, /*h=*/NULL);
+}
+
+void image_calculate_text_size(const image_t* i,
+                               const char* text,
+                               int wrap_width,
+                               int* w,
+                               int* h) {
+  image_draw_text_internal(i, text, /*dx=*/0, /*dy=*/0, wrap_width,
+                           /*dry_run=*/1, w, h);
 }
 
 void image_get_size(const image_t* i, int* w, int* h) {

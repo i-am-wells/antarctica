@@ -179,6 +179,18 @@ int l_image_draw_text(lua_State* L) {
   return 0;
 }
 
+int l_image_text_size(lua_State* L) {
+  image_t* i = (image_t*)luaL_checkudata(L, 1, "image_t");
+  const char* text = luaL_checkstring(L, 2);
+  int wrap_width = luaL_checkinteger(L, 3);
+
+  int w, h;
+  image_calculate_text_size(i, text, wrap_width, &w, &h);
+  lua_pushinteger(L, w);
+  lua_pushinteger(L, h);
+  return 2;
+}
+
 int l_image_scale(lua_State* L) {
   image_t* i = (image_t*)luaL_checkudata(L, 1, "image_t");
   double scale = luaL_checknumber(L, 2);
@@ -285,6 +297,7 @@ void load_image_bridge(lua_State* L) {
                                {"createBlank", l_image_create_blank},
                                {"getPixels", l_image_get_pixels},
                                {"getPixel", l_image_get_pixel},
+                               {"textSize", l_image_text_size},
                                {NULL, NULL}};
   luaL_newlib(L, imagelib);
 }

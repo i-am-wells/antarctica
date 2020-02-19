@@ -134,7 +134,13 @@ void image_draw_text(const image_t* i,
                      const char* text,
                      int dx,
                      int dy,
-                     int wrapw);
+                     int wrap_width);
+
+void image_calculate_text_size(const image_t* i,
+                               const char* text,
+                               int wrap_width,
+                               int* w,
+                               int* h);
 
 int image_scale(image_t* i, double scaleBy);
 
