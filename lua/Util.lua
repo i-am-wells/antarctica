@@ -20,10 +20,10 @@ return {
       _G[k] = orig[k]
     end
     return ret
-  end
+  end,
 
   bind = function(fn, ...)
     local a = {...}
     return function() fn(table.unpack(a)) end
-  end
+  end,
 }
