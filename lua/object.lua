@@ -62,17 +62,17 @@ function Object:init(options)
 
   self.resourceMan = options.resourceMan
   self._object = ant.object.create(
-  self,
-  options.image._image,
-  options.x or 0,
-  options.y or 0,
-  options.layer or 1,
-  options.tx,
-  options.ty,
-  options.tw,
-  options.th,
-  options.animation_count or 1,
-  options.animation_period or 1
+    self,
+    options.image._image,
+    options.x or 0,
+    options.y or 0,
+    options.layer or 1,
+    options.tx,
+    options.ty,
+    options.tw,
+    options.th,
+    options.animation_count or 1,
+    options.animation_period or 1
   )
   self.image = options.image
 
@@ -86,6 +86,7 @@ function Object:init(options)
   self.velx = options.velx or 0
   self.vely = options.vely or 0
 
+  self.updatesPaused = false
   self.facing = options.facing or 's'
 
   if options.bbox then
@@ -238,7 +239,7 @@ function Object:isTouching(other)
   return (xTouch and yOverlap) or (yTouch and xOverlap)
 end
 
-
+-- TODO improve
 function Object:on(handlers)
   for k, v in pairs(handlers) do
     if type(v) == 'function' then
@@ -257,6 +258,15 @@ function Object:remove()
     self.map = nil
     self._tilemap = nil
   end
+end
+
+-- TODO these should hide/restore the handlers
+function Object:pauseUpdates()
+  self.noUpdates = true
+end
+
+function Object:resumeUpdates()
+  self.noUpdates = false
 end
 
 
