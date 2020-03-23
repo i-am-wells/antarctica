@@ -1,12 +1,14 @@
-local Class = require 'class'
 local InputHandler = require 'ui.InputHandler'
-
-local Context = Class()
+local Context = require 'class'()
 
 function Context:init(argtable)
   self.draw = argtable.draw
   self.inputHandler = argtable.inputHandler
   self.engine = engine or argtable.engine
+  self.stealInput = true
+  if argtable.stealInput ~= nil then
+    self.stealInput = false
+  end
 
   if __dbg then
     assert(type(self.draw) == 'function')
@@ -17,11 +19,20 @@ end
 function Context:registerHandlers(engine)
   self.engine = engine
   -- TODO only set the ones we have?
-  self.engine:on{
-    redraw = self.draw,
-    keydown = self.inputHandler.onKeyDown,
-    keyup = self.inputHandler.onKeyUp
-  }
+  --
+  if self.stealInput then
+    self.engine:on{
+      redraw = self.draw,
+      keydown = self.inputHandler.onKeyDown,
+      keyup = self.inputHandler.onKeyUp
+    }
+  else
+    self.engine:on{
+      redraw = self.draw,
+      keydown = self.parentContext.inputHandler.onKeyDown,
+      keyup = self.parentContext.inputHandler.onKeyUp
+    }
+  end
 end
 
 function Context:takeControlFrom(parentContext, engine)
