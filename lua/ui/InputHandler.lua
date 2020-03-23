@@ -1,6 +1,6 @@
 local Class = require 'class'
 
-local InputHandler = Class()
+local InputHandler = require 'class'()
 
 local defaultNoOp = function()
   return setmetatable({}, {
@@ -10,47 +10,38 @@ end
 
 function InputHandler:init(argtable)
   -- Do nothing on unrecognized key presses.
-  self.keydown = defaultNoOp()
-  self.keyup = defaultNoOp()
+  self.keys = defaultNoOp()
+  self.allowKeyRepeat = argtable.allowKeyRepeat or false
 
-  self.onKeyDown = function(key, ...)
-    self.keydown[key](...)
+  self.onKeyDown = function(key, mod, repeatCount)
+    if repeatCount > 0 and not self.allowKeyRepeat then
+      return
+    end
+    self.keys[key]('down', key, mod, repeatCount)
   end
-  self.onKeyUp = function(key, ...)
-    self.keyup[key](...)
+  self.onKeyUp = function(key, mod, repeatCount)
+    self.keys[key]('up', key, mod, repeatCount)
   end
 
   self._actions = argtable.actions
+  self.quit = argtable.quit or function() end
 
-  if argtable.keydown then
-    self:setKeyDown(argtable.keydown)
-  end
-
-  if argtable.keyup then
-    self:setKeyUp(argtable.keyup)
+  if argtable.keys then
+    self:setKeys(argtable.keys)
   end
 end
 
-local setKeys = function(keyToAction, actionToHandler, keyToHandler)
+function InputHandler:setKeys(keyToAction)
   for key, action in pairs(keyToAction) do
-    local handler = actionToHandler[action]
+    local handler = self._actions[action]
     if __dbg then
       assert(
         type(handler) == 'function',
         string.format('No handler for action "%s"', action)
       )
     end
-
-    keyToHandler[key] = handler
+    self.keys[key] = handler
   end
-end
-
-function InputHandler:setKeyDown(keyToAction)
-  setKeys(keyToAction, self._actions, self.keydown)
-end
-
-function InputHandler:setKeyUp(keyToAction)
-  setKeys(keyToAction, self._actions, self.keyup)
 end
 
 return InputHandler
