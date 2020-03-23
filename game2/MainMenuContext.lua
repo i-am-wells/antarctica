@@ -11,6 +11,8 @@ function MainMenuContext:init(argtable)
   if __dbg then
     assert(argtable.engine)
   end
+   
+  self.font = argtable.font
 
   self.quit_ = false
   self.saveFileName_ = nil
@@ -21,11 +23,6 @@ function MainMenuContext:init(argtable)
     self.titleImage = Image{
       file='res/title.png'
     }
-    self.font = Image{
-      file='res/textbold-9x15.png', 
-      tilew=9,
-      tileh=15
-    }
 
     Context.init(self, {
       draw = Util.bind(self.draw, self),
@@ -35,7 +32,7 @@ function MainMenuContext:init(argtable)
           right = Util.bind(self.right, self),
           choose = Util.bind(self.choose, self)
         },
-        keydown = {
+        keys = {
           Left = 'left',
           A = 'left',
           Right = 'right',
@@ -43,7 +40,8 @@ function MainMenuContext:init(argtable)
           Tab = 'right',
           Return = 'choose',
           Space = 'choose',
-        }
+        },
+        allowKeyRepeat = false
       }
     })
 
@@ -85,20 +83,26 @@ function MainMenuContext:setChoiceHighlight(isHighlight)
   self:getChoice():setHighlight(isHighlight)
 end
 
-function MainMenuContext:left()
-  self:setChoiceHighlight(false)
-  self.choice = (self.choice - 1) % #self.uiRoot.children
-  self:setChoiceHighlight(true)
+function MainMenuContext:left(state)
+  if state == 'down' then
+    self:setChoiceHighlight(false)
+    self.choice = (self.choice - 1) % #self.uiRoot.children
+    self:setChoiceHighlight(true)
+  end
 end
 
-function MainMenuContext:right()
-  self:setChoiceHighlight(false)
-  self.choice = (self.choice + 1) % #self.uiRoot.children
-  self:setChoiceHighlight(true)
+function MainMenuContext:right(state)
+  if state == 'down' then
+    self:setChoiceHighlight(false)
+    self.choice = (self.choice + 1) % #self.uiRoot.children
+    self:setChoiceHighlight(true)
+  end
 end
 
-function MainMenuContext:choose()
-  self:getChoice():executeAction()
+function MainMenuContext:choose(state)
+  if state == 'down' then
+    self:getChoice():executeAction()
+  end
 end
 
 function MainMenuContext:start()
