@@ -24,6 +24,8 @@ return {
 
   bind = function(fn, ...)
     local a = {...}
-    return function() fn(table.unpack(a)) end
+    return function(...)
+      return fn(table.unpack(a), ...)
+    end
   end,
 }
