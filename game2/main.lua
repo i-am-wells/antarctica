@@ -6,6 +6,7 @@ package.path = package.path..';./lua/?.lua'
 local ant = require 'antarctica'
 ant.init()
 
+local Image = require 'image'
 local Engine = require 'engine'
 local MainMenuContext = require 'game2.MainMenuContext'
 local GameContext = require 'game2.GameContext'
@@ -38,12 +39,22 @@ do
   engine.vw = vw
   engine.vh = vh
   engine:setColor(255, 255, 255, 255) -- white background
+    
+  local font9x15 = Image{
+    engine = engine,
+    file='res/textbold-9x15.png', 
+    tilew=9,
+    tileh=15
+  }
  
   -- State machine for coordinating game, menu, and credits.
   local states
   states = {
     menu = function()
-      local menu = MainMenuContext{engine = engine}
+      local menu = MainMenuContext{
+        engine = engine,
+        font = font9x15,
+      }
 
       -- Run the menu.
       menu:takeControlFrom()
@@ -60,13 +71,14 @@ do
       -- start game
       local game = GameContext{
         engine = engine,
+        font = font9x15,
         resDirectory = resDirectory,
         saveFileName = saveFileName,
       }
 
       game:takeControlFrom()
 
-      if game:showCredits() then
+      if game:shouldShowCredits() then
         return states.credits
       elseif game:shouldQuitToMenu() then
         return states.menu
