@@ -131,7 +131,7 @@ int l_engine_run(lua_State* L) {
 int l_engine_stop(lua_State* L) {
   engine_t* e = (engine_t*)luaL_checkudata(L, 1, "engine_t");
 
-  e->running = 0;
+  e->running_depth--;
   return 0;
 }
 
@@ -268,7 +268,7 @@ void load_engine_bridge(lua_State* L) {
                           {"setRedraw", l_engine_setredraw},
                           {"run", l_engine_run},
                           {"stop", l_engine_stop},
-                          {"drawPoint", l_engine_draw_point},
+                          {"drawPixel", l_engine_draw_point},
                           {"drawLine", l_engine_draw_line},
                           {"drawRect", l_engine_draw_rect},
                           {"fillRect", l_engine_fill_rect},

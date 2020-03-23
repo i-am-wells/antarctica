@@ -48,13 +48,16 @@ int engine_init(engine_t* e,
     */
   }
 
+  // TODO allow setting with lua
+  SDL_SetRenderDrawBlendMode(e->renderer, SDL_BLENDMODE_BLEND);
+
   // Clear screen
   SDL_SetRenderDrawColor(e->renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
   SDL_RenderClear(e->renderer);
   SDL_RenderPresent(e->renderer);
 
-  // not "running" yet
-  e->running = 0;
+  // not running yet
+  e->running_depth = 0;
   e->targetfps = 60;
 
   // Set up audio
@@ -298,14 +301,15 @@ void engine_run(engine_t* e, lua_State* L) {
   lua_pushlightuserdata(L, e);
   lua_gettable(L, LUA_REGISTRYINDEX);
 
-  e->running = 1;
+  int prev_depth = e->running_depth;
+  e->running_depth++;
   uint32_t tick1 = 0, elapsed = 1;
   uint32_t targetframetime = 1000 / e->targetfps;
 
   int counter = 0;
 
   // Event loop
-  while (e->running) {
+  while (e->running_depth > prev_depth) {
     // Clear the renderer every time we redraw (necessary because of some
     // double-buffering implementations)
     // SDL_RenderClear(e->renderer);
@@ -323,7 +327,7 @@ void engine_run(engine_t* e, lua_State* L) {
 
     // Run event handlers
     if (engine_run_event_handlers(e, L) == SDL_QUIT)
-      e->running = 0;
+      e->running_depth--;
 
     // TODO run async callbacks
 

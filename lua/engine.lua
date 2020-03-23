@@ -219,8 +219,8 @@ function Engine:stop()
 end
 
 
-function Engine:drawPoint(x, y)
-  ant.engine.drawPoint(self._engine, x, y)
+function Engine:drawPixel(x, y)
+  ant.engine.drawPixel(self._engine, x, y)
 end
 
 

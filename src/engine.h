@@ -14,7 +14,7 @@
 typedef struct engine_t {
   SDL_Window* window;
   SDL_Renderer* renderer;
-  int running;
+  int running_depth;
   int targetfps;
 } engine_t;
 
