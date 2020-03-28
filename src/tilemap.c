@@ -1317,7 +1317,6 @@ static int tilemap_read_v1(tilemap_t* t, FILE* f, const char* path) {
 
     // Read layer
     if (t->should_store_sparse_layer[i]) {
-      fprintf(stderr, "offset: %lu\n", ftell(f));
       // Get position of last non-empty tile
       if (!read_pos(f, t->last_non_empty_tile + i)) {
         fprintf(stderr, "couldn't load %s: file ends unexpectedly\n", path);
@@ -1325,8 +1324,6 @@ static int tilemap_read_v1(tilemap_t* t, FILE* f, const char* path) {
       }
 
       uint32_t pos = DEFAULT_NON_EMPTY;
-      fprintf(stderr, "last non empty for layer %zu: %u\n", i,
-              t->last_non_empty_tile[i]);
       while (pos != t->last_non_empty_tile[i]) {
         // Read tile position
         if (!read_pos(f, &pos)) {
@@ -1334,9 +1331,8 @@ static int tilemap_read_v1(tilemap_t* t, FILE* f, const char* path) {
           goto tilemap_read_fail;
         }
 
-        int px = pos % t->w;
-        int py = pos / t->h;
-        fprintf(stderr, "sparse read at %zu, %d, %d\n", i, px, py);
+        //int px = pos % t->w;
+        //int py = pos / t->h;
 
         // Read tile
         if (fread(t->tiles[i] + pos, sizeof(tile_t), 1, f) != 1) {
@@ -1447,7 +1443,6 @@ int tilemap_write_to_file(const tilemap_t* t, const char* path) {
   }
 
   if (TILEMAP_FILE_FORMAT_LATEST_VERSION == 0) {
-    fprintf(stderr, "version 0\n");
     // Write each layer
     size_t layer_bytes_size = t->w * t->h * sizeof(tile_t);
     for (size_t i = 0; i < t->nlayers; i++) {
@@ -1459,26 +1454,20 @@ int tilemap_write_to_file(const tilemap_t* t, const char* path) {
       }
     }
   } else if (TILEMAP_FILE_FORMAT_LATEST_VERSION == 1) {
-    fprintf(stderr, "version 1\n");
     if (fwrite(t->should_store_sparse_layer, sizeof(int), t->nlayers, f) !=
         t->nlayers)
       goto tilemap_write_fail;
 
-    fprintf(stderr, "wrote sparse\n");
-
     for (size_t i = 0; i < t->nlayers; i++) {
       if (t->should_store_sparse_layer[i]) {
-        fprintf(stderr, "last non-empty: %u\n", t->last_non_empty_tile[i]);
         // Write last non-empty position
 
-        fprintf(stderr, "offset: %lu\n", ftell(f));
         if (!write_pos(f, t->last_non_empty_tile[i]))
           goto tilemap_write_fail;
 
         for (int y = 0; y < t->h; y++) {
           for (int x = 0; x < t->w; x++) {
             if (!tilemap_empty(t, i, x, y)) {
-              fprintf(stderr, "write %zu, %d, %d\n", i, x, y);
               // Store as offset:tile
               if (!write_pos(f, y * t->w + x))
                 goto tilemap_write_fail;
