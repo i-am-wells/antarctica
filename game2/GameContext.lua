@@ -12,8 +12,8 @@ local ResourceManager = require 'resourceManager'
 local showFramerate = require 'showFramerate'
 
 local GameState = require 'game.gameState'
-local newGameState = require 'game.newGameState'
-local resourceInfo = require 'game.resourceInfo'
+local newGameState = require 'game2.newGameState'
+local resourceInfo = require 'game2.resourceInfo'
 
 local StatusText = require 'game.statusText'
 

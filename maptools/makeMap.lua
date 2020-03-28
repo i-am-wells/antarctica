@@ -1,4 +1,3 @@
--- TODO do this better
 local package = require 'package'
 package.path = package.path..';./lua/?.lua'
 
@@ -21,7 +20,7 @@ local printf = Util.printf
 
 local baseImageFile = 'res/antarctica-base.png'
 local featuresImageFile = 'res/antarctica-features.png'
-local outFile = 'antarctica.out.map'
+local outFile = 'res/maps/antarctica.map'
 
 local keyToColor = {
   [m.forest] = {r=143, g=86, b=59}, -- Rope
