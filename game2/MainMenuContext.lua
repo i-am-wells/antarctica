@@ -4,8 +4,26 @@ local InputHandler = require 'ui.InputHandler'
 local HorizontalContainer = require 'ui.elements.HorizontalContainer'
 local HighlightableText = require 'game2.HighlightableText'
 local Util = require 'Util'
+local RgbaColor = require 'RgbaColor'
 
 local MainMenuContext = require 'class'(require 'ui.Context')
+
+local textColor = RgbaColor(0, 0, 0)
+local shadowColor = RgbaColor(0x80, 0x80, 0x80)
+local highlightColor = RgbaColor(0xc0, 0xc0, 0xc0)
+
+local textShadow = {x=1, y=1, color=shadowColor}
+
+local makeHighlightableText = function(font, text, action)
+  return HighlightableText{
+    font = font,
+    shadow = textShadow,
+    text = text,
+    action = action,
+    color = textColor,
+    highlight = highlightColor
+  }
+end
 
 function MainMenuContext:init(argtable)
   if __dbg then
@@ -50,16 +68,8 @@ function MainMenuContext:init(argtable)
       x = 'centered',
       y = 2/3,
       gap = 100,
-      HighlightableText{
-        font = self.font,
-        text = 'Start',
-        action = Util.bind(self.start, self)
-      },
-      HighlightableText{
-        font = self.font,
-        text = 'Quit',
-        action = Util.bind(self.quit, self)
-      }
+      makeHighlightableText(self.font, 'Start', Util.bind(self.start, self)),
+      makeHighlightableText(self.font, 'Quit', Util.bind(self.quit, self)),
     }
   end) -- end Util.using
 

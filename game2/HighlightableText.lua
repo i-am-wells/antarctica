@@ -9,8 +9,8 @@ function HighlightableText:init(argtable)
   Text.init(self, argtable)
 
   self.highlight = false
-  self.normalColor = RgbaColor(0, 0, 0, 255)
-  self.highlightColor = RgbaColor(255, 255, 255, 255)
+  self.normalColor = argtable.color or RgbaColor(0, 0, 0)
+  self.highlightColor = argtable.highlight or RgbaColor(255, 255, 255)
   self.counter = 0
 end
 
@@ -31,10 +31,11 @@ function HighlightableText:draw(x, y)
     self.counter = (self.counter + 1) % blinkCycle
   end
 
+  -- TODO set shadow color
   if self.highlightNow then
-    self:setColor(self.highlightColor)
+    self.color = self.highlightColor
   else
-    self:setColor(self.normalColor)
+    self.color = self.normalColor
   end
 
   Text.draw(self, x, y)
