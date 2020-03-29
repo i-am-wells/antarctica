@@ -19,8 +19,6 @@ local editor = function(engine, tilemap, tileset, mapFilename, messageText)
   local viewScale = 0.25
   tileset:scale(viewScale)
 
-  --print(screenW, screenH)
-
   local mapSelection = {l=0, x=0, y=0, w=1, h=1}
   local paletteSelection = {x=0, y=0, w=1, h=1}
   local mapSel0, paletteSel0 = {x=0, y=0}, {x=0, y=0}
@@ -33,10 +31,6 @@ local editor = function(engine, tilemap, tileset, mapFilename, messageText)
   local setColor = function(color)
     engine:setColor(color.r, color.g, color.b, color.a)
   end
-
-
-  local bgImage = Image{engine=engine, file='/home/ian/Pictures/bay.png'} --file='res/topomap.png'}
-  local bgImageScaleX, bgImageScaleY = bgImage.w / tilemap.w, bgImage.h / tilemap.h
 
   local getPaletteRect = function()
     return {
@@ -65,8 +59,8 @@ local editor = function(engine, tilemap, tileset, mapFilename, messageText)
     layerMask[l] = true
   end
   -- TODO reset
-  --local mapx, mapy = 2500, 4000
-  local mapx, mapy = 0, 0
+  local mapx, mapy = 2500, 4000
+  --local mapx, mapy = 0, 0
   local mouseX, mouseY = 0, 0
 
   local isCtrl = false
@@ -546,17 +540,6 @@ local editor = function(engine, tilemap, tileset, mapFilename, messageText)
       setColor(bgcolor)
       engine:clear()
 
-      -- TODO temporary: draw background image
-      if bgImage then
-        bgImage:draw(
-        0, 0, bgImage.w, bgImage.h,
-        -mapx * tileset.tw,
-        -mapy * tileset.th,
-        bgImage.w * tileset.tw // bgImageScaleX,
-        bgImage.h * tileset.th // bgImageScaleY
-        )
-      end
-
       -- draw map
       for l = 0, tilemap.nlayers - 1 do
         if layerMask[l] then
@@ -807,8 +790,6 @@ local editor = function(engine, tilemap, tileset, mapFilename, messageText)
       paletteRect = getPaletteRect()
 
       -- Center on mouse
-
-
       redraw()
     end,
 
@@ -822,10 +803,10 @@ end
 do
   -- get arguments
   local printUsage = function(msg)
-    print(msg)
+    print(msg, '\n')
     local usageprefix = arg[-1]..' '..arg[0]..' '
     print('To edit an existing map: '..usageprefix..'<mapfile> <tileset>')
-    print('To create a new map: '..usageprefix..'<mapfile> <tileset> <layers> <w> <h>')
+    print('To create a new map: '..usageprefix..'<mapfile> <tileset> <layers> <w> <h>\n')
   end
 
   -- next two should always be present
@@ -875,19 +856,11 @@ do
     return print('Failed to create window: '..err)
   end
 
-
-  --engine:setScale(2, 2)
-
-
-
   -- Load tileset
   local tileset, err = Image{file = tilesetFilename, engine = engine}
   if err then
     return print('Failed to load tileset: '..err)
   end
-
-
-  --print(tilemap:prerenderLayer(0, tileset))
 
   local messageText = 'Opened '..mapFilename..'.'
 
