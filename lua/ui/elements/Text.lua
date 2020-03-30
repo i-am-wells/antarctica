@@ -9,6 +9,11 @@ Text.shadowColor = RgbaColor(128, 128, 128)
 function Text:init(argtable)
   Element.init(self, argtable)
 
+  if __dbg then
+    assert(argtable.width)
+  end
+  self.wrapWidth = argtable.width
+
   self.font = argtable.font or font or error('font required')
   self.text = argtable.text
 
@@ -21,10 +26,8 @@ function Text:init(argtable)
     end
   end
 
-  local ew, eh = self.font.engine:getLogicalSize()
-  self.wrapWidth = ew
-
   self.w, self.h = self.font:textSize(self.text, self.wrapWidth)
+
 end
 
 function Text:setColor(rgba)

@@ -2,28 +2,13 @@ local Image = require 'image'
 local Context = require 'ui.Context'
 local InputHandler = require 'ui.InputHandler'
 local HorizontalContainer = require 'ui.elements.HorizontalContainer'
-local HighlightableText = require 'game2.HighlightableText'
 local Util = require 'Util'
+local bind = Util.bind
 local RgbaColor = require 'RgbaColor'
+local MenuThings = require 'game2.MenuThings'
+local ListMenu = require 'game2.ListMenu'
 
 local MainMenuContext = require 'class'(require 'ui.Context')
-
-local textColor = RgbaColor(0, 0, 0)
-local shadowColor = RgbaColor(0x80, 0x80, 0x80)
-local highlightColor = RgbaColor(0xc0, 0xc0, 0xc0)
-
-local textShadow = {x=1, y=1, color=shadowColor}
-
-local makeHighlightableText = function(font, text, action)
-  return HighlightableText{
-    font = font,
-    shadow = textShadow,
-    text = text,
-    action = action,
-    color = textColor,
-    highlight = highlightColor
-  }
-end
 
 function MainMenuContext:init(argtable)
   if __dbg then
@@ -35,7 +20,10 @@ function MainMenuContext:init(argtable)
   self.quit_ = false
   self.saveFileName_ = nil
 
-  self.choice = 0
+  local screenW, screenH = argtable.engine:getLogicalSize()
+
+  local makeHighlightableText = MenuThings.makeMakeHighlightableText(
+    self.font, --[[wrapWidth=]] screenW)
 
   Util.using({engine = argtable.engine}, function()
     self.titleImage = Image{
@@ -43,12 +31,12 @@ function MainMenuContext:init(argtable)
     }
 
     Context.init(self, {
-      draw = Util.bind(self.draw, self),
+      draw = bind(self.draw, self),
       inputHandler = InputHandler{
         actions = {
-          left = Util.bind(self.left, self),
-          right = Util.bind(self.right, self),
-          choose = Util.bind(self.choose, self)
+          left = bind(self.left, self),
+          right = bind(self.right, self),
+          choose = bind(self.choose, self)
         },
         keys = {
           Left = 'left',
@@ -63,17 +51,27 @@ function MainMenuContext:init(argtable)
       }
     })
 
-    -- Render menu choices
-    self.uiRoot = HorizontalContainer{
+    self.menu = ListMenu{
       x = 'centered',
-      y = 2/3,
-      gap = 100,
-      makeHighlightableText(self.font, 'Start', Util.bind(self.start, self)),
-      makeHighlightableText(self.font, 'Quit', Util.bind(self.quit, self)),
+      y = 0.6,
+      enclosingW = screenW,
+      enclosingH = screenH,
+      container = HorizontalContainer{
+        debugName = 'mainMenuContainer',
+        gap = 100,
+        makeHighlightableText('Start', bind(self.start, self)),
+        makeHighlightableText('Quit', bind(self.quit, self)),
+      },
     }
   end) -- end Util.using
+end
 
-  self:setChoiceHighlight(true)
+function MainMenuContext:shouldQuit()
+  return self.quit_
+end
+
+function MainMenuContext:saveFileName()
+  return self.saveFileName_
 end
 
 function MainMenuContext:draw()
@@ -82,39 +80,28 @@ function MainMenuContext:draw()
   end
 
   self.titleImage:drawWhole(0, 0)
-  self.uiRoot:draw()
-end
-
-function MainMenuContext:getChoice()
-  return self.uiRoot.children[self.choice+1]
-end
-
-function MainMenuContext:setChoiceHighlight(isHighlight)
-  self:getChoice():setHighlight(isHighlight)
+  self.menu:draw()
 end
 
 function MainMenuContext:left(state)
   if state == 'down' then
-    self:setChoiceHighlight(false)
-    self.choice = (self.choice - 1) % #self.uiRoot.children
-    self:setChoiceHighlight(true)
+    self.menu:prev()
   end
 end
 
 function MainMenuContext:right(state)
   if state == 'down' then
-    self:setChoiceHighlight(false)
-    self.choice = (self.choice + 1) % #self.uiRoot.children
-    self:setChoiceHighlight(true)
+    self.menu:next()
   end
 end
 
 function MainMenuContext:choose(state)
   if state == 'down' then
-    self:getChoice():executeAction()
+    self.menu:choose()
   end
 end
 
+-- Action handlers
 function MainMenuContext:start()
   self.quit_ = false
   --self.saveFileName_ = filename
@@ -124,14 +111,6 @@ end
 function MainMenuContext:quit()
   self.quit_ = true
   self:returnControlToParent()
-end
-
-function MainMenuContext:shouldQuit()
-  return self.quit_
-end
-
-function MainMenuContext:saveFileName()
-  return self.saveFileName_
 end
 
 return MainMenuContext

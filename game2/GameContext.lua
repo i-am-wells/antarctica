@@ -2,6 +2,7 @@ local ant = require 'antarctica'
 
 local RgbaColor = require 'RgbaColor'
 local Util = require 'Util'
+local bind = Util.bind
 local Tilemap = require 'tilemap'
 local Image = require 'image'
 local Object = require 'object'
@@ -29,17 +30,25 @@ local GameContext = require 'class'(Context)
 function GameContext:init(opt)
   Context.init(self, {
     engine = opt.engine,
-    draw = Util.bind(self.draw, self),
+    draw = bind(self.draw, self),
     inputHandler = InputHandler{
       actions = {
-        goEast = Util.bind(self.goEast, self),
-        goNorth = Util.bind(self.goNorth, self),
-        goWest = Util.bind(self.goWest, self),
-        goSouth = Util.bind(self.goSouth, self),
-        quit = Util.bind(self.quit, self),
-        slide = Util.bind(self.slide, self),
-        interact = Util.bind(self.interact, self),
-        inventory = Util.bind(self.inventory, self),
+        goEast = bind(self.goEast, self),
+        goNorth = bind(self.goNorth, self),
+        goWest = bind(self.goWest, self),
+        goSouth = bind(self.goSouth, self),
+        quit = bind(self.quit, self),
+        slide = bind(self.slide, self),
+        interact = bind(self.interact, self),
+        inventory = bind(self.inventory, self),
+
+        -- TODO remove
+        devtools = function()
+          require 'game2.devtools.DevToolsMenuContext'{
+            engine = opt.engine,
+            font = opt.font,
+          }:takeControlFrom(self)
+        end
       },
       keys = {
         D = 'goEast',
@@ -50,6 +59,9 @@ function GameContext:init(opt)
         J = 'slide',
         K = 'interact',
         I = 'inventory',
+
+        -- TODO remove
+        X = 'devtools'
       },
       allowKeyRepeat = false
     }

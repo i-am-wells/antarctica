@@ -1,16 +1,13 @@
 local Element = require 'class'()
 
 function Element:init(argtable)
-  self.engine = engine or argtable.engine
-  self.rawX = argtable.x
-  self.rawY = argtable.y
   self.action = argtable.action
-  -- TODO maybe inherit from Rectangle
+  self.debugName = argtable.debugName
+
   self.x = 0
   self.y = 0
   self.w = 0
   self.h = 0
-  self:recalculatePosition()
 end
 
 local calc = function(rawP, d, thingSize)
@@ -29,9 +26,18 @@ local calc = function(rawP, d, thingSize)
   end
 end
 
-function Element:recalculatePosition()
-  local w, h = self.engine:getLogicalSize()
-  self.x, self.y = calc(self.rawX, w, self.w), calc(self.rawY, h, self.h)
+function Element:setPosition(t)
+  self.x = calc(t.x, t.enclosingW, self.w)
+  self.y = calc(t.y, t.enclosingH, self.h)
+end
+
+function Element:setPositionPixels(x, y)
+  self.x = x
+  self.y = y
+end
+
+function Element:drawAtOwnPosition()
+  self:draw(self.x, self.y)
 end
 
 function Element:executeAction()
