@@ -1,6 +1,7 @@
 # Ignore compiled things
 *.o
 antarctica.so
+*.map
 
 # Ignore log files
 *.log
