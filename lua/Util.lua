@@ -4,9 +4,19 @@ local fmt = function(p)
   return function(fmt, ...) p(string.format(fmt, ...)) end
 end
 
+local printf, errorf = fmt(print), fmt(error)
+
+local donothing = function() end
+
+local dlog = donothing
+if __dbg then
+  dlog = printf
+end
+
 return {
-  printf = fmt(print),
-  errorf = fmt(error),
+  printf = printf,
+  errorf = errorf,
+  dlog = dlog,
 
   -- Temporarily set globals.
   using = function(dict, fn)
