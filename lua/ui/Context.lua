@@ -18,19 +18,23 @@ end
 
 function Context:registerHandlers(engine)
   self.engine = engine
-  -- TODO only set the ones we have?
-  --
   if self.stealInput then
     self.engine:on{
       redraw = self.draw,
       keydown = self.inputHandler.onKeyDown,
-      keyup = self.inputHandler.onKeyUp
+      keyup = self.inputHandler.onKeyUp,
+      mousebuttondown = self.inputHandler.mouseDown,
+      mousebuttonup = self.inputHandler.mouseUp,
+      mousemotion = self.inputHandler.mouseMotion,
     }
   else
     self.engine:on{
       redraw = self.draw,
       keydown = self.parentContext.inputHandler.onKeyDown,
-      keyup = self.parentContext.inputHandler.onKeyUp
+      keyup = self.parentContext.inputHandler.onKeyUp,
+      mousebuttondown = self.parentContext.inputHandler.mouseDown,
+      mousebuttonup = self.parentContext.inputHandler.mouseUp,
+      mousemotion = self.parentContext.inputHandler.mouseMotion,
     }
   end
 end
@@ -49,17 +53,25 @@ end
 
 function Context:returnControlToParent()
   self.engine:stop()
+  self.engine:removeHandlers()
+
   if self.parentContext then
     self.parentContext:registerHandlers(self.engine)
     self.parentContext = nil
-    self.engine = nil
   end
+  self.engine = nil
 end
 
--- TODO see if this can be removed
-Context.default = Context{
-  draw = function() end,
-  inputHandler = InputHandler{}
-}
+function Context:mouseOver(element, x, y, dx, dy)
+  if element ~= self.mouseOverElement then
+    if self.mouseOverElement then
+      self.mouseOverElement:onMouseLeave()
+    end
+    self.mouseOverElement = element
+    if element then
+      element:onMouseEnter()
+    end
+  end
+end
 
 return Context

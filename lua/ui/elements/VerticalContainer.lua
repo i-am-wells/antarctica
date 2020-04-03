@@ -12,6 +12,9 @@ function VerticalContainer:init(argtable)
 end
 
 function VerticalContainer:draw(x, y)
+  -- TODO this shouldn't really be here
+  self:setPositionPixels(x, y)
+  
   for _, child in ipairs(self.children) do
     child:draw(x, y)
     y = y + child.h + self.gap

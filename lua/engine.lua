@@ -204,6 +204,11 @@ function Engine:on(tbl)
   end
 end
 
+function Engine:removeHandlers()
+  for _, sdlevent_type in pairs(eventkeymap) do
+    ant.engine.setHandler(self._engine, sdlevent_type, nil)
+  end
+end
 
 function Engine:run(logic)
   if logic then
@@ -212,7 +217,6 @@ function Engine:run(logic)
 
   ant.engine.run(self._engine)
 end
-
 
 function Engine:stop()
   ant.engine.stop(self._engine)

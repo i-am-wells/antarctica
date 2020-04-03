@@ -15,9 +15,21 @@ function HighlightableText:init(argtable)
 end
 
 function HighlightableText:setHighlight(highlight)
-  self.highlight = highlight
-  self.highlightNow = false
-  self.counter = 0
+  if self.highlight ~= highlight then
+    self.highlight = highlight
+    self.highlightNow = false
+    self.counter = 0
+  end
+end
+
+function HighlightableText:gainFocus()
+  Text.gainFocus(self)
+  self:setHighlight(true)
+end
+
+function HighlightableText:loseFocus()
+  Text.loseFocus(self)
+  self:setHighlight(false)
 end
 
 function HighlightableText:draw(x, y)

@@ -18,4 +18,43 @@ function Container:init(argtable)
   end
 end
 
+-- TODO this could be a binary search
+function Container:findChild(x, y)
+  for _, child in ipairs(self.children) do
+    if child:containsPoint(x, y) then
+      return child
+    end
+  end
+  return nil
+end
+
+function Container:onMouseDown(x, y, button, clicks)
+  local child = self:findChild(x, y)
+  if child then
+    child:onMouseDown(x, y, button, clicks)
+  end
+end
+
+function Container:onMouseUp(x, y, button)
+  -- TODO ????
+end
+
+function Container:onMouseMotion(x, y, dx, dy)
+  local child = self:findChild(x, y)
+  if not child then
+    self.context:mouseOver(nil)
+  else
+    child:onMouseMotion(x, y, dx, dy)
+  end
+end
+
+function Container:getChildIndex(element)
+  for i, child in ipairs(self.children) do
+    if child == element then
+      return i - 1
+    end
+  end
+  return nil
+end
+
 return Container

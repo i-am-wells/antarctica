@@ -6,9 +6,9 @@ end
 
 local printf, errorf = fmt(print), fmt(error)
 
-local donothing = function() end
+local doNothing = function() end
 
-local dlog = donothing
+local dlog = doNothing
 if __dbg then
   dlog = printf
 end
@@ -17,6 +17,8 @@ return {
   printf = printf,
   errorf = errorf,
   dlog = dlog,
+
+  doNothing = doNothing,
 
   -- Temporarily set globals.
   using = function(dict, fn)

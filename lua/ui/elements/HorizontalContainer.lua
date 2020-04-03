@@ -11,6 +11,8 @@ function HorizontalContainer:init(argtable)
 end
 
 function HorizontalContainer:draw(x, y)
+  -- TODO this shouldn't really be here
+  self:setPositionPixels(x, y)
   for _, child in ipairs(self.children) do
     child:draw(x, y)
     x = x + child.w + self.gap

@@ -17,28 +17,8 @@ function DevToolsMenuContext:init(argtable)
   local wrapWidth = 300 -- arbitrary
   local makeHighlightableText = MenuThings.makeMakeHighlightableText(
     self.font, wrapWidth)
- 
-  Context.init(self, {
-    engine = argtable.engine,
-    stealInput = argtable.stealInput,
-    inputHandler = InputHandler{
-      actions = {
-        up = bind(self.up, self),
-        down = bind(self.down, self),
-        choose = bind(self.choose, self),
-        quit = bind(self.quit, self),
-      },
-      keys = {
-        Up = 'up',
-        Down = 'down',
-        Space = 'choose',
-        Enter = 'choose',
-      }
-    },
-    draw = bind(self.draw, self)
-  })
-
-  using({engine=self.engine}, function()
+  
+  using({engine=self.engine, context=self}, function()
     self.menuOptions = VerticalContainer{
       gap = 8,
       makeHighlightableText('Map editor', bind(self.mapEdit, self)),
@@ -46,6 +26,7 @@ function DevToolsMenuContext:init(argtable)
     }
 
     self.root = VerticalContainer{
+      debugName = "DevToolsMenuVerticalContainer",
       gap = 16,
       Text{
         font = argtable.font,
@@ -59,6 +40,32 @@ function DevToolsMenuContext:init(argtable)
 
   -- ListMenu only handles selection logic here. Drawing is done by root.
   self.menu = ListMenu{container = self.menuOptions}
+ 
+  Context.init(self, {
+    engine = argtable.engine,
+    stealInput = argtable.stealInput,
+    draw = bind(self.draw, self),
+    inputHandler = InputHandler{
+      actions = {
+        up = bind(self.up, self),
+        down = bind(self.down, self),
+        choose = bind(self.choose, self),
+        quit = bind(self.quit, self),
+      },
+      keys = {
+        Up = 'up',
+        Down = 'down',
+        Space = 'choose',
+        Return = 'choose',
+        Escape = 'quit',
+      },
+      allowKeyRepeat = false,
+      mouseDown = self.menu:bindMouseDownHandler(),
+      mouseUp = self.menu:bindMouseUpHandler(),
+      mouseMotion = self.menu:bindMouseMotionHandler(),
+    },
+  })
+
 end
 
 function DevToolsMenuContext:mapEdit()
@@ -82,6 +89,10 @@ function DevToolsMenuContext:choose(state)
   if state == 'down' then
     self.menu:choose()
   end
+end
+
+function DevToolsMenuContext:quit()
+  self:returnControlToParent()
 end
 
 function DevToolsMenuContext:draw(...)

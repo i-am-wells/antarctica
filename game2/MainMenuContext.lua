@@ -25,9 +25,22 @@ function MainMenuContext:init(argtable)
   local makeHighlightableText = MenuThings.makeMakeHighlightableText(
     self.font, --[[wrapWidth=]] screenW)
 
-  Util.using({engine = argtable.engine}, function()
+  Util.using({engine = argtable.engine, context = self}, function()
     self.titleImage = Image{
       file='res/title.png'
+    }
+    
+    self.menu = ListMenu{
+      x = 'centered',
+      y = 0.6,
+      enclosingW = screenW,
+      enclosingH = screenH,
+      container = HorizontalContainer{
+        debugName = 'mainMenuContainer',
+        gap = 100,
+        makeHighlightableText('Start', bind(self.start, self)),
+        makeHighlightableText('Quit', bind(self.quit, self)),
+      },
     }
 
     Context.init(self, {
@@ -47,22 +60,12 @@ function MainMenuContext:init(argtable)
           Return = 'choose',
           Space = 'choose',
         },
-        allowKeyRepeat = false
+        allowKeyRepeat = false,
+        mouseDown = self.menu:bindMouseDownHandler(),
+        mouseUp = self.menu:bindMouseUpHandler(),
+        mouseMotion = self.menu:bindMouseMotionHandler(),
       }
     })
-
-    self.menu = ListMenu{
-      x = 'centered',
-      y = 0.6,
-      enclosingW = screenW,
-      enclosingH = screenH,
-      container = HorizontalContainer{
-        debugName = 'mainMenuContainer',
-        gap = 100,
-        makeHighlightableText('Start', bind(self.start, self)),
-        makeHighlightableText('Quit', bind(self.quit, self)),
-      },
-    }
   end) -- end Util.using
 end
 

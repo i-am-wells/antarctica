@@ -41,6 +41,9 @@ function Text:setColorAndDraw(color, x, y)
 end
 
 function Text:draw(x, y)
+  -- TODO this shouldn't really be here
+  self:setPositionPixels(x, y)
+
   if self.hasShadow then
     self:setColorAndDraw(self.shadowColor, x + self.shadowX, y + self.shadowY)
   end
