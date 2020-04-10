@@ -246,11 +246,11 @@ void tilemap_update_objects(tilemap_t* t);
 // Camera object
 void tilemap_set_camera_object(tilemap_t* t, object_t* o);
 object_t* tilemap_get_camera_object(const tilemap_t* t);
-int tilemap_get_camera_location(const tilemap_t* t,
-                                int pw,
-                                int ph,
-                                int* x,
-                                int* y);
+int tilemap_get_camera_draw_location(const tilemap_t* t,
+                                     int pw,
+                                     int ph,
+                                     int* x,
+                                     int* y);
 
 void tilemap_draw_layer_at_camera_object(const tilemap_t* t,
                                          const image_t* i,

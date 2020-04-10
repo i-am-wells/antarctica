@@ -44,9 +44,11 @@ function GameContext:init(opt)
 
         -- TODO remove
         devtools = function()
-          require 'game2.devtools.DevToolsMenuContext'{
+          require 'game2.mapeditor.MapEditorContext'{
             engine = opt.engine,
             font = opt.font,
+            map = self.map,
+            tileset = self.tileImage
           }:takeControlFrom(self)
         end
       },

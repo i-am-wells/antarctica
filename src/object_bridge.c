@@ -146,6 +146,12 @@ int l_object_set_image(lua_State* L) {
   return 0;
 }
 
+int l_object_set_visible(lua_State* L) {
+  object_t* o = (object_t*)luaL_checkudata(L, 1, "object_t");
+  o->visible = lua_toboolean(L, 2);
+  return 0;
+}
+
 void load_object_bridge(lua_State* L) {
   const luaL_Reg objectlib[] = {{"create", l_object_create},
                                 {"setSprite", l_object_set_sprite},
@@ -158,6 +164,7 @@ void load_object_bridge(lua_State* L) {
                                 {"setBoundingBox", l_object_set_bounding_box},
                                 {"removeSelf", l_object_remove_self},
                                 {"setImage", l_object_set_image},
+                                {"setVisible", l_object_set_visible},
                                 {NULL, NULL}};
   luaL_newlib(L, objectlib);
 }

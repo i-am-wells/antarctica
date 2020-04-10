@@ -316,13 +316,13 @@ int l_tilemap_get_camera_object(lua_State* L) {
   return 1;
 }
 
-int l_tilemap_get_camera_location(lua_State* L) {
+int l_tilemap_get_camera_draw_location(lua_State* L) {
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
   int pw = luaL_checkinteger(L, 2);
   int ph = luaL_checkinteger(L, 3);
 
   int x, y;
-  if (tilemap_get_camera_location(t, pw, ph, &x, &y)) {
+  if (tilemap_get_camera_draw_location(t, pw, ph, &x, &y)) {
     lua_pushinteger(L, x);
     lua_pushinteger(L, y);
     return 2;
@@ -454,7 +454,7 @@ void load_tilemap_bridge(lua_State* L) {
       {"removeObject", l_tilemap_remove_object},
       {"setCameraObject", l_tilemap_set_camera_object},
       {"getCameraObject", l_tilemap_get_camera_object},
-      {"getCameraLocation", l_tilemap_get_camera_location},
+      {"getCameraDrawLocation", l_tilemap_get_camera_draw_location},
 
       {"updateObjects", l_tilemap_update_objects},
       {"drawLayerAtCameraObject", l_tilemap_draw_layer_at_camera_object},

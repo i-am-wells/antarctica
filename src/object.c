@@ -45,9 +45,8 @@ int object_init(object_t* o,
   o->vy = 0;
 
   o->activeWallBump = 0;
-
   o->updateParity = 0;
-
+  o->visible = 1;
   return 1;
 }
 
@@ -109,6 +108,9 @@ void object_destroy(object_t* o) {
 }
 
 void object_draw(const object_t* o, int vx, int vy, int counter) {
+  if (!o->visible)
+    return;
+
   int orig_tw = o->image->tw;
   int orig_th = o->image->th;
   o->image->tw = o->tw;

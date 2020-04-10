@@ -29,6 +29,9 @@ function InputHandler:init(argtable)
   self.mouseUp = argtable.mouseUp
   self.mouseMotion = argtable.mouseMotion
 
+  self.textInput = argtable.textInput
+  self.textEditing = argtable.textEditing
+
   if argtable.keys then
     self:setKeys(argtable.keys)
   end

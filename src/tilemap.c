@@ -212,7 +212,7 @@ void tilemap_overwrite_flags(tilemap_t* t,
   // Set the image to be used for this map square
   tile_t* tileptr = tilemap_get_tile(t, layer, x, y);
   if (tileptr) {
-    tileptr->flags = (uint16_t)(mask & 0xffff);
+    tileptr->flags = mask;
   }
 }
 
@@ -231,13 +231,11 @@ void tilemap_set_object_callbacks(tilemap_t* t,
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
-// TODO move centering math into drawing functions
-//
-int tilemap_get_camera_location(const tilemap_t* t,
-                                int pw,
-                                int ph,
-                                int* x,
-                                int* y) {
+int tilemap_get_camera_draw_location(const tilemap_t* t,
+                                     int pw,
+                                     int ph,
+                                     int* x,
+                                     int* y) {
   if (!t->cameraobject)
     return 0;
 
@@ -263,7 +261,7 @@ void tilemap_draw_layer_at_camera_object(const tilemap_t* t,
                                          int counter,
                                          int draw_flags) {
   int px, py;
-  if (!tilemap_get_camera_location(t, pw, ph, &px, &py)) {
+  if (!tilemap_get_camera_draw_location(t, pw, ph, &px, &py)) {
     px = 0;
     py = 0;
   }
@@ -274,11 +272,11 @@ int tilemap_is_camera_underwater(const tilemap_t* t,
                                  int layer,
                                  int pw,
                                  int ph) {
-  int x, y;
-  if (!tilemap_get_camera_location(t, pw, ph, &x, &y))
+  if (!t->cameraobject)
     return 0;
 
-  int flags = tilemap_get_flags(t, layer, x, y);
+  int flags =
+      tilemap_get_flags(t, layer, t->cameraobject->x, t->cameraobject->y);
   return (flags & TILEMAP_UNDERWATER_MASK) ? 1 : 0;
 }
 
@@ -1188,7 +1186,7 @@ void tilemap_draw_objects_at_camera_object(const tilemap_t* t,
                                            int draw_flags) {
   int px = 0;
   int py = 0;
-  tilemap_get_camera_location(t, pw, ph, &px, &py);
+  tilemap_get_camera_draw_location(t, pw, ph, &px, &py);
   tilemap_draw_objects_interleaved(t, img, layer, px, py, pw, ph, counter,
                                    draw_flags);
 }
@@ -1331,8 +1329,8 @@ static int tilemap_read_v1(tilemap_t* t, FILE* f, const char* path) {
           goto tilemap_read_fail;
         }
 
-        //int px = pos % t->w;
-        //int py = pos / t->h;
+        // int px = pos % t->w;
+        // int py = pos / t->h;
 
         // Read tile
         if (fread(t->tiles[i] + pos, sizeof(tile_t), 1, f) != 1) {

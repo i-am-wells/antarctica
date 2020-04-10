@@ -1,0 +1,3 @@
+- Main mode: can seek around the map at large, can select/move objects and map
+things, provides map load/save, group/rectangle copy/paste, undo stack
+  - Picker mode: search bar, choose map things/tiles/objects by name

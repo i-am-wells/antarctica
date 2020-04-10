@@ -121,8 +121,8 @@ function Tilemap:clearFlags(layer, x, y, mask)
   ant.tilemap.clearFlags(self._tilemap, layer, x, y, mask)
 end
 
-function Tilemap:overwriteFlags(layer, x, y, mask)
-  ant.tilemap.overwriteFlags(self._tilemap, layer, x, y, mask)
+function Tilemap:overwriteFlags(layer, x, y, flags)
+  ant.tilemap.overwriteFlags(self._tilemap, layer, x, y, flags)
 end
 
 function Tilemap:export(rect)
@@ -170,9 +170,12 @@ function Tilemap:updateObjects()
   ant.tilemap.updateObjects(self._tilemap)
 end
 
-
 function Tilemap:setCameraObject(object)
   ant.tilemap.setCameraObject(self._tilemap, object._object)
+end
+
+function Tilemap:getCameraDrawLocation(screenW, screenH)
+  return ant.tilemap.getCameraDrawLocation(self._tilemap, screenW, screenH)
 end
 
 function Tilemap:drawLayerAtCameraObject(image, layer, pw, ph, counter, draw_flags)

@@ -34,6 +34,8 @@ typedef struct object_t {
   int activeWallBump;
 
   int updateParity;
+
+  int visible;
 } object_t;
 
 int object_init(object_t* o,

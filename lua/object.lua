@@ -141,8 +141,6 @@ function Object:setBoundingBox(box)
   }
 end
 
-
--- TODO remove
 function Object:move(dx, dy)
   self.x = self.x + dx
   self.y = self.y + dy
@@ -207,7 +205,7 @@ end
 
 function Object:getScreenLocation(pw, ph)
   -- Get object's location on the screen (based on position of camera object)
-  local cx, cy = ant.tilemap.getCameraLocation(self._tilemap, pw, ph)
+  local cx, cy = ant.tilemap.getCameraDrawLocation(self._tilemap, pw, ph)
   if cx ~= nil and cy ~= nil then
     self:getLocation()
     return (self.x - cx), (self.y - cy)
@@ -271,7 +269,7 @@ end
 
 
 function Object:draw(x, y)
-  if self.image then
+  if self.image and self.visible then
     self.image:draw(
     self.tx * self.tw,
     self.ty * self.th,
@@ -283,6 +281,11 @@ function Object:draw(x, y)
     self.th
     )
   end
+end
+
+function Object:setVisible(visible)
+  self.visible = visible
+  ant.object.setVisible(self._object, visible)
 end
 
 function Object:distanceTo(otherObject)
