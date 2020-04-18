@@ -23,6 +23,8 @@ function MapEditorContext:init(arg)
   self.map = arg.map
   self.tileset = arg.tileset
 
+  self.smallFont = Image{file='res/text-5x9.png', w=5, h=9}
+
   self.model = Model{map=arg.map}
   self.editLayer = 1
 
@@ -139,20 +141,18 @@ function MapEditorContext:mapToScreen(x, y)
 end
 
 function MapEditorContext:mouseDown(x, y, button)
-  if __dbg then
-    assert(self.tileEditInProgress == nil)
-  end
-  self.tileEditInProgress = self.model:makeTileEdit()
+  -- TODO pass mouse down to UI
 
-  local tx, ty, flags = self.model:getTileToDraw()
   local mapX, mapY = self:screenToMap(x, y)
-  self.tileEditInProgress:addTile(self.editLayer, mapX, mapY, tx, ty, flags)
+  if self.editMode then
+    self.editMode:mouseDown(mapX, mapY, x, y, button)
+  end
 end
 
 function MapEditorContext:mouseUp(x, y, button)
-  if self.tileEditInProgress then
-    self.model:update(self.tileEditInProgress)
-    self.tileEditInProgress = nil
+  local mapX, mapY = self:screenToMap(x, y)
+  if self.editMode then
+    self.editMode:mouseUp(mapX, mapY, x, y, button)
   end
 end
 
@@ -161,12 +161,8 @@ function MapEditorContext:updateMouseMapCoords()
 end
 
 function MapEditorContext:mouseMotion(x, y, dx, dy)
-  if self.tileEditInProgress then
-    local mapX, mapY = self:screenToMap(x, y)
-    if not self.tileEditInProgress:isSameLocationAsLast(self.editLayer, mapX, mapY) then
-      local tx, ty, flags = self.model:getTileToDraw()
-      self.tileEditInProgress:addTile(self.editLayer, mapX, mapY, tx, ty, flags)
-    end
+  if self.editMode then
+    self.editMode:mouseMotion(x, y, dx, dy)
   end
 
   self.mouseX = x
@@ -179,11 +175,11 @@ function MapEditorContext:draw(...)
     self.parentContext:draw(...)
   end
 
-  self.font:drawText('editing', 0, 0, 200)
+  if self.editMode then
+    self.editMode:draw(...)
+  end
 
-  self.engine:setColor(0, 255, 0, 255)
-  local rectX, rectY = self:mapToScreen(self.mouseMapX, self.mouseMapY)
-  self.engine:drawRect(rectX, rectY, self.tileset.tw, self.tileset.th)
+  self.font:drawText('editing', 0, 0, 200)
 end
 
 return MapEditorContext
