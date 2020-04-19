@@ -1,6 +1,7 @@
 local testModules = {
-  --'lua.log_test',
-  'lua.class_test',
+  'test.lua.LogTest',
+  'test.lua.ClassTest',
+  'test.lua.RopeTest',
 }
 
 local log = require 'log'

@@ -1,5 +1,5 @@
 local Class = require 'class'
-local TestBase = require 'test.testBase'
+local TestBase = require 'test.TestBase'
 
 local ClassTest = Class(TestBase)
 
