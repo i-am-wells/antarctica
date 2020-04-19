@@ -31,6 +31,11 @@ function log.configure(opt)
   log.vbuf = opt.vbuf or log.vbuf or 'line'
   log.setIndent(opt.indent or log.indent or 0)
 
+  log.color = true
+  if opt.color == false then
+    log.color = false
+  end
+
   log.filename = opt.filename
   log.file = opt.file
   assert(not(log.file and log.filename),
@@ -95,13 +100,17 @@ end
 
 function log.fatal(msg, ...)
   if log.level >= log.levels.fatal then
+    log.setColor('red')
     log._write('F '..log.indentString..msg, ...)
+    log.setColor('default')
   end
 end
 
 function log.error(msg, ...)
   if log.level >= log.levels.error then
+    log.setColor('red')
     log._write('E '..log.indentString..msg, ...)
+    log.setColor()
   end
 end
 
@@ -131,7 +140,11 @@ function log.setIndent(n)
 end
 
 function log.setColor(colorName)
-  local code = log.colors[colorName] or log.colors.default
+  if not log.color then
+    return
+  end
+
+  local code = log.colors[colorName or 'default'] or log.colors.default
   local fmt = string.char(0x1b)..'[%sm'
   if log.stderr then
     writeInternal(io.stderr, fmt, code)

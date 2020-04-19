@@ -31,6 +31,7 @@ function LogTest:testLogToFile()
 
   self.log.configure{
     level = self.log.levels.debug,
+    color = false,
     stderr = true,
     filename = 'tmp.log'
   }
