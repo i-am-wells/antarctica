@@ -97,6 +97,10 @@ function TestBase:expectEquals(a, b)
   self:expect(a == b, 'expected %s but got %s', tostring(a), tostring(b))
 end
 
+function TestBase:expectTrue(a)
+  self:expectEquals(true, a)
+end
+
 function TestBase:assertEquals(a, b)
   assert(a == b, string.format('expected %s but got %s', tostring(a), tostring(b)))
 end

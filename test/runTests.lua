@@ -2,6 +2,7 @@ local testModules = {
   'test.lua.LogTest',
   'test.lua.ClassTest',
   'test.lua.RopeTest',
+  'test.lua.SerializerTest',
 }
 
 local log = require 'log'
