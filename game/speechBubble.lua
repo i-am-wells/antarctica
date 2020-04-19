@@ -3,9 +3,9 @@ local Image = require 'image'
 
 local SpeechBubble = Class()
 
-SpeechBubble.fontFile = 'res/text-6x12.png'
-SpeechBubble.fontSmallFile = 'res/text-5x9.png'
-SpeechBubble.imageFile = 'res/speechbubble.png'
+SpeechBubble.fontFile = __rootdir..'/res/text-6x12.png'
+SpeechBubble.fontSmallFile = __rootdir..'/res/text-5x9.png'
+SpeechBubble.imageFile = __rootdir..'/res/speechbubble.png'
 
 SpeechBubble.sprites = {
   main = {x=0, y=0, w=100, h=74},

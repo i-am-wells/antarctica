@@ -4,7 +4,7 @@ local Image = require 'image'
 
 local Item = Class(Object)
 
-Item.imageFile = 'res/itemSprites.png'
+Item.imageFile = __rootdir..'/res/itemSprites.png'
 Item.tw = 16
 Item.th = 16
 Item.tx = 0

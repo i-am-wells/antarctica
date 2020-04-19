@@ -6,7 +6,7 @@ local TextBar = require 'game.textBar'
 
 local Sign = Class(Object)
 
-Sign.imageFile = 'res/spritesnew-16x16.png'
+Sign.imageFile = __rootdir..'/res/spritesnew-16x16.png'
 Sign.tx = 19
 Sign.ty = 15
 Sign.tw = 16

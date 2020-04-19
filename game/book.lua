@@ -5,14 +5,14 @@ local Menu = require 'game.menu'
 
 local Book = Class(Menu)
 
-local menuShadow = 'res/menuShadow.png'
-local imageFile = 'res/book.png'
+local menuShadow = __rootdir..'/res/menuShadow.png'
+local imageFile = __rootdir..'/res/book.png'
 Book.pagesW = 292
 Book.pagesH = 207
 
 
-Book.fontBigFile = 'res/text-6x12.png'
-Book.fontSmallFile = 'res/text-5x9.png'
+Book.fontBigFile = __rootdir..'/res/text-6x12.png'
+Book.fontSmallFile = __rootdir..'/res/text-5x9.png'
 
 -- default content: one empty page
 -- replace with table of page-drawing methods

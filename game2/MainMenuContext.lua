@@ -27,7 +27,7 @@ function MainMenuContext:init(argtable)
 
   Util.using({engine = argtable.engine, context = self}, function()
     self.titleImage = Image{
-      file='res/title.png'
+      file=__rootdir..'/res/title.png'
     }
     
     self.menu = ListMenu{

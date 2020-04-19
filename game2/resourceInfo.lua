@@ -1,11 +1,11 @@
 
 -- which resource goes with which map, named locations, etc.
 return {
-  mapdir = 'res/maps/',
+  mapdir = __rootdir..'/res/maps/',
   maps = {
     antarcticaSurface = {
       file = 'antarctica.map',
-      tileImage = 'res/forest-16x16.png',
+      tileImage = __rootdir..'/res/forest-16x16.png',
       tileW = 16,
       tileH = 16,
       -- TODO should be dark

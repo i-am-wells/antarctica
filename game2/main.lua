@@ -1,8 +1,3 @@
-__dbg = true
-
-local package = require 'package'
-package.path = package.path..';./lua/?.lua'
-
 local ant = require 'antarctica'
 ant.init()
 
@@ -11,8 +6,7 @@ local Engine = require 'engine'
 local MainMenuContext = require 'game2.MainMenuContext'
 local GameContext = require 'game2.GameContext'
 
--- TODO let this be set on the command line
-local resDirectory = 'res'
+local resDirectory = __rootdir..'/res'
 
 -- calculate view size
 local vw, vh, logicalScale
@@ -42,7 +36,7 @@ do
     
   local font9x15 = Image{
     engine = engine,
-    file='res/textbold-9x15.png', 
+    file=resDirectory..'/textbold-9x15.png', 
     tilew=9,
     tileh=15
   }

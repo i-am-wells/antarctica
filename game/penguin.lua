@@ -15,9 +15,9 @@ local TextBar = require 'game.textBar'
 
 local Penguin = Class(AnimatedObject, AudioSource, MovingObject)
 
-local footstepSoundFile = 'res/sound/footstep0.wav'
+local footstepSoundFile = __rootdir..'/res/sound/footstep0.wav'
 
-Penguin.imageFile = 'res/penguin.png'
+Penguin.imageFile = __rootdir..'/res/penguin.png'
 
 -- TODO fix
 local tileW, tileH = 16, 16
