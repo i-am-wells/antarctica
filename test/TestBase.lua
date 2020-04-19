@@ -28,8 +28,11 @@ function TestBase:init()
   self.timeoutDelay = 10000
 end
 
+local filterMatch = function(key, path, filter)
+  return string.format("%s.%s", path, key):match(filter) ~= nil
+end
 
-function TestBase:runTests()
+function TestBase:runTests(path, filter)
   -- Get all methods. We can't iterate directly over the instance table
   -- because it gets its methods by looking them up in the class.
   local mt = getmetatable(self)
@@ -41,7 +44,7 @@ function TestBase:runTests()
 
   -- Find all tests
   for k, v in pairs(classTable) do
-    if isTest(k, v) then
+    if isTest(k, v) and filterMatch(k, path, filter) then
       self:runTest(k, v)
     end
   end

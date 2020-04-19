@@ -10,6 +10,14 @@ log.configure{
   level = log.levels.info
 }
 
+local filter = arg[1]
+if filter then
+  log.info('Running with filter: %s', filter)
+else
+  log.info('Running all tests')
+  filter = '.*'
+end
+
 for _, path in ipairs(testModules) do
   local testClass = assert(require(path))
   local testClassInstance = testClass()
@@ -17,8 +25,7 @@ for _, path in ipairs(testModules) do
 
   log.setIndent(4)
 
-  testClassInstance:runTests()
-
+  testClassInstance:runTests(path, filter)
 
   log.setIndent(0)
   log.info('')
