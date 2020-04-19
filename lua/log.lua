@@ -26,7 +26,7 @@ log.colors = {
 }
 
 function log.configure(opt)
-  log.level = opt.level or log.level or 1
+  log.level = opt.level or log.levels.error
   log.stderr = opt.stderr or log.stderr or true
   log.vbuf = opt.vbuf or log.vbuf or 'line'
   log.setIndent(opt.indent or log.indent or 0)
@@ -64,6 +64,7 @@ end
 
 function log.close()
   if log.file then
+    log.file:flush()
     log.file:close()
   end
 end
@@ -139,5 +140,8 @@ function log.setColor(colorName)
     writeInternal(log.file, fmt, code)
   end
 end
+
+-- Init
+log.configure{}
 
 return log
