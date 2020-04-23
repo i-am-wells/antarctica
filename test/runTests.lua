@@ -3,6 +3,7 @@ local testModules = {
   'test.lua.ClassTest',
   'test.lua.RopeTest',
   'test.lua.SerializerTest',
+  'test.lua.ImageTest',
 }
 
 local log = require 'log'

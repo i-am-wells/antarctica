@@ -1,16 +1,17 @@
-local Class = require 'class'
-
 local ant = require 'antarctica'
 
-local Image = Class()
+local Image = require 'class'()
 
 function Image:init(opt)
   local tilew = opt.tilew or 16
   local tileh = opt.tileh or 16
-  local keepSurface = opt.keepSurface or false
+  self.keepSurface = opt.keepSurface or false
   self.engine = engine or opt.engine
+  if __dbg then
+    assert(self.engine)
+  end
   if opt.file then
-    self._image = ant.image.load(self.engine, opt.file, tilew, tileh, keepSurface)
+    self._image = ant.image.load(self.engine, opt.file, tilew, tileh, self.keepSurface)
     if not self._image then
       return nil, 'failed to load image'
     end
@@ -74,6 +75,9 @@ function Image:targetImage(other)
   ant.image.targetImage(self._image, otherptr)
 end
 
+function Image:targetSelf()
+  self:targetImage(self)
+end
 
 function Image:drawCentered()
   local x = (self.engine.vw // 2) - (self.w // 2)
@@ -82,11 +86,24 @@ function Image:drawCentered()
 end
 
 function Image:getPixels()
+  if __dbg then
+    assert(self.keepSurface)
+  end
   return ant.image.getPixels(self._image)
 end
 
 function Image:getPixel(x, y)
+  if __dbg then
+    assert(self.keepSurface)
+  end
   return ant.image.getPixel(self._image, x, y)
+end
+
+function Image:saveAsPng(filename)
+  if __dbg then
+    assert(self.renderTarget)
+  end
+  return ant.image.saveAsPng(self._image, filename)
 end
 
 function Image:destroy()

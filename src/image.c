@@ -330,6 +330,81 @@ int image_target_image(image_t* i, image_t* j) {
   return 1;
 }
 
+// TODO: make this work
+int image_save_as_png(image_t* i, const char* filename) {
+  SDL_Texture* original_target = SDL_GetRenderTarget(i->renderer);
+  SDL_PixelFormat* fmt = NULL;
+  uint8_t* pixels = NULL;
+  SDL_Surface* surface = NULL;
+  
+  int w, h;
+  uint32_t pixelformat;
+  if (SDL_QueryTexture(i->texture, &pixelformat, NULL, &w, &h) == -1)
+    goto image_save_as_png_fail;
+
+  // Create a copy of |i|'s texture with SDL_TEXUREACCESS_TARGET which is needed
+  // for SDL_RenderReadPixels().
+  SDL_Texture* copy = NULL;
+  copy = SDL_CreateTexture(i->renderer, pixelformat, SDL_TEXTUREACCESS_TARGET, w, h);
+  if (!copy)
+    return 0;
+
+  if (SDL_SetRenderTarget(i->renderer, copy) != 0)
+    goto image_save_as_png_fail;
+
+  if (SDL_RenderCopy(i->renderer, i->texture, NULL, NULL) != 0)
+    goto image_save_as_png_fail;
+
+  SDL_RenderPresent(i->renderer);
+
+  // Get pixels from |copy|.
+  fmt = SDL_AllocFormat(pixelformat);
+  if (!fmt)
+    goto image_save_as_png_fail;
+
+  pixels = (uint8_t*)malloc(w * h * fmt->BytesPerPixel);
+  if (!pixels)
+    goto image_save_as_png_fail;
+ 
+  int pitch = w * fmt->BytesPerPixel;
+  if (SDL_RenderReadPixels(i->renderer, NULL, 0, pixels, pitch) != 0)
+    goto image_save_as_png_fail;
+
+  if (SDL_SetRenderTarget(i->renderer, original_target) != 0)
+    goto image_save_as_png_fail;
+
+  SDL_DestroyTexture(copy);
+  copy = NULL;
+
+  surface = SDL_CreateRGBSurfaceWithFormatFrom(
+      pixels, w, h, fmt->BitsPerPixel, pitch, pixelformat);
+  SDL_FreeFormat(fmt);
+  fmt = NULL;
+
+  if (!surface)
+    goto image_save_as_png_fail;
+
+  int res = IMG_SavePNG(surface, filename);
+  SDL_FreeSurface(surface);
+  free(pixels);
+  return res == 0;
+
+image_save_as_png_fail:
+  SDL_SetRenderTarget(i->renderer, original_target);
+
+  if (pixels)
+    free(pixels);
+
+  if (fmt)
+    SDL_FreeFormat(fmt);
+
+  if (copy)
+    SDL_DestroyTexture(copy);
+
+  fprintf(stderr, "image_save_as_png: %s\n", SDL_GetError());
+  return 0;
+}
+
 int image_scale(image_t* i, double scale) {
   assert(i);
   assert(scale);

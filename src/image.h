@@ -147,4 +147,5 @@ int image_scale(image_t* i, double scaleBy);
 int image_target_image(image_t* i, image_t* j);
 int image_init_blank(image_t* i, engine_t* e, int w, int h, int tw, int th);
 
+int image_save_as_png(image_t* i, const char* filename);
 #endif

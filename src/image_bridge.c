@@ -282,6 +282,13 @@ int l_image_get_pixel(lua_State* L) {
   return 1;
 }
 
+int l_image_save_as_png(lua_State* L) {
+  image_t* i = (image_t*)luaL_checkudata(L, 1, "image_t");
+  const char* filename = luaL_checkstring(L, 2);
+  lua_pushboolean(L, image_save_as_png(i, filename));
+  return 1;
+}
+
 void load_image_bridge(lua_State* L) {
   const luaL_Reg imagelib[] = {{"load", l_image_load},
                                {"destroy", l_image_deinit},
@@ -298,6 +305,7 @@ void load_image_bridge(lua_State* L) {
                                {"getPixels", l_image_get_pixels},
                                {"getPixel", l_image_get_pixel},
                                {"textSize", l_image_text_size},
+                               {"saveAsPng", l_image_save_as_png},
                                {NULL, NULL}};
   luaL_newlib(L, imagelib);
 }
