@@ -15,14 +15,14 @@ int l_tilemap_deinit(lua_State* L) {
 
 int l_tilemap_create_empty(lua_State* L) {
   int nlayers = luaL_checkinteger(L, 1);
-  int w = luaL_checkinteger(L, 2);
-  int h = luaL_checkinteger(L, 3);
+  uint64_t w = luaL_checkinteger(L, 2);
+  uint64_t h = luaL_checkinteger(L, 3);
 
   tilemap_t* t = (tilemap_t*)lua_newuserdata(L, sizeof(tilemap_t));
 
   if (!tilemap_init(t, nlayers, w, h)) {
     char buf[256];
-    sprintf(buf, "failed to create empty %d-layer tilemap with size %dx%d",
+    sprintf(buf, "failed to create empty %d-layer tilemap with size %zux%zu",
             nlayers, w, h);
     lua_pop(L, 1);
     lua_pushnil(L);
@@ -30,7 +30,7 @@ int l_tilemap_create_empty(lua_State* L) {
     return 2;
   }
 
-  // TODO clean up
+  // TODO clean up object code
   tilemap_set_object_callbacks(t, L, bump_callback, collision_callback);
   t->object_update_callback = object_update_callback;
 
@@ -41,20 +41,14 @@ int l_tilemap_create_empty(lua_State* L) {
 
 int l_tilemap_read(lua_State* L) {
   const char* filename = luaL_checkstring(L, 1);
-
   tilemap_t* t = (tilemap_t*)lua_newuserdata(L, sizeof(tilemap_t));
 
   if (!tilemap_read_from_file(t, filename)) {
-    char buf[256];
-    sprintf(buf, "failed to load tilemap file from %s", filename);
-    lua_pop(L, 1);
-    lua_pushnil(L);
-    lua_pushstring(L, buf);
-    return 2;
-    // return luaL_error(L, "failed to load tilemap file from %s", filename);
+    lua_pushboolean(L, false);
+    return 1;
   }
 
-  // TODO clean up
+  // TODO clean up object code
   tilemap_set_object_callbacks(t, L, bump_callback, collision_callback);
   t->object_update_callback = object_update_callback;
 
@@ -64,178 +58,45 @@ int l_tilemap_read(lua_State* L) {
   return 1;
 }
 
-// TODO return error
 int l_tilemap_write(lua_State* L) {
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  const char* filename = luaL_checkstring(L, 2);
-
-  if (!tilemap_write_to_file(t, filename)) {
-    return luaL_error(L, "failed to write tilemap to %s", filename);
-  }
-
-  lua_pushboolean(L, 1);
+  lua_pushboolean(L, tilemap_write_to_file(t, luaL_checkstring(L, 2)));
   return 1;
 }
 
-// TODO get rid of one of these?
-int l_tilemap_draw_layer(lua_State* L) {
+int l_tilemap_get_draw_flags(lua_State* L) {
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  image_t* i = (image_t*)luaL_checkudata(L, 2, "image_t");
-  int layer = luaL_checkinteger(L, 3);
-  int px = luaL_checkinteger(L, 4);
-  int py = luaL_checkinteger(L, 5);
-  int pw = luaL_checkinteger(L, 6);
-  int ph = luaL_checkinteger(L, 7);
-  int counter = luaL_checkinteger(L, 8);
-  int draw_flags = lua_toboolean(L, 9);
+  lua_pushboolean(L, t->draw_flags);
+  return 1;
+}
 
-  tilemap_draw_layer(t, i, layer, px, py, pw, ph, counter, draw_flags);
+int l_tilemap_set_draw_flags(lua_State* L) {
+  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+  t->draw_flags = lua_toboolean(L, 2);
   return 0;
 }
 
-int l_tilemap_draw_layer_flags(lua_State* L) {
+int l_tilemap_draw_layer(lua_State* L) {
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  image_t* i = (image_t*)luaL_checkudata(L, 2, "image_t");
-  int layer = luaL_checkinteger(L, 3);
-  int px = luaL_checkinteger(L, 4);
-  int py = luaL_checkinteger(L, 5);
-  int pw = luaL_checkinteger(L, 6);
-  int ph = luaL_checkinteger(L, 7);
-  int counter = luaL_checkinteger(L, 8);
+  int layer = luaL_checkinteger(L, 2);
+  uint64_t px = luaL_checkinteger(L, 3);
+  uint64_t py = luaL_checkinteger(L, 4);
 
-  tilemap_draw_layer(t, i, layer, px, py, pw, ph, counter, /*draw_flags=*/1);
+  tilemap_draw_layer(t, layer, px, py);
   return 0;
 }
 
 int l_tilemap_draw_layer_objects(lua_State* L) {
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
   int layer = luaL_checkinteger(L, 2);
-  int px = luaL_checkinteger(L, 3);
-  int py = luaL_checkinteger(L, 4);
-  int pw = luaL_checkinteger(L, 5);
-  int ph = luaL_checkinteger(L, 6);
-  int counter = luaL_checkinteger(L, 7);
+  uint64_t px = luaL_checkinteger(L, 3);
+  uint64_t py = luaL_checkinteger(L, 4);
 
-  tilemap_draw_objects(t, layer, px, py, pw, ph, counter);
-
+  tilemap_draw_objects(t, layer, px, py);
   return 0;
 }
 
-int l_tilemap_set_tile(lua_State* L) {
-  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  int layer = luaL_checkinteger(L, 2);
-  int x = luaL_checkinteger(L, 3);
-  int y = luaL_checkinteger(L, 4);
-  int tx = luaL_checkinteger(L, 5);
-  int ty = luaL_checkinteger(L, 6);
-
-  tilemap_set_tile_coords(t, layer, x, y, tx, ty);
-
-  return 0;
-}
-
-int l_tilemap_get_tile(lua_State* L) {
-  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  int layer = luaL_checkinteger(L, 2);
-  int x = luaL_checkinteger(L, 3);
-  int y = luaL_checkinteger(L, 4);
-
-  int tx = -1;
-  int ty = -1;
-  if (!tilemap_get_tile_coords(t, layer, x, y, &tx, &ty)) {
-    lua_pushnil(L);
-    return 1;
-  }
-
-  lua_pushinteger(L, tx);
-  lua_pushinteger(L, ty);
-  return 2;
-}
-
-int l_tilemap_get_flags(lua_State* L) {
-  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  int layer = luaL_checkinteger(L, 2);
-  int x = luaL_checkinteger(L, 3);
-  int y = luaL_checkinteger(L, 4);
-
-  int flags = tilemap_get_flags(t, layer, x, y);
-
-  lua_pushinteger(L, flags);
-  return 1;
-}
-
-int l_tilemap_set_flags(lua_State* L) {
-  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  int layer = luaL_checkinteger(L, 2);
-  int x = luaL_checkinteger(L, 3);
-  int y = luaL_checkinteger(L, 4);
-  int mask = luaL_checkinteger(L, 5);
-
-  tilemap_set_flags(t, layer, x, y, mask);
-  return 0;
-}
-
-int l_tilemap_clear_flags(lua_State* L) {
-  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  int layer = luaL_checkinteger(L, 2);
-  int x = luaL_checkinteger(L, 3);
-  int y = luaL_checkinteger(L, 4);
-  int mask = luaL_checkinteger(L, 5);
-
-  tilemap_clear_flags(t, layer, x, y, mask);
-  return 0;
-}
-
-int l_tilemap_overwrite_flags(lua_State* L) {
-  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  int layer = luaL_checkinteger(L, 2);
-  int x = luaL_checkinteger(L, 3);
-  int y = luaL_checkinteger(L, 4);
-  int mask = luaL_checkinteger(L, 5);
-
-  tilemap_overwrite_flags(t, layer, x, y, mask);
-  return 0;
-}
-
-int l_tilemap_export_slice(lua_State* L) {
-  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  int x = luaL_checkinteger(L, 2);
-  int y = luaL_checkinteger(L, 3);
-  int w = luaL_checkinteger(L, 4);
-  int h = luaL_checkinteger(L, 5);
-
-  tile_t* slice = tilemap_export_slice(t, x, y, w, h);
-  if (!slice) {
-    lua_pushnil(L);
-    return 1;
-  }
-
-  // Copy the slice into userdata
-  size_t size = t->nlayers * w * h * sizeof(tile_t);
-  tile_t* slice_udata = (tile_t*)lua_newuserdata(L, size);
-  memcpy(slice_udata, slice, size);
-  free(slice);
-
-  // Return the slice userdata
-  return 1;
-}
-
-int l_tilemap_patch(lua_State* L) {
-  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  tile_t* patch_udata = (tile_t*)lua_touserdata(L, 2);
-  if (!patch_udata)
-    return 0;
-
-  int x = luaL_checkinteger(L, 3);
-  int y = luaL_checkinteger(L, 4);
-  int w = luaL_checkinteger(L, 5);
-  int h = luaL_checkinteger(L, 6);
-
-  tilemap_patch(t, patch_udata, x, y, w, h);
-
-  return 0;
-}
-
+// TODO update this?
 int l_tilemap_get(lua_State* L) {
   // Arguments: engine pointer, destination table, properties table (optional)
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
@@ -318,16 +179,12 @@ int l_tilemap_get_camera_object(lua_State* L) {
 
 int l_tilemap_get_camera_draw_location(lua_State* L) {
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  int pw = luaL_checkinteger(L, 2);
-  int ph = luaL_checkinteger(L, 3);
 
-  int x, y;
-  if (tilemap_get_camera_draw_location(t, pw, ph, &x, &y)) {
-    lua_pushinteger(L, x);
-    lua_pushinteger(L, y);
-    return 2;
-  }
-  return 0;
+  uint64_t x, y;
+  tilemap_get_camera_draw_location(t, &x, &y);
+  lua_pushinteger(L, x);
+  lua_pushinteger(L, y);
+  return 2;
 }
 
 int l_tilemap_update_objects(lua_State* L) {
@@ -338,70 +195,21 @@ int l_tilemap_update_objects(lua_State* L) {
 
 int l_tilemap_draw_layer_at_camera_object(lua_State* L) {
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  image_t* i = (image_t*)luaL_checkudata(L, 2, "image_t");
-  int layer = luaL_checkinteger(L, 3);
-  int pw = luaL_checkinteger(L, 4);
-  int ph = luaL_checkinteger(L, 5);
-  int counter = luaL_checkinteger(L, 6);
-  int draw_flags = lua_toboolean(L, 7);
-  tilemap_draw_layer_at_camera_object(t, i, layer, pw, ph, counter, draw_flags);
+  int layer = luaL_checkinteger(L, 2);
+  tilemap_draw_layer_at_camera_object(t, layer);
   return 0;
 }
 
 int l_tilemap_draw_objects_at_camera_object(lua_State* L) {
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  image_t* i = (image_t*)luaL_checkudata(L, 2, "image_t");
-  int layer = luaL_checkinteger(L, 3);
-  int pw = luaL_checkinteger(L, 4);
-  int ph = luaL_checkinteger(L, 5);
-  int counter = luaL_checkinteger(L, 6);
-  int draw_flags = lua_toboolean(L, 7);
-  tilemap_draw_objects_at_camera_object(t, i, layer, pw, ph, counter,
-                                        draw_flags);
-
+  int layer = luaL_checkinteger(L, 2);
+  tilemap_draw_objects_at_camera_object(t, layer);
   return 0;
-}
-
-int l_tilemap_get_tile_animation_info(lua_State* L) {
-  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  int layer = luaL_checkinteger(L, 2);
-  int x = luaL_checkinteger(L, 3);
-  int y = luaL_checkinteger(L, 4);
-
-  int period, count;
-  if (tilemap_get_tile_animation_info(t, layer, x, y, &period, &count)) {
-    lua_pushinteger(L, period);
-    lua_pushinteger(L, count);
-    return 2;
-  }
-
-  // failure
-  lua_pushnil(L);
-  return 1;
-}
-
-int l_tilemap_set_tile_animation_info(lua_State* L) {
-  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  int layer = luaL_checkinteger(L, 2);
-  int x = luaL_checkinteger(L, 3);
-  int y = luaL_checkinteger(L, 4);
-  int period = luaL_checkinteger(L, 5);
-  int count = luaL_checkinteger(L, 6);
-
-  if (tilemap_set_tile_animation_info(t, layer, x, y, period, count)) {
-    lua_pushboolean(L, 1);
-    return 1;
-  }
-
-  // failure
-  lua_pushnil(L);
-  return 1;
 }
 
 int l_tilemap_abort_update_objects(lua_State* L) {
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
   tilemap_abort_update_objects(t);
-
   return 0;
 }
 
@@ -426,8 +234,8 @@ int l_tilemap_set_underwater_color(lua_State* L) {
 int l_tilemap_set_underwater(lua_State* L) {
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
   int layer = luaL_checkinteger(L, 2);
-  int x = luaL_checkinteger(L, 3);
-  int y = luaL_checkinteger(L, 4);
+  uint64_t x = luaL_checkinteger(L, 3);
+  uint64_t y = luaL_checkinteger(L, 4);
   int underwater = lua_toboolean(L, 5);
   tilemap_set_underwater(t, layer, x, y, underwater);
   return 0;
@@ -438,17 +246,10 @@ void load_tilemap_bridge(lua_State* L) {
       {"read", l_tilemap_read},
       {"write", l_tilemap_write},
       {"createEmpty", l_tilemap_create_empty},
+      {"getDrawFlags", l_tilemap_get_draw_flags},
+      {"setDrawFlags", l_tilemap_set_draw_flags},
       {"drawLayer", l_tilemap_draw_layer},
-      {"drawLayerFlags", l_tilemap_draw_layer_flags},
       {"drawLayerObjects", l_tilemap_draw_layer_objects},
-      {"setTile", l_tilemap_set_tile},
-      {"getTile", l_tilemap_get_tile},
-      {"getFlags", l_tilemap_get_flags},
-      {"setFlags", l_tilemap_set_flags},
-      {"clearFlags", l_tilemap_clear_flags},
-      {"overwriteFlags", l_tilemap_overwrite_flags},
-      {"exportSlice", l_tilemap_export_slice},
-      {"patch", l_tilemap_patch},
       {"get", l_tilemap_get},
       {"addObject", l_tilemap_add_object},
       {"removeObject", l_tilemap_remove_object},
@@ -459,8 +260,6 @@ void load_tilemap_bridge(lua_State* L) {
       {"updateObjects", l_tilemap_update_objects},
       {"drawLayerAtCameraObject", l_tilemap_draw_layer_at_camera_object},
       {"drawObjectsAtCameraObject", l_tilemap_draw_objects_at_camera_object},
-      {"getTileAnimationInfo", l_tilemap_get_tile_animation_info},
-      {"setTileAnimationInfo", l_tilemap_set_tile_animation_info},
       {"setSparseLayer", l_tilemap_set_sparse_layer},
       {"setUnderwaterColor", l_tilemap_set_underwater},
 
@@ -474,8 +273,4 @@ void load_tilemap_bridge(lua_State* L) {
   set_int_field(L, "bumpnorthflag", TILEMAP_BUMP_NORTH_MASK);
   set_int_field(L, "bumpwestflag", TILEMAP_BUMP_WEST_MASK);
   set_int_field(L, "bumpsouthflag", TILEMAP_BUMP_SOUTH_MASK);
-  set_int_field(L, "bumpnortheastflag", TILEMAP_BUMP_NORTHEAST_MASK);
-  set_int_field(L, "bumpnorthwestflag", TILEMAP_BUMP_NORTHWEST_MASK);
-  set_int_field(L, "bumpsouthwestflag", TILEMAP_BUMP_SOUTHWEST_MASK);
-  set_int_field(L, "bumpsoutheastflag", TILEMAP_BUMP_SOUTHEAST_MASK);
 }

@@ -1,31 +1,83 @@
+// for endianness conversion functions
+#define _DEFAULT_SOURCE
+
 #include "tilemap.h"
 
 #include <SDL.h>
 #include <assert.h>
+#include <endian.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "engine.h"
 #include "image.h"
 #include "object.h"
 #include "vec.h"
 
-#define TILEMAP_FILE_FORMAT_LATEST_VERSION 1
 #define DEFAULT_NON_EMPTY 4294967295
+
+static uint16_t mask16[17] = {
+    0x1 - 1,  // 0 bits
+    0x2 - 1,   0x4 - 1,    0x8 - 1,    0x10 - 1,   0x20 - 1,
+    0x40 - 1,  0x80 - 1,   0x100 - 1,  0x200 - 1,  0x400 - 1,
+    0x800 - 1, 0x1000 - 1, 0x2000 - 1, 0x4000 - 1, 0x8000 - 1,
+    0xffff  // 16 bits
+};
+
+// Tile16: per_tile_flags | tileinfo_index
+//  where tileinfo_index is map.tile_bits wide
+//  and per_tile_flags is (16 - map.tile_bits) wide
+
+// Get the TileInfo index.
+static inline uint16_t Tile16_tile(Tile16 t, int tile_bits) {
+  return (((uint16_t)t.byte0 << 8) | ((uint16_t)t.byte1)) & mask16[tile_bits];
+}
+
+// Get per-tile flags.
+static inline uint16_t Tile16_flags(Tile16 t, int tile_bits) {
+  uint16_t mask = mask16[tile_bits] ^ 0xffff;
+  return ((((uint16_t)t.byte0 << 8) | t.byte1) & mask) >> tile_bits;
+}
+
+static inline uint16_t get_tile_info_idx(const tilemap_t* map, Tile16 tile) {
+  return Tile16_tile(tile, map->tile_bits);
+}
+
+static inline uint16_t get_flags(const tilemap_t* map, Tile16 tile) {
+  return Tile16_flags(tile, map->tile_bits);
+}
+
+static inline TileInfo* get_tile_info(const tilemap_t* map, Tile16 tile) {
+  return map->tile_info + get_tile_info_idx(map, tile);
+}
+
+static inline Tile16 get_tile(const tilemap_t* map,
+                              int layer,
+                              uint64_t x,
+                              uint64_t y) {
+  if (layer >= 0 && layer < map->nlayers && x < map->w && y < map->h)
+    return map->tiles[map->w * (layer * map->h + y) + x];
+  Tile16 zero_tile = {0, 0};
+  return zero_tile;
+}
 
 void tilemap_deinit(tilemap_t* t) {
   if (t) {
-    // Free tiles arrays
     if (t->tiles) {
-      for (size_t i = 0; i < t->nlayers; i++) {
-        free(t->tiles[i]);
-        t->tiles[i] = NULL;
-      }
-
       free(t->tiles);
       t->tiles = NULL;
+    }
+
+    if (t->tile_info) {
+      for (size_t i = 0; i < t->tile_info_count; ++i) {
+        if (t->tile_info[i].frames)
+          free(t->tile_info[i].frames);
+      }
+      free(t->tile_info);
+      t->tile_info = NULL;
     }
 
     if (t->should_store_sparse_layer)
@@ -38,35 +90,19 @@ void tilemap_deinit(tilemap_t* t) {
   }
 }
 
-int tilemap_init(tilemap_t* t, size_t nlayers, size_t w, size_t h) {
+// Make an empty map
+int tilemap_init(tilemap_t* t, int nlayers, uint64_t w, uint64_t h) {
   assert(t);
+  memset(t, 0, sizeof(tilemap_t));
 
   if (w && h && nlayers) {
-    // Allocate layers array
-    t->tiles = (tile_t**)calloc(1, nlayers * sizeof(tile_t*));
+    t->tiles = (Tile16*)calloc(w * h * nlayers, sizeof(Tile16));
     if (!t->tiles)
       return 0;
-
-    // Allocate each layer
-    tile_t** maplayers = t->tiles;
-    for (size_t i = 0; i < nlayers; i++) {
-      maplayers[i] = (tile_t*)calloc(w * h, sizeof(tile_t));
-      if (!(maplayers[i])) {
-        tilemap_deinit(t);
-        return 0;
-      }
-    }
-  } else {
-    t->tiles = NULL;
   }
 
   // Create object vector
   vec_init(&(t->objectvec), 8);
-
-  // no objects yet
-  t->head = NULL;
-
-  t->cameraobject = NULL;
 
   tilemap_set_object_callbacks(t, NULL, NULL, NULL);
 
@@ -74,7 +110,6 @@ int tilemap_init(tilemap_t* t, size_t nlayers, size_t w, size_t h) {
   t->h = h;
   t->nlayers = nlayers;
 
-  t->updateParity = 0;
   tilemap_set_underwater_color(t, 0, 0, 0, SDL_ALPHA_OPAQUE);
 
   t->should_store_sparse_layer = (int*)calloc(nlayers, sizeof(int));
@@ -83,37 +118,98 @@ int tilemap_init(tilemap_t* t, size_t nlayers, size_t w, size_t h) {
     return 0;
   }
 
-  t->last_non_empty_tile = (uint32_t*)malloc(nlayers * sizeof(uint32_t));
+  t->last_non_empty_tile = (uint64_t*)malloc(nlayers * sizeof(uint64_t));
   if (!t->last_non_empty_tile) {
     tilemap_deinit(t);
     return 0;
   }
-  for (size_t i = 0; i < nlayers; i++) {
+  for (int i = 0; i < nlayers; i++) {
     t->last_non_empty_tile[i] = DEFAULT_NON_EMPTY;
   }
 
   return 1;
 }
 
-tile_t* tilemap_get_tile(const tilemap_t* t, size_t layer, size_t x, size_t y) {
-  if ((layer < t->nlayers) && (x < t->w) && (y < t->h)) {
-    return t->tiles[layer] + y * t->w + x;
+int tilemap_add_tile_info(tilemap_t* t, TileInfo* info) {
+  TileInfo* infos = (TileInfo*)realloc(
+      t->tile_info, (t->tile_info_count + 1) * sizeof(TileInfo));
+  if (!infos)
+    return 0;
+
+  t->tile_info = infos;
+
+  // info->frames will be freed by tilemap_deinit.
+  memcpy(t->tile_info + t->tile_info_count, info, sizeof(TileInfo));
+  t->tile_info_count++;
+
+  return 1;
+}
+
+void tilemap_remove_tile_info(tilemap_t* t, uint16_t idx) {
+  if (t->tile_info[idx].frames) {
+    free(t->tile_info[idx].frames);
+  }
+  memmove(t->tile_info + idx, t->tile_info + idx + 1,
+          t->tile_info_count - idx - 1);
+  --t->tile_info_count;
+  t->tile_info =
+      (TileInfo*)realloc(t->tile_info, t->tile_info_count * sizeof(TileInfo));
+}
+
+// Remove all TileInfos that aren't referenced in map data.
+int tilemap_clean_tile_info(tilemap_t* t) {
+  uint8_t* infos_found = calloc(t->tile_info_count, 1);
+  if (!infos_found)
+    return 0;
+
+  for (int layer = 0; layer < t->nlayers; ++layer) {
+    for (uint64_t y = 0ul; y < t->h; ++y) {
+      for (uint64_t x = 0ul; x < t->w; ++x) {
+        uint16_t tile_idx = Tile16_tile(get_tile(t, layer, x, y), t->tile_bits);
+        if (tile_idx >= t->tile_info_count) {
+          fprintf(stderr, "unknown tile at %d, %zu, %zu\n", layer, x, y);
+          free(infos_found);
+          return 0;
+        }
+        infos_found[tile_idx] = 1;
+      }
+    }
   }
 
-  // Return NULL if (layer, x, y) isn't on the map.
-  return NULL;
+  for (int i = 0; i < t->tile_info_count; ++i) {
+    if (!infos_found[i])
+      tilemap_remove_tile_info(t, i);
+  }
+  free(infos_found);
+  return 1;
 }
 
-// TODO x, y should always be int
-int tilemap_empty(const tilemap_t* t, size_t layer, int x, int y) {
-  tile_t* tile = tilemap_get_tile(t, layer, x, y);
-  return (tile->tilex || tile->tiley || tile->flags) == 0;
+TileInfo* tilemap_get_tile_info(const tilemap_t* t,
+                                int layer,
+                                uint64_t x,
+                                uint64_t y) {
+  return get_tile_info(t, get_tile(t, layer, x, y));
 }
 
+/*
+static int tilemap_empty(const tilemap_t* t, int layer, uint64_t x, uint64_t y)
+{ return get_tile_info_idx(t, get_tile(t, layer, x, y)) == 0;
+}
+*/
+
+void tilemap_increment_clock(tilemap_t* t) {
+  ++t->clock;
+}
+
+int tilemap_get_flags(const tilemap_t* t, int layer, uint64_t x, uint64_t y) {
+  return tilemap_get_tile_info(t, layer, x, y)->flags;
+}
+
+/*
 static void tilemap_set_last_non_empty_tile(tilemap_t* t,
-                                            size_t layer,
-                                            uint32_t x,
-                                            uint32_t y) {
+                                            int layer,
+                                            uint64_t x,
+                                            uint64_t y) {
   if (t->should_store_sparse_layer[layer]) {
     uint32_t pos = y * t->w + x;
     if (t->last_non_empty_tile[layer] == DEFAULT_NON_EMPTY ||
@@ -122,99 +218,7 @@ static void tilemap_set_last_non_empty_tile(tilemap_t* t,
     }
   }
 }
-
-void tilemap_set_tile_coords(tilemap_t* t,
-                             size_t layer,
-                             size_t x,
-                             size_t y,
-                             int tilex,
-                             int tiley) {
-  assert(t);
-
-  // Set the image to be used for this map square
-  tile_t* tileptr = tilemap_get_tile(t, layer, x, y);
-  if (tileptr) {
-    tileptr->tilex = tilex & 0xff;
-    tileptr->tiley = tiley & 0xff;
-
-    tilemap_set_last_non_empty_tile(t, layer, x, y);
-  }
-}
-
-int tilemap_get_tile_coords(tilemap_t* t,
-                            size_t layer,
-                            size_t x,
-                            size_t y,
-                            int* tx,
-                            int* ty) {
-  assert(t);
-
-  tile_t* tileptr = tilemap_get_tile(t, layer, x, y);
-  if (tileptr) {
-    if (tx)
-      *tx = tileptr->tilex;
-    if (ty)
-      *ty = tileptr->tiley;
-
-    return 1;
-  }
-
-  return 0;
-}
-
-int tilemap_get_flags(const tilemap_t* t, size_t layer, size_t x, size_t y) {
-  assert(t);
-
-  // set the image to be used for this map square
-  tile_t* tileptr = tilemap_get_tile(t, layer, x, y);
-  if (tileptr) {
-    return tileptr->flags;
-  }
-
-  return 0;
-}
-
-void tilemap_set_flags(tilemap_t* t,
-                       size_t layer,
-                       size_t x,
-                       size_t y,
-                       int mask) {
-  assert(t);
-
-  // set the image to be used for this map square
-  tile_t* tileptr = tilemap_get_tile(t, layer, x, y);
-  if (tileptr) {
-    tileptr->flags |= (uint16_t)(mask & 0xffff);
-  }
-}
-
-void tilemap_clear_flags(tilemap_t* t,
-                         size_t layer,
-                         size_t x,
-                         size_t y,
-                         int mask) {
-  assert(t);
-
-  // Set the image to be used for this map square
-  tile_t* tileptr = tilemap_get_tile(t, layer, x, y);
-  if (tileptr) {
-    tileptr->flags &= (uint16_t)(~(mask & 0xffff));
-  }
-}
-
-void tilemap_overwrite_flags(tilemap_t* t,
-                             size_t layer,
-                             size_t x,
-                             size_t y,
-                             int mask) {
-  assert(t);
-
-  // Set the image to be used for this map square
-  tile_t* tileptr = tilemap_get_tile(t, layer, x, y);
-  if (tileptr) {
-    tileptr->flags = mask;
-  }
-}
+*/
 
 void tilemap_set_object_callbacks(tilemap_t* t,
                                   void* data,
@@ -231,53 +235,46 @@ void tilemap_set_object_callbacks(tilemap_t* t,
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 
-int tilemap_get_camera_draw_location(const tilemap_t* t,
-                                     int pw,
-                                     int ph,
-                                     int* x,
-                                     int* y) {
-  if (!t->cameraobject)
-    return 0;
-
-  int px = MAX(0, t->cameraobject->x - (pw / 2));
-  int py = MAX(0, t->cameraobject->y - (ph / 2));
-  px = MIN(px, t->w * t->cameraobject->image->tw - pw);
-  py = MIN(py, t->h * t->cameraobject->image->th - ph);
+void tilemap_get_camera_draw_location(const tilemap_t* t,
+                                      uint64_t* x,
+                                      uint64_t* y) {
+  uint64_t px = 0;
+  uint64_t py = 0;
+  if (t->cameraobject) {
+    int px = MAX(0, t->cameraobject->x - (t->screen_w / 2));
+    int py = MAX(0, t->cameraobject->y - (t->screen_h / 2));
+    px = MIN(px, t->w * t->cameraobject->image->tw - t->screen_w);
+    py = MIN(py, t->h * t->cameraobject->image->th - t->screen_h);
+  }
 
   if (x)
     *x = px;
 
   if (y)
     *y = py;
-
-  return 1;
 }
 
-void tilemap_draw_layer_at_camera_object(const tilemap_t* t,
-                                         const image_t* i,
-                                         int layer,
-                                         int pw,
-                                         int ph,
-                                         int counter,
-                                         int draw_flags) {
-  int px, py;
-  if (!tilemap_get_camera_draw_location(t, pw, ph, &px, &py)) {
-    px = 0;
-    py = 0;
-  }
-  tilemap_draw_layer(t, i, layer, px, py, pw, ph, counter, draw_flags);
+void tilemap_draw_layer_at_camera_object(const tilemap_t* t, int layer) {
+  uint64_t px, py;
+  tilemap_get_camera_draw_location(t, &px, &py);
+  tilemap_draw_layer(t, layer, px, py);
 }
 
-int tilemap_is_camera_underwater(const tilemap_t* t,
-                                 int layer,
-                                 int pw,
-                                 int ph) {
+// TODO should camera provide layer?
+bool tilemap_is_camera_underwater(const tilemap_t* t, int layer) {
+  // TODO finish
+  return false;
+
+  /*
   if (!t->cameraobject)
-    return 0;
+    return false;
 
   int flags =
       tilemap_get_flags(t, layer, t->cameraobject->x, t->cameraobject->y);
-  return (flags & TILEMAP_UNDERWATER_MASK) ? 1 : 0;
+  Tile16 tile = get_tile(t, layer, t->cameraobject->x /
+
+  return flags & TILEMAP_UNDERWATER_MASK;
+  */
 }
 
 #define OBJECT_AT(ovec, i) ((object_t*)(ovec.data[(i)]))
@@ -376,7 +373,10 @@ static void tilemap_remove_object_by_index(tilemap_t* t, size_t idx) {
   }
 }
 
-void tilemap_move_object_absolute(tilemap_t* t, object_t* o, int x, int y) {
+void tilemap_move_object_absolute(tilemap_t* t,
+                                  object_t* o,
+                                  uint64_t x,
+                                  uint64_t y) {
   tilemap_remove_object(t, o);
   o->x = x;
   o->y = y;
@@ -389,213 +389,6 @@ void tilemap_move_object_absolute(tilemap_t* t, object_t* o, int x, int y) {
 static inline int samesign(double a, double b) {
   return (a * b) > 0;
 }
-
-/*
-// TODO untested. In theory, checks wall bumps for arbitrarily high vx, vy
-static int check_wall_bump(const tilemap* t, size_t layer, int sx, int sy, int*
-vx, int* vy) {
-    // TODO use actual tile dimensions instead
-    const int tw = 16;
-    const int th = 16;
-
-
-    if(*vx == 0) {
-        if(*vy == 0) {
-            return;
-        } else {
-            // move in y only
-            int direction = (*vy > 0) ? 1 : -1;
-            int mapX = sx / tw;
-            int mapY = sy / th;
-            int y = sy;
-
-            // check diagonal bump for first square
-            // TODO
-
-            while(1) {
-                int newY = y + direction * MIN(th, ABS(*vy));
-                int newMapY = newY / th;
-
-                if(newMapY != mapY) {
-                    int flags = tilemap_get_flags(t, layer, mapX, newMapY);
-
-                    // TODO check diagonal
-                    if(direction > 0) {
-                        // check north flag
-                        if(flags & TILEMAP_BUMP_NORTH_MASK) {
-                            *vy = (newMapY * th) - sy - 1;
-                            return TILEMAP_BUMP_NORTH_MASK;
-                        }
-                    } else {
-                        // check south flag
-                        if(flags & TILEMAP_BUMP_SOUTH_MASK) {
-                            *vy = (mapY * th) - sy;
-                            return TILEMAP_BUMP_SOUTH_MASK;
-                        }
-                    }
-                }
-
-                mapY = newMapY;
-                y = newY;
-
-                if(((direction < 0) && (newY < (sy + *vy))) || ((direction > 0)
-&& (newY > (sy + *vy)))) { break;
-                }
-            }
-        }
-    } else {
-        if(*vy == 0) {
-            // move in x only
-            int direction = (*vx > 0) ? 1 : -1;
-            int mapX = sx / tw;
-            int mapY = sy / th;
-            int x = sx;
-
-            // TODO check diagonal bump for first square
-
-            while(1) {
-                int newX = x + direction * MIN(tw, ABS(*vx));
-                int newMapX = newX / tw;
-
-                if(newMapX != mapX) {
-                    int flags = tilemap_get_flags(t, layer, newMapX, mapY);
-
-                    // TODO check diagonal
-                    if(direction > 0) {
-                        // check west flag
-                        if(flags & TILEMAP_BUMP_WEST_MASK) {
-                            *vx = (newMapX * tw) - sx - 1;
-                            return TILEMAP_BUMP_WEST_MASK;
-                        }
-                    } else {
-                        // check east flag
-                        if(flags & TILEMAP_BUMP_EAST_MASK) {
-                            *vx = (mapX * tw) - sx;
-                            return TILEMAP_BUMP_EAST_MASK;
-                        }
-                    }
-                }
-
-                mapX = newMapX;
-                x = newX;
-
-                if(((direction < 0) && (newX < (sx + *vx))) || ((direction > 0)
-&& (newX > (sx + *vx)))) { break;
-                }
-            }
-        } else {
-            // move in x and y
-            // TODO diagonals
-
-            // which edges to check?
-            int flagEW, flagNS;
-            if(*vy > 0) {
-                if(*vx > 0) {
-                    flagEW = TILEMAP_BUMP_WEST_MASK;
-                    flagNS = TILEMAP_BUMP_NORTH_MASK;
-                } else {
-                    flagEW = TILEMAP_BUMP_EAST_MASK;
-                    flagNS = TILEMAP_BUMP_NORTH_MASK;
-                }
-            } else {
-                if(*vx > 0) {
-                    flagEW = TILEMAP_BUMP_WEST_MASK;
-                    flagNS = TILEMAP_BUMP_SOUTH_MASK;
-                } else {
-                    flagEW = TILEMAP_BUMP_EAST_MASK;
-                    flagNS = TILEMAP_BUMP_SOUTH_MASK;
-                }
-            }
-
-            // march to the end point checking edges
-            double x = sx;
-            double y = sy;
-            int mapX = sx / tw;
-            int mapY = sy / th;
-            double endX = sx + *vx;
-            double endY = sy + *vy;
-
-            double slope = (double)(*vy) / (double)(*vx);
-
-            // loop until we're just past the end point
-            // (loop while endX - x has same sign as vx, etc.)
-            while(samesign(endX - x, *vx) && samesign(endY - y, *vy)) {
-                // TODO diagonals
-
-
-                // find boundaries of current tile
-                int x0 = mapX * tw;
-                int x1 = x0 + tw;
-                int y0 = mapY * th;
-                int y1 = y0 + th;
-
-                int checkFlag = flagEW;
-
-
-                // solve for intersections
-                double newX, newY;
-                int newMapX, newMapY;
-                if(flagEW & TILEMAP_BUMP_WEST_MASK) {
-                    newX = x1;
-                    newY = y + (x1 - x) * slope;
-                    newMapX = mapX + 1;
-                    newMapY = mapY;
-                } else {
-                    newX = x0;
-                    newY = y + (x0 - x) * slope;
-                    newMapX = mapX - 1;
-                    newMapY = mapY;
-                }
-
-                // do we actually hit a horizontal boundary first?
-                if(newY > y1) {
-                    newX = x + (y1 - y) / slope;
-                    newY = y1;
-                    newMapX = mapX;
-                    newMapY = mapY + 1
-                    checkFlag = flagNS;
-                } else if(newY <= y0) {
-                    newX = x + (y - y0) / slope;
-                    newY = y0;
-                    newMapX = mapX;
-                    newMapY = mapY - 1;
-                    checkFlag = flagNS;
-                }
-
-                // check next tile
-                if(tilemap_get_flags(t, layer, newMapX, newMapY) & checkFlag) {
-                    *vx = newX - sx;
-                    *vy = newY - sy;
-                    return checkFlag;
-                }
-
-                // last thing: move to new position
-                mapX = newMapX;
-                mapY = newMapY;
-                x = newX;
-                y = newY;
-            }
-        }
-    }
-
-    // no bump
-    return 0;
-}
-
-// end bad check wall bump
-*/
-
-/*
-// Returns 1 if two rectangles overlap
-static int isOverlap(int xa0, int ya0, int xa1, int ya1, int xb0, int yb0, int
-xb1, int yb1) {
-
-    int xOverlap = ((xa0 < xb0) && (xa1 > xb0)) || ((xa0 > xb0) && (xa0 < xb1));
-    int yOverlap = ((ya0 < yb0) && (ya1 > yb0)) || ((ya0 > yb0) && (ya0 < yb1));
-
-    return xOverlap && yOverlap;
-}
-*/
 
 // Returns a bump direction for A
 static int checkCollision(int xa0,
@@ -674,10 +467,6 @@ static int checkCollision(int xa0,
 }
 
 static int check_wall_bump(const tilemap_t* t, object_t* o) {
-  // TODO fix
-  const int tw = 16;
-  const int th = 16;
-
   // bounding box at starting point
   int x0 = o->x + o->boundX;
   int w0 = o->boundW;
@@ -693,21 +482,21 @@ static int check_wall_bump(const tilemap_t* t, object_t* o) {
   // Check whether we've crossed tile boundaries, and if so, whether new
   // overlapped tiles have bump flags
   int checkFlagX = 0;
-  int mapX0 = (x0 + w0 - 1) / tw;  // FURTHEST
-  int checkMapX = (x1 + w0 - 1) / tw;
+  int mapX0 = (x0 + w0 - 1) / t->tw;  // FURTHEST
+  int checkMapX = (x1 + w0 - 1) / t->tw;
   if (checkMapX > mapX0) {
     // if traveling east
     checkFlagX = TILEMAP_BUMP_WEST_MASK;
-  } else if ((x1 / tw) < (x0 / tw)) {
+  } else if ((x1 / t->tw) < (x0 / t->tw)) {
     // if traveling west
-    checkMapX = x1 / tw;
+    checkMapX = x1 / t->tw;
     checkFlagX = TILEMAP_BUMP_EAST_MASK;
   }
 
   // Check edge for bump flag
   if (checkFlagX) {
-    int mapY0 = y1 / th;
-    int mapY1 = (y1 + h0) / th;
+    int mapY0 = y1 / t->th;
+    int mapY1 = (y1 + h0) / t->th;
     for (int y = mapY0; y <= mapY1; y++) {
       if (tilemap_get_flags(t, o->layer, checkMapX, y) & checkFlagX) {
         bumpDir |= checkFlagX;
@@ -721,21 +510,21 @@ static int check_wall_bump(const tilemap_t* t, object_t* o) {
   // Check whether we've crossed tile boundaries, and if so, whether new
   // overlapped tiles have bump flags
   int checkFlagY = 0;
-  int mapY0 = (y0 + h0 - 1) / th;
-  int checkMapY = (y1 + h0 - 1) / th;
+  int mapY0 = (y0 + h0 - 1) / t->th;
+  int checkMapY = (y1 + h0 - 1) / t->th;
   if (checkMapY > mapY0) {
     // traveling south
     checkFlagY = TILEMAP_BUMP_NORTH_MASK;
-  } else if ((y1 / tw) < (y0 / tw)) {
+  } else if ((y1 / t->tw) < (y0 / t->tw)) {
     // if traveling north
     checkFlagY = TILEMAP_BUMP_SOUTH_MASK;
-    checkMapY = y1 / th;
+    checkMapY = y1 / t->th;
   }
 
   // Check edge for bump flag
   if (checkFlagY) {
-    int mapX0 = x1 / tw;
-    int mapX1 = (x1 + w0) / tw;
+    int mapX0 = x1 / t->tw;
+    int mapX1 = (x1 + w0) / t->tw;
     for (int x = mapX0; x <= mapX1; x++) {
       if (tilemap_get_flags(t, o->layer, x, checkMapY) & checkFlagY) {
         bumpDir |= checkFlagY;
@@ -905,19 +694,13 @@ void tilemap_abort_update_objects(tilemap_t* t) {
 }
 
 // draw objects from one map layer
-void tilemap_draw_objects(const tilemap_t* t,
-                          int layer,
-                          int px,
-                          int py,
-                          int pw,
-                          int ph,
-                          int counter) {
+void tilemap_draw_objects(const tilemap_t* t, int layer, int px, int py) {
   // TODO Find range of objects to draw
   size_t idx0, idx1;
   // if(t->objectvec_orientation == 0) {
   // idx0 = tilemap_binary_search_objects(t, px, 0, t->objectvec.size - 1);
-  // idx1 = tilemap_binary_search_objects(t, px + pw, idx0, t->objectvec.size -
-  // 1);
+  // idx1 = tilemap_binary_search_objects(t, px + t->screen_w, idx0,
+  // t->objectvec.size - 1);
   //} else if(t->objectvec_orientation == 1) {
 
   /*
@@ -925,8 +708,8 @@ void tilemap_draw_objects(const tilemap_t* t,
       if(idx0 >= t->objectvec.size)
           idx0 = 0;
 
-      idx1 = tilemap_binary_search_objects(t, py + ph, idx0, t->objectvec.size -
-     1); idx1++;
+      idx1 = tilemap_binary_search_objects(t, py + t->screen_h, idx0,
+     t->objectvec.size - 1); idx1++;
       //}
   */
 
@@ -937,24 +720,27 @@ void tilemap_draw_objects(const tilemap_t* t,
   for (size_t i = idx0; i <= idx1; i++) {
     object_t* obj = OBJECT_AT(t->objectvec, i);
 
-    if ((obj->layer == layer) && (obj->x < px + pw) && (obj->y < py + ph) &&
-        (obj->x + obj->tw > px) && (obj->y + obj->th > py)) {
-      object_draw(obj, px, py, counter);
+    if ((obj->layer == layer) && (obj->x < px + t->screen_w) &&
+        (obj->y < py + t->screen_h) && (obj->x + obj->tw > px) &&
+        (obj->y + obj->th > py)) {
+      object_draw(obj, px, py, t->clock);
     }
   }
 }
 
-static void tilemap_draw_flags(SDL_Renderer* renderer,
+static void tilemap_draw_flags(const tilemap_t* t,
+                               SDL_Renderer* renderer,
                                uint16_t flags,
-                               int x,
-                               int y,
-                               int tw,
-                               int th) {
+                               uint16_t tile_flags,
+                               uint64_t x,
+                               uint64_t y) {
+  assert(renderer);
+
   int thickness = 2;
   SDL_Rect dst;
 
-  int x1 = x + tw - thickness;
-  int y1 = y + th - thickness;
+  int x1 = x + t->tw - thickness;
+  int y1 = y + t->th - thickness;
 
   // draw map square borders in red to show directional bump flags
   SDL_SetRenderDrawColor(renderer, 255, 0, 0, SDL_ALPHA_OPAQUE);
@@ -962,13 +748,13 @@ static void tilemap_draw_flags(SDL_Renderer* renderer,
     dst.x = x1;
     dst.y = y;
     dst.w = thickness;
-    dst.h = th;
+    dst.h = t->th;
     SDL_RenderFillRect(renderer, &dst);
   }
   if (flags & TILEMAP_BUMP_NORTH_MASK) {
     dst.x = x;
     dst.y = y;
-    dst.w = tw;
+    dst.w = t->tw;
     dst.h = thickness;
     SDL_RenderFillRect(renderer, &dst);
   }
@@ -976,62 +762,53 @@ static void tilemap_draw_flags(SDL_Renderer* renderer,
     dst.x = x;
     dst.y = y;
     dst.w = thickness;
-    dst.h = th;
+    dst.h = t->th;
     SDL_RenderFillRect(renderer, &dst);
   }
   if (flags & TILEMAP_BUMP_SOUTH_MASK) {
     dst.x = x;
     dst.y = y1;
-    dst.w = tw;
+    dst.w = t->tw;
     dst.h = thickness;
     SDL_RenderFillRect(renderer, &dst);
-  }
-
-  // TODO remove
-  if (flags & (TILEMAP_BUMP_NORTHWEST_MASK | TILEMAP_BUMP_SOUTHEAST_MASK)) {
-    SDL_RenderDrawLine(renderer, x, y + th, x + tw, y);
-  }
-  if (flags & (TILEMAP_BUMP_NORTHEAST_MASK | TILEMAP_BUMP_SOUTHWEST_MASK)) {
-    SDL_RenderDrawLine(renderer, x, y, x + tw, y + th);
   }
 
   // draw a green rectangle in the center of map squares with
   // the "action" flag set
   SDL_SetRenderDrawColor(renderer, 0, 255, 0, SDL_ALPHA_OPAQUE);
   if (flags & TILEMAP_ACTION_MASK) {
-    dst.x = x + tw / 4;
-    dst.y = y + th / 4;
-    dst.w = tw / 2;
-    dst.h = th / 2;
+    dst.x = x + t->tw / 4;
+    dst.y = y + t->th / 4;
+    dst.w = t->tw / 2;
+    dst.h = t->th / 2;
     SDL_RenderFillRect(renderer, &dst);
   }
 }
 
-static void tilemap_draw_tile(const tilemap_t* t,
-                              const image_t* i,
-                              const tile_t* tile,
-                              int dx,
-                              int dy,
-                              int counter,
-                              int draw_flags) {
-  // TODO rewrite animation
-  int tiley =
-      tile->tiley + (counter / TILE_ANIM_PERIOD(tile)) % TILE_ANIM_COUNT(tile);
-  image_draw_tile(i, tile->tilex, tiley, dx, dy);
+static void draw_tile(const tilemap_t* t, Tile16 tile, int dx, int dy) {
+  TileInfo* info = get_tile_info(t, tile);
+  AnimationFrame* frame = info->frames + info->current_frame;
+  if (t->clock >= frame->start_time + frame->duration)
+    frame = info->frames + (++info->current_frame);
 
-  if (draw_flags)
-    tilemap_draw_flags(i->renderer, tile->flags, dx, dy, i->tw, i->th);
+  image_draw_tile(info->image, frame->tile_x, 0, dx, dy);
+
+  if (t->draw_flags) {
+    tilemap_draw_flags(t, info->image->renderer, info->flags,
+                       get_flags(t, tile), dx, dy);
+  }
 }
 
+/*
 static void fill_underwater_color(const tilemap_t* t,
                                   SDL_Renderer* renderer,
-                                  int x,
-                                  int y,
-                                  int w,
-                                  int h) {
+                                  uint64_t x,
+                                  uint64_t y,
+                                  uint64_t w,
+                                  uint64_t h) {
   // Save current draw color
   Uint8 or, og, ob, oa;
-  if (SDL_GetRenderDrawColor(renderer, & or, &og, &ob, &oa) == -1)
+  if (SDL_GetRenderDrawColor(renderer, &or, &og, &ob, &oa) == -1)
     return;
 
   SDL_Rect rect = {x, y, w, h};
@@ -1044,99 +821,62 @@ static void fill_underwater_color(const tilemap_t* t,
   // Restore original draw color
   SDL_SetRenderDrawColor(renderer, or, og, ob, oa);
 }
+*/
 
 static void tilemap_draw_row(const tilemap_t* t,
-                             const image_t* i,
                              int layer,
                              int px,
                              int dy,
-                             int pw,
-                             int row,
-                             int counter,
-                             int draw_flags,
-                             int camera_underwater) {
-  // TODO change this
-  counter /= 2;
+                             int row) {
+  for (int xx = px / t->tw; xx <= (px + t->screen_w) / t->tw; xx++) {
+    int dx = xx * t->tw - px;
+    Tile16 tile = get_tile(t, layer, xx, row);
+    bool tile_underwater =
+        get_tile_info(t, tile)->flags & TILEMAP_UNDERWATER_MASK;
 
-  for (int xx = px / i->tw; xx <= (px + pw) / i->tw; xx++) {
-    int dx = xx * i->tw - px;
-    tile_t* tile = tilemap_get_tile(t, layer, xx, row);
-    if (!tile)
-      return;
-
-    if (camera_underwater) {
-      if (tile->flags & TILEMAP_UNDERWATER_MASK) {
+    if (tilemap_is_camera_underwater(t, layer)) {
+      if (tile_underwater) {
         // camera is underwater and tile is underwater; normal tile draw
-        tilemap_draw_tile(t, i, tile, dx, dy, counter, draw_flags);
+        draw_tile(t, tile, dx, dy);
       } else {
+        // TODO make this a tile draw
         // camera is underwater but tile is not; fill underwater color
-        fill_underwater_color(t, i->renderer, dx, dy, i->tw, i->th);
+        // fill_underwater_color(t, dx, dy, t->tw, t->th);
       }
     } else {
-      if (tile->flags & TILEMAP_UNDERWATER_MASK) {
-        // draw water surface
-        tilemap_draw_tile(t, i, tile, dx, dy, counter, draw_flags);
+      if (tile_underwater) {
+        // TODO draw water surface
+        draw_tile(t, tile, dx, dy);
       } else {
-        tilemap_draw_tile(t, i, tile, dx, dy, counter, draw_flags);
+        draw_tile(t, tile, dx, dy);
       }
     }
   }
 }
 
 static void tilemap_draw_layer_rows(const tilemap_t* t,
-                                    const image_t* i,
                                     int layer,
-                                    int px,
-                                    int py,
-                                    int pw,
+                                    uint64_t px,
+                                    uint64_t py,
                                     int row_start,
-                                    int row_end,
-                                    int counter,
-                                    int draw_flags,
-                                    int underwater) {
-  // if drawing flags, save current drawing color
-  Uint8 or, og, ob, oa;
-  if (draw_flags)
-    SDL_GetRenderDrawColor(i->renderer, & or, &og, &ob, &oa);
-
+                                    int row_end) {
   for (int row = row_start; row <= row_end; row++) {
-    int dy = row * i->th - py;
-    tilemap_draw_row(t, i, layer, px, dy, pw, row, counter, draw_flags,
-                     underwater);
+    int dy = row * t->th - py;
+    tilemap_draw_row(t, layer, px, dy, row);
   }
-
-  if (draw_flags)
-    SDL_SetRenderDrawColor(i->renderer, or, og, ob, oa);
 }
 
-void tilemap_draw_layer(const tilemap_t* t,
-                        const image_t* i,
-                        int l,
-                        int px,
-                        int py,
-                        int pw,
-                        int ph,
-                        int counter,
-                        int draw_flags) {
-  int camera_underwater = tilemap_is_camera_underwater(t, l, pw, ph);
-  int row_start = py / i->th;
-  int row_end = row_start + (ph / i->th) + 2;
-  tilemap_draw_layer_rows(t, i, l, px, py, pw, row_start, row_end, counter,
-                          draw_flags, camera_underwater);
+void tilemap_draw_layer(const tilemap_t* t, int l, uint64_t px, uint64_t py) {
+  int row_start = py / t->th;
+  int row_end = row_start + (t->screen_h / t->th) + 2;
+  tilemap_draw_layer_rows(t, l, px, py, row_start, row_end);
 }
 
 // draw objects from one map layer
 void tilemap_draw_objects_interleaved(const tilemap_t* t,
-                                      const image_t* img,
                                       int layer,
-                                      int px,
-                                      int py,
-                                      int pw,
-                                      int ph,
-                                      int counter,
-                                      int draw_flags) {
-  int camera_underwater = tilemap_is_camera_underwater(t, layer, pw, ph);
-
+                                      uint64_t px,
+                                      uint64_t py) {
   // Find range of objects to draw
   size_t idx0, idx1;
 
@@ -1145,7 +885,7 @@ void tilemap_draw_objects_interleaved(const tilemap_t* t,
   idx1 = t->objectvec.size - 1;
 
   // top row of tiles
-  int lastMapY = py / img->th;
+  int lastMapY = py / t->th;
 
   for (size_t i = idx0; i <= idx1; i++) {
     object_t* obj = OBJECT_AT(t->objectvec, i);
@@ -1154,411 +894,37 @@ void tilemap_draw_objects_interleaved(const tilemap_t* t,
     int bottomY = obj->y + obj->offY + obj->th - 1;
 
     // do we need to draw more tile rows first?
-    int bottomMapY = bottomY / img->th;
+    int bottomMapY = bottomY / t->th;
     if (bottomMapY > lastMapY) {
       // draw new rows
-      tilemap_draw_layer_rows(t, img, layer, px, py, pw, lastMapY, bottomMapY,
-                              counter, draw_flags, camera_underwater);
+      tilemap_draw_layer_rows(t, layer, px, py, lastMapY, bottomMapY);
 
       lastMapY = bottomMapY;
     }
 
-    if ((obj->layer == layer) && (obj->x + obj->offX < px + pw) &&
-        (obj->y + obj->offY < py + ph) &&
+    if ((obj->layer == layer) && (obj->x + obj->offX < px + t->screen_w) &&
+        (obj->y + obj->offY < py + t->screen_h) &&
         (obj->x + obj->offX + obj->tw >= px) &&
         (obj->y + obj->offY + obj->th >= py)) {
-      object_draw(obj, px, py, counter);
+      object_draw(obj, px, py, t->clock);
     }
   }
 
   // Draw remaining rows
-  tilemap_draw_layer_rows(t, img, layer, px, py, pw, lastMapY,
-                          (py + ph) / img->th, counter, draw_flags,
-                          camera_underwater);
+  tilemap_draw_layer_rows(t, layer, px, py, lastMapY,
+                          (py + t->screen_h) / t->th);
 }
 
-void tilemap_draw_objects_at_camera_object(const tilemap_t* t,
-                                           const image_t* img,
-                                           int layer,
-                                           int pw,
-                                           int ph,
-                                           int counter,
-                                           int draw_flags) {
-  int px = 0;
-  int py = 0;
-  tilemap_get_camera_draw_location(t, pw, ph, &px, &py);
-  tilemap_draw_objects_interleaved(t, img, layer, px, py, pw, ph, counter,
-                                   draw_flags);
-}
-
-tile_t* tilemap_export_slice(const tilemap_t* t, int x, int y, int w, int h) {
-  assert(t);
-  assert((x > -1) && (x < t->w) && ((x + w) <= t->w));
-  assert((y > -1) && (y < t->h) && ((y + h) <= t->h));
-
-  tile_t* slice = (tile_t*)malloc(t->nlayers * w * h * sizeof(tile_t));
-  if (!slice)
-    return NULL;
-
-  size_t rowsize = w * sizeof(tile_t);
-
-  for (size_t l = 0; l < t->nlayers; l++) {
-    tile_t* destlayer = slice + l * w * h;
-    tile_t* srclayer = t->tiles[l];
-
-    for (int yy = 0; yy < h; yy++) {
-      // Copy map rows
-      memcpy(destlayer + yy * w, srclayer + (y + yy) * t->w + x, rowsize);
-    }
-  }
-
-  return slice;
-}
-
-void tilemap_patch(tilemap_t* t, tile_t* patch, int x, int y, int w, int h) {
-  assert(t);
-  assert(patch);
-  assert((x > -1) && (x < t->w) && ((x + w) < t->w));
-  assert((y > -1) && (y < t->h) && ((y + h) < t->h));
-
-  size_t rowsize = w * sizeof(tile_t);
-
-  // For each layer, copy rows of the patch array into the map
-  for (int l = 0; l < t->nlayers; l++) {
-    tile_t* layer = t->tiles[l];
-    tile_t* patchlayer = patch + (l * w * h);
-
-    for (int my = 0; my < h; my++) {
-      // for(int mx = 0; mx < w; mx++) {
-      memcpy(layer + (y + my) * t->w + x, patchlayer + my * w, rowsize);
-      //}
-    }
-  }
-}
-
-static int tilemap_read_v0(tilemap_t* t, FILE* f, const char* path) {
-  t->tiles = (tile_t**)malloc(t->nlayers * sizeof(tile_t*));
-  if (!t->tiles) {
-    fclose(f);
-    return 0;
-  }
-
-  // Read each layer
-  for (size_t i = 0; i < t->nlayers; i++) {
-    // Allocate layer
-    size_t layer_bytes_size = t->w * t->h * sizeof(tile_t);
-    t->tiles[i] = (tile_t*)malloc(layer_bytes_size);
-    if (!t->tiles[i])
-      goto tilemap_read_fail;
-
-    // Read layer
-    if (fread(t->tiles[i], layer_bytes_size, 1, f) != 1) {
-      fprintf(stderr, "couldn't load %s: file ends unexpectedly\n", path);
-      goto tilemap_read_fail;
-    }
-  }
-
-  // TODO check
-  vec_init(&(t->objectvec), 8);
-
-  // Success
-  fclose(f);
-  return 1;
-
-tilemap_read_fail:
-  tilemap_deinit(t);
-  fclose(f);
-  return 0;
-}
-
-static int read_pos(FILE* f, uint32_t* out) {
-  char buf[4];
-  if (fread(buf, 4, 1, f) != 1)
-    return 0;
-
-  *out = buf[0];
-  for (int i = 1; i < 4; i++) {
-    *out <<= 8;
-    *out |= 0xff & buf[i];
-  }
-  return 1;
-}
-
-static int write_pos(FILE* f, uint32_t pos) {
-  char buf[4];
-  buf[0] = (pos & 0xff000000) >> 24;
-  buf[1] = (pos & 0xff0000) >> 16;
-  buf[2] = (pos & 0xff00) >> 8;
-  buf[3] = pos & 0xff;
-  if (fwrite(buf, 4, 1, f) != 1)
-    return 0;
-  return 1;
-}
-
-static int tilemap_read_v1(tilemap_t* t, FILE* f, const char* path) {
-  t->tiles = (tile_t**)malloc(t->nlayers * sizeof(tile_t*));
-  if (!t->tiles) {
-    fclose(f);
-    return 0;
-  }
-
-  if (fread(t->should_store_sparse_layer, t->nlayers * sizeof(int), 1, f) != 1)
-    goto tilemap_read_fail;
-
-  // Read each layer
-  for (size_t i = 0; i < t->nlayers; i++) {
-    // Allocate layer
-    size_t layer_bytes_size = t->w * t->h * sizeof(tile_t);
-    t->tiles[i] = (tile_t*)malloc(layer_bytes_size);
-    if (!t->tiles[i])
-      goto tilemap_read_fail;
-
-    // Read layer
-    if (t->should_store_sparse_layer[i]) {
-      // Get position of last non-empty tile
-      if (!read_pos(f, t->last_non_empty_tile + i)) {
-        fprintf(stderr, "couldn't load %s: file ends unexpectedly\n", path);
-        goto tilemap_read_fail;
-      }
-
-      uint32_t pos = DEFAULT_NON_EMPTY;
-      while (pos != t->last_non_empty_tile[i]) {
-        // Read tile position
-        if (!read_pos(f, &pos)) {
-          fprintf(stderr, "couldn't load %s: file ends unexpectedly\n", path);
-          goto tilemap_read_fail;
-        }
-
-        // int px = pos % t->w;
-        // int py = pos / t->h;
-
-        // Read tile
-        if (fread(t->tiles[i] + pos, sizeof(tile_t), 1, f) != 1) {
-          fprintf(stderr, "couldn't load %s: file ends unexpectedly\n", path);
-          goto tilemap_read_fail;
-        }
-      }
-    } else {
-      if (fread(t->tiles[i], layer_bytes_size, 1, f) != 1) {
-        fprintf(stderr, "couldn't load %s: file ends unexpectedly\n", path);
-        goto tilemap_read_fail;
-      }
-    }
-  }
-
-  // Success
-  fclose(f);
-  return 1;
-
-tilemap_read_fail:
-  tilemap_deinit(t);
-  fclose(f);
-  return 0;
-}
-
-int tilemap_read_from_file(tilemap_t* t, const char* path) {
-  assert(t);
-
-  FILE* f = fopen(path, "rb");
-  if (!f) {
-    fprintf(stderr, "failed to open %s for reading\n", path);
-    return 0;
-  }
-
-  // Read map file header (magic(2) + version(2) + nlayers(1) + w(2) + h(2) = 9
-  // bytes)
-  char buffer[32];
-  int nread = fread(buffer, 9, 1, f);
-  if (nread != 1) {
-    fprintf(stderr, "failed to read from %s\n", path);
-    fclose(f);
-    return 0;
-  }
-
-  // magic
-  if (!((buffer[0] == (char)0xac) && (buffer[1] == (char)0xc0))) {
-    fprintf(stderr, "%s missing magic bytes\n", path);
-    fclose(f);
-    return 0;
-  }
-
-  t->nlayers = 0;
-  t->w = 0;
-  t->h = 0;
-
-  // Get dimensions
-  int nlayers = buffer[4];
-  int w = ((buffer[5] << 8) & 0xff00) | (buffer[6] & 0xff);
-  int h = ((buffer[7] << 8) & 0xff00) | (buffer[8] & 0xff);
-
-  tilemap_init(t, nlayers, w, h);
-
-  // int majversion = buffer[2];
-  int minor_version = buffer[3];
-  switch (minor_version) {
-    case 0:
-      return tilemap_read_v0(t, f, path);
-    case 1:
-      return tilemap_read_v1(t, f, path);
-    default:
-      fprintf(stderr, "%s has unknown map version %d\n", path, minor_version);
-      return 0;
-  }
-}
-
-static void serialize_int16(int i, char* buffer, size_t offset) {
-  buffer[offset] = (i & 0xff00) >> 8;
-  buffer[offset + 1] = i & 0xff;
-}
-
-int tilemap_write_to_file(const tilemap_t* t, const char* path) {
-  assert(t);
-
-  FILE* f = fopen(path, "wb");
-  if (!f)
-    return 0;
-
-  // Map file header (magic(2) + version(2) + nlayers(1) + w(2) + h(2) = 9
-  // bytes)
-  char buffer[32];
-  // magic bytes
-  buffer[0] = 0xac;
-  buffer[1] = 0xc0;
-
-  // version info
-  buffer[2] = 0;
-  buffer[3] = TILEMAP_FILE_FORMAT_LATEST_VERSION;
-
-  // number of layers
-  buffer[4] = t->nlayers & 0xff;
-
-  // width and height
-  serialize_int16(t->w, buffer, 5);
-  serialize_int16(t->h, buffer, 7);
-
-  if (fwrite(buffer, 9, 1, f) != 1) {
-    goto tilemap_write_fail;
-  }
-
-  if (TILEMAP_FILE_FORMAT_LATEST_VERSION == 0) {
-    // Write each layer
-    size_t layer_bytes_size = t->w * t->h * sizeof(tile_t);
-    for (size_t i = 0; i < t->nlayers; i++) {
-      if (t->tiles[i]) {
-        if (fwrite(t->tiles[i], layer_bytes_size, 1, f) != 1)
-          goto tilemap_write_fail;
-      } else {
-        goto tilemap_write_fail;
-      }
-    }
-  } else if (TILEMAP_FILE_FORMAT_LATEST_VERSION == 1) {
-    if (fwrite(t->should_store_sparse_layer, sizeof(int), t->nlayers, f) !=
-        t->nlayers)
-      goto tilemap_write_fail;
-
-    for (size_t i = 0; i < t->nlayers; i++) {
-      if (t->should_store_sparse_layer[i]) {
-        // Write last non-empty position
-
-        if (!write_pos(f, t->last_non_empty_tile[i]))
-          goto tilemap_write_fail;
-
-        for (int y = 0; y < t->h; y++) {
-          for (int x = 0; x < t->w; x++) {
-            if (!tilemap_empty(t, i, x, y)) {
-              // Store as offset:tile
-              if (!write_pos(f, y * t->w + x))
-                goto tilemap_write_fail;
-
-              tile_t* tile = tilemap_get_tile(t, i, x, y);
-              if (fwrite(tile, sizeof(tile_t), 1, f) != 1)
-                goto tilemap_write_fail;
-            }
-          }
-        }
-      } else {
-        if (t->tiles[i]) {
-          if (fwrite(t->tiles[i], t->w * t->h * sizeof(tile_t), 1, f) != 1)
-            goto tilemap_write_fail;
-        } else {
-          goto tilemap_write_fail;
-        }
-      }
-    }
-  }
-
-  // Success
-  fclose(f);
-  return 1;
-
-tilemap_write_fail:
-  fclose(f);
-  fprintf(stderr, "write failed\n");
-  return 0;
+void tilemap_draw_objects_at_camera_object(const tilemap_t* t, int layer) {
+  uint64_t px, py;
+  tilemap_get_camera_draw_location(t, &px, &py);
+  tilemap_draw_objects_interleaved(t, layer, px, py);
 }
 
 void tilemap_set_sparse_layer(tilemap_t* t, int layer, int sparse) {
   assert(layer >= 0 && layer < t->nlayers);
   t->should_store_sparse_layer[layer] = sparse;
 }
-
-int tilemap_get_tile_animation_info(const tilemap_t* t,
-                                    size_t layer,
-                                    int x,
-                                    int y,
-                                    int* period,
-                                    int* count) {
-  assert(t);
-  tile_t* tile = tilemap_get_tile(t, layer, x, y);
-  if (!tile)
-    return 0;
-
-  if (period)
-    *period = TILE_ANIM_PERIOD(tile);
-
-  if (count)
-    *count = TILE_ANIM_COUNT(tile);
-
-  return 1;
-};
-
-int tilemap_set_tile_animation_info(tilemap_t* t,
-                                    size_t layer,
-                                    int x,
-                                    int y,
-                                    int period,
-                                    int count) {
-  assert(t);
-  tile_t* tile = tilemap_get_tile(t, layer, x, y);
-  if (!tile)
-    return 0;
-
-  tilemap_set_last_non_empty_tile(t, layer, x, y);
-
-  if (period != -1) {
-    // set period (take log2 by right-shifting)
-    int log_period = 0;
-    while (period ^ 0x1) {
-      period >>= 1;
-      log_period++;
-    }
-    tile->flags &= ~TILEMAP_ANIM_PERIOD_MASK;
-    tile->flags |= (log_period & 0x3) << 2;
-  }
-
-  if (count != -1) {
-    // set count
-    int log_count = 0;
-    while (count ^ 0x1) {
-      count >>= 1;
-      log_count++;
-    }
-    tile->flags &= ~TILEMAP_ANIM_COUNT_MASK;
-    tile->flags |= (log_count & 0x3);
-  }
-
-  return 1;
-};
 
 void tilemap_set_underwater_color(tilemap_t* t,
                                   uint8_t r,
@@ -1571,13 +937,265 @@ void tilemap_set_underwater_color(tilemap_t* t,
   t->underwater_color.a = a;
 }
 
+// TODO
 void tilemap_set_underwater(tilemap_t* t,
                             int layer,
-                            int x,
-                            int y,
+                            uint64_t x,
+                            uint64_t y,
                             int underwater) {
+  /*
   if (underwater)
     tilemap_set_flags(t, layer, x, y, TILEMAP_UNDERWATER_MASK);
   else
     tilemap_clear_flags(t, layer, x, y, TILEMAP_UNDERWATER_MASK);
+    */
+}
+
+#define TILEMAP_FILE_VERSION 2
+
+// Tilemap file format version 2
+//  - all numbers are little-endian
+//  - (byte offset): thing, size
+//    - (0):  magic, 13 bytes
+//    - (13): version, 2 bytes
+//    - (15): w, 8 bytes
+//    - (23): h, 8 bytes
+//    - (31): nlayers, 4 bytes
+//    - (35): tile bits, 1 byte
+//    - (36): tile info count, 8 bytes
+//    - (44): tile pixel width, 4 bytes
+//    - (48): tile pixel height, 4 bytes
+//    - (52): begin repeated tile info
+//      - (info+0):  flags, 4 bytes
+//      - (info+4):  frame count, 4 bytes
+//      - (info+8):  image name length, 2 bytes
+//      - (info+10): image file name
+//      - (info+10+name): begin repeated frames
+//        - (frame+0): tile x, 4 bytes
+//        - (frame+4): duration, 4 bytes
+//    - (??): tile data, (w * h * nlayers * 2) bytes
+
+static const char magic[] = "antarcticamap";
+static const size_t magic_len = 13ul;
+
+static bool file_io_failure(const char* op,
+                            const char* path,
+                            const char* error,
+                            FILE* f) {
+  fprintf(stderr, "failed to %s %s: %s\n", op, path, error);
+  if (f)
+    fclose(f);
+  return false;
+}
+
+static bool read_failure(tilemap_t* t,
+                         const char* path,
+                         const char* error,
+                         FILE* f) {
+  tilemap_deinit(t);
+  return file_io_failure("read", path, error, f);
+}
+
+static uint8_t get8(char** ptr) {
+  uint8_t result = **ptr;
+  (*ptr)++;
+  return result;
+}
+
+static uint16_t get16(char** ptr) {
+  uint16_t result = le16toh(*(uint16_t*)(*ptr));
+  *ptr += 2;
+  return result;
+}
+
+static uint32_t get32(char** ptr) {
+  uint32_t result = le32toh(*(uint32_t*)(*ptr));
+  *ptr += 4;
+  return result;
+}
+
+static uint64_t get64(char** ptr) {
+  uint64_t result = le64toh(*(uint64_t*)(*ptr));
+  *ptr += 8;
+  return result;
+}
+
+static void put8(char** ptr, uint8_t v) {
+  **ptr = v;
+  (*ptr)++;
+}
+
+static void put16(char** ptr, uint16_t v) {
+  *(uint16_t*)(*ptr) = htole16(v);
+  *ptr += 2;
+}
+
+static void put32(char** ptr, uint32_t v) {
+  *(uint32_t*)(*ptr) = htole32(v);
+  *ptr += 4;
+}
+
+static void put64(char** ptr, uint64_t v) {
+  *(uint64_t*)(*ptr) = htole64(v);
+  *ptr += 8;
+}
+
+static const char error_eof[] = "unexpectedly reached end of file";
+static const char error_memory[] = "couldn't allocate memory";
+
+static bool read_v2(tilemap_t* t, char* buffer, const char* path, FILE* f) {
+  char* cursor = buffer;
+  t->w = get64(&cursor);
+  t->h = get64(&cursor);
+  t->nlayers = get32(&cursor);
+
+  t->tile_bits = get8(&cursor);
+  t->tile_info_count = get64(&cursor);
+  t->tw = get32(&cursor);
+  t->th = get32(&cursor);
+
+  // Read tile info
+  t->tile_info = (TileInfo*)calloc(t->tile_info_count, sizeof(TileInfo));
+  if (!t->tile_info)
+    return read_failure(t, path, error_memory, f);
+
+  for (TileInfo* info = t->tile_info; info < t->tile_info + t->tile_info_count;
+       ++info) {
+    if (!fread(buffer, 10, 1, f))
+      return read_failure(t, path, error_eof, f);
+
+    cursor = buffer;
+    info->flags = get32(&cursor);
+    info->frame_count = get32(&cursor);
+    uint16_t image_name_len = get16(&cursor);
+
+    // Don't load images here; just get the file names.
+    info->name = malloc(image_name_len + 1);
+    if (!info->name)
+      return read_failure(t, path, error_memory, f);
+
+    if (!fread(info->name, image_name_len, 1, f))
+      return read_failure(t, path, error_eof, f);
+    info->name[image_name_len] = '\0';
+
+    // Read animation frames
+    info->frames =
+        (AnimationFrame*)calloc(info->frame_count, sizeof(AnimationFrame));
+    if (!info->frames)
+      return read_failure(t, path, error_memory, f);
+
+    uint32_t start_time = 0;
+    for (AnimationFrame* frame = info->frames;
+         frame < info->frames + info->frame_count; ++frame) {
+      if (!fread(buffer, 8, 1, f))
+        return read_failure(t, path, error_eof, f);
+
+      cursor = buffer;
+      frame->tile_x = get32(&cursor);
+      frame->duration = get32(&cursor);
+      frame->start_time = start_time;
+      start_time += frame->duration;
+    }
+  }
+
+  // Read tile data
+  size_t tiles_size = t->w * t->h * t->nlayers * sizeof(Tile16);
+  t->tiles = (Tile16*)malloc(tiles_size);
+  if (!t->tiles)
+    return read_failure(t, path, error_memory, f);
+
+  if (!fread(t->tiles, tiles_size, 1, f))
+    return read_failure(t, path, error_eof, f);
+
+  fclose(f);
+  return true;
+}
+
+bool tilemap_read_from_file(tilemap_t* t, const char* path) {
+  assert(t);
+  tilemap_init(t, 0, 0ul, 0ul);
+
+  FILE* f = fopen(path, "rb");
+  if (!f)
+    return read_failure(t, path, "couldn't open file for reading", f);
+
+  // Read header
+  char buffer[64];
+  if (!fread(buffer, 52, 1, f))
+    return read_failure(t, path, error_eof, f);
+
+  if (strncmp(buffer, magic, magic_len) != 0)
+    return read_failure(t, path, "file doesn't start with magic bytes", f);
+
+  char* cursor = buffer + magic_len;
+  // version
+  switch (get16(&cursor)) {
+    case 2:
+      return read_v2(t, cursor, path, f);
+    default:
+      return read_failure(t, path, "unknown map version", f);
+  }
+  return false;
+}
+
+static bool write_failure(const char* path, const char* error, FILE* f) {
+  return file_io_failure("write", path, error, f);
+}
+
+bool tilemap_write_to_file(const tilemap_t* t, const char* path) {
+  FILE* f = fopen(path, "wb");
+  if (!f)
+    return write_failure(path, "couldn't open file for writing", f);
+
+  char buffer[64];
+  strncpy(buffer, magic, magic_len);
+  char* cursor = buffer + magic_len;
+
+  put16(&cursor, TILEMAP_FILE_VERSION);
+  put64(&cursor, t->w);
+  put64(&cursor, t->h);
+  put32(&cursor, t->nlayers);
+  put8(&cursor, t->tile_bits);
+
+  put64(&cursor, t->tile_info_count);
+  put32(&cursor, t->tw);
+  put32(&cursor, t->th);
+
+  if (!fwrite(buffer, cursor - buffer, 1, f))
+    return write_failure(path, "couldn't write header bytes", f);
+
+  // Write tile info
+  for (TileInfo* info = t->tile_info; info < t->tile_info + t->tile_info_count;
+       ++info) {
+    cursor = buffer;
+    put32(&cursor, info->flags);
+    put32(&cursor, info->frame_count);
+
+    size_t image_name_len = strlen(info->name);
+    put16(&cursor, (uint16_t)image_name_len);
+
+    if (!fwrite(buffer, cursor - buffer, 1, f))
+      return write_failure(path, "couldn't write tile info", f);
+
+    if (!fwrite(info->name, image_name_len, 1, f))
+      return write_failure(path, "couldn't write tile image name", f);
+
+    for (AnimationFrame* frame = info->frames;
+         frame < info->frames + info->frame_count; ++frame) {
+      cursor = buffer;
+      put32(&cursor, frame->tile_x);
+      put32(&cursor, frame->duration);
+      if (!fwrite(buffer, cursor - buffer, 1, f))
+        return write_failure(path, "couldn't write animation info", f);
+    }
+  }
+
+  // Write tiles
+  if (!fwrite(t->tiles, t->w * t->h * t->nlayers * sizeof(Tile16), 1, f))
+    return write_failure(path, "couldn't write tile data", f);
+
+  // TODO sparse map?
+
+  fclose(f);
+  return true;
 }
