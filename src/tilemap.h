@@ -13,7 +13,7 @@ typedef struct AnimationFrame {
 } AnimationFrame;
 
 typedef struct TileInfo {
-  image_t* image;
+  image_t* image;  // unowned
   int flags;
 
   // animation
@@ -91,6 +91,9 @@ enum {
   TILEMAP_BUMP_EAST_MASK = 0x800,  /**< objects can't enter from the east */
 };
 
+// Free current animation frames array and allocate a new one.
+bool tile_info_replace_frames(TileInfo* info, int frames);
+
 void tilemap_deinit(tilemap_t* t);
 int tilemap_init(tilemap_t* t, int nlayers, uint64_t w, uint64_t h);
 
@@ -110,6 +113,15 @@ TileInfo* tilemap_get_tile_info(const tilemap_t* t,
 
 void tilemap_increment_clock(tilemap_t* t);
 int tilemap_get_flags(const tilemap_t* t, int layer, uint64_t x, uint64_t y);
+int tilemap_get_tile_data(const tilemap_t* t,
+                          int layer,
+                          uint64_t x,
+                          uint64_t y);
+void tilemap_set_tile_info_idx_for_tile(const tilemap_t* t,
+                                        int layer,
+                                        uint64_t x,
+                                        uint64_t y,
+                                        uint16_t idx);
 void tilemap_set_object_callbacks(tilemap_t* t,
                                   void* data,
                                   void (*bump)(void*, object_t*, int),

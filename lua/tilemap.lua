@@ -6,19 +6,33 @@ local Class = require 'class'
 
 local Object = require 'object'
 
+local tablecopy = function(t)
+  local copy = {}
+  for k, v in pairs(t) do copy[k] = v end
+  return copy
+end
+
 -- TODO make a wrapper class for tilemap + soundchannels
 --local Tilemap = Class(SoundChannels)
 local Tilemap = Class()
 
--- Keep in sync with flags in tilemap.h
-local flags = {
-  bumpSouth = 0x100,
-  bumpWest = 0x200,
-  bumpNorth = 0x400,
-  bumpEast = 0x800,
-}
-flags.bumpAll = flags.bumpSouth | flags.bumpWest | flags.bumpNorth | flags.bumpEast
-Tilemap.flags = flags
+local AnimationFrame = Class()
+Tilemap.AnimationFrame = AnimationFrame
+
+function AnimationFrame:init(arg)
+  self.tileX = arg.tileX or 0
+  self.duration = arg.duration or -1
+end
+
+local TileInfo = Class()
+Tilemap.TileInfo = TileInfo
+
+function TileInfo:init(arg)
+  self.image = arg.image
+  self.name = arg.name
+  self.flags = arg.flags or 0
+  self.frames = tablecopy(args.frames)
+end
 
 function Tilemap:init(options)
   if options.file then
@@ -89,50 +103,33 @@ function Tilemap:clean(cleanX, cleanY)
   end
 end
 
-function Tilemap:drawLayer(image, layer, px, py, pw, ph, counter)
-  ant.tilemap.drawLayer(self._tilemap, image._image, layer, px, py, pw, ph, counter, false)
+function Tilemap:drawLayer(layer, px, py)
+  ant.tilemap.drawLayer(self._tilemap, layer, px, py)
 end
 
-function Tilemap:drawLayerFlags(image, layer, px, py, pw, ph)
-  ant.tilemap.drawLayerFlags(self._tilemap, image._image, layer, px, py, pw, ph, counter, true)
+function Tilemap:drawLayerObjects(layer, px, py)
+  ant.tilemap.drawLayerObjects(self._tilemap, layer, px, py)
 end
 
-function Tilemap:drawLayerObjects(layer, px, py, pw, ph, counter)
-  ant.tilemap.drawLayerObjects(self._tilemap, layer, px, py, pw, ph, counter)
+function Tilemap:setTileInfoIdxForTile(layer, x, y, idx)
+  ant.tilemap.setTileInfoIdxForTile(self._tilemap, layer, x, y, idx)
 end
 
-function Tilemap:getTile(layer, x, y)
-  return ant.tilemap.getTile(self._tilemap, layer, x, y)
+function Tilemap:getTileInfo(layer, x, y)
+  local info, flags = ant.tilemap.getTileInfo(self._tilemap, layer, x, y)
+  for i = 1, #info.frames do
+    info.frames[i] = AnimationFrame(info.frames[i])
+  end
+  return info, flags
 end
 
-function Tilemap:setTile(layer, x, y, tilex, tiley)
-  ant.tilemap.setTile(self._tilemap, layer, x, y, tilex, tiley)
+function Tilemap:setTileInfo(layer, x, y, tileInfo, flags)
+  ant.tilemap.setTileInfo(self._tilemap, layer, x, y, tileInfo, flags)
 end
 
-function Tilemap:getFlags(layer, x, y)
-  return ant.tilemap.getFlags(self._tilemap, layer, x, y)
+function Tilemap:addTileInfo(tileInfo)
+  ant.tilemap.addTileInfo(self._tilemap, tileInfo)
 end
-
-function Tilemap:setFlags(layer, x, y, mask)
-  ant.tilemap.setFlags(self._tilemap, layer, x, y, mask)
-end
-
-function Tilemap:clearFlags(layer, x, y, mask)
-  ant.tilemap.clearFlags(self._tilemap, layer, x, y, mask)
-end
-
-function Tilemap:overwriteFlags(layer, x, y, flags)
-  ant.tilemap.overwriteFlags(self._tilemap, layer, x, y, flags)
-end
-
-function Tilemap:export(rect)
-  return ant.tilemap.exportSlice(self._tilemap, rect.x, rect.y, rect.w, rect.h)
-end
-
-function Tilemap:patch(data, rect)
-  ant.tilemap.patch(self._tilemap, data, rect.x, rect.y, rect.w, rect.h)
-end
-
 
 function Tilemap:addObject(object)
   ant.tilemap.addObject(self._tilemap, object._object)
@@ -174,31 +171,19 @@ function Tilemap:setCameraObject(object)
   ant.tilemap.setCameraObject(self._tilemap, object._object)
 end
 
-function Tilemap:getCameraDrawLocation(screenW, screenH)
-  return ant.tilemap.getCameraDrawLocation(self._tilemap, screenW, screenH)
+function Tilemap:getCameraDrawLocation()
+  return ant.tilemap.getCameraDrawLocation(self._tilemap)
 end
 
-function Tilemap:drawLayerAtCameraObject(image, layer, pw, ph, counter, draw_flags)
-  ant.tilemap.drawLayerAtCameraObject(self._tilemap, image._image, layer, pw, ph, counter, draw_flags or false)
+function Tilemap:drawLayerAtCameraObject(layer)
+  ant.tilemap.drawLayerAtCameraObject(self._tilemap, layer)
 end
 
-function Tilemap:drawObjectsAtCameraObject(img, layer, pw, ph, counter, draw_flags)
-  ant.tilemap.drawObjectsAtCameraObject(self._tilemap, img._image, layer, pw, ph, counter, draw_flags or false)
+function Tilemap:drawObjectsAtCameraObject(layer)
+  ant.tilemap.drawObjectsAtCameraObject(self._tilemap, layer)
 end
 
-
-function Tilemap:getTileAnimationInfo(layer, x, y)
-  return ant.tilemap.getTileAnimationInfo(self._tilemap, layer, x, y)
-end
-
-
-function Tilemap:setTileAnimationInfo(layer, x, y, period, count)
-  if period == nil then period = -1 end
-  if count == nil then count = -1 end
-  ant.tilemap.setTileAnimationInfo(self._tilemap, layer, x, y, period, count)
-end
-
-
+-- TODO what was this for?
 function Tilemap:getTileIndex(layer, mapx, mapy)
   return (layer * self.w * self.h) + (mapy * self.w) + mapx
 end

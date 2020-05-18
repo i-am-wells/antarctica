@@ -336,7 +336,7 @@ int image_save_as_png(image_t* i, const char* filename) {
   SDL_PixelFormat* fmt = NULL;
   uint8_t* pixels = NULL;
   SDL_Surface* surface = NULL;
-  
+
   int w, h;
   uint32_t pixelformat;
   if (SDL_QueryTexture(i->texture, &pixelformat, NULL, &w, &h) == -1)
@@ -345,7 +345,8 @@ int image_save_as_png(image_t* i, const char* filename) {
   // Create a copy of |i|'s texture with SDL_TEXUREACCESS_TARGET which is needed
   // for SDL_RenderReadPixels().
   SDL_Texture* copy = NULL;
-  copy = SDL_CreateTexture(i->renderer, pixelformat, SDL_TEXTUREACCESS_TARGET, w, h);
+  copy = SDL_CreateTexture(i->renderer, pixelformat, SDL_TEXTUREACCESS_TARGET,
+                           w, h);
   if (!copy)
     return 0;
 
@@ -365,7 +366,7 @@ int image_save_as_png(image_t* i, const char* filename) {
   pixels = (uint8_t*)malloc(w * h * fmt->BytesPerPixel);
   if (!pixels)
     goto image_save_as_png_fail;
- 
+
   int pitch = w * fmt->BytesPerPixel;
   if (SDL_RenderReadPixels(i->renderer, NULL, 0, pixels, pitch) != 0)
     goto image_save_as_png_fail;
@@ -376,8 +377,8 @@ int image_save_as_png(image_t* i, const char* filename) {
   SDL_DestroyTexture(copy);
   copy = NULL;
 
-  surface = SDL_CreateRGBSurfaceWithFormatFrom(
-      pixels, w, h, fmt->BitsPerPixel, pitch, pixelformat);
+  surface = SDL_CreateRGBSurfaceWithFormatFrom(pixels, w, h, fmt->BitsPerPixel,
+                                               pitch, pixelformat);
   SDL_FreeFormat(fmt);
   fmt = NULL;
 

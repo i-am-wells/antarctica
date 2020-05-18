@@ -64,6 +64,15 @@ static inline Tile16 get_tile(const tilemap_t* map,
   return zero_tile;
 }
 
+static inline Tile16* get_tile_ptr(const tilemap_t* map,
+                                   int layer,
+                                   uint64_t x,
+                                   uint64_t y) {
+  if (layer >= 0 && layer < map->nlayers && x < map->w && y < map->h)
+    return map->tiles + map->w * (layer * map->h + y) + x;
+  return NULL;
+}
+
 void tilemap_deinit(tilemap_t* t) {
   if (t) {
     if (t->tiles) {
@@ -109,6 +118,8 @@ int tilemap_init(tilemap_t* t, int nlayers, uint64_t w, uint64_t h) {
   t->w = w;
   t->h = h;
   t->nlayers = nlayers;
+  // TODO pass this in?
+  t->tile_bits = 16;
 
   tilemap_set_underwater_color(t, 0, 0, 0, SDL_ALPHA_OPAQUE);
 
@@ -127,7 +138,24 @@ int tilemap_init(tilemap_t* t, int nlayers, uint64_t w, uint64_t h) {
     t->last_non_empty_tile[i] = DEFAULT_NON_EMPTY;
   }
 
+  // Add default empty tile info.
+  TileInfo default_tile_info;
+  memset(&default_tile_info, 0, sizeof(TileInfo));
+  tilemap_add_tile_info(t, &default_tile_info);
   return 1;
+}
+
+bool tile_info_replace_frames(TileInfo* info, int frames) {
+  if (info->frames)
+    free(info->frames);
+
+  info->frames = (AnimationFrame*)calloc(frames, sizeof(AnimationFrame));
+  if (info->frames) {
+    info->frame_count = frames;
+    return true;
+  }
+  info->frame_count = 0;
+  return false;
 }
 
 int tilemap_add_tile_info(tilemap_t* t, TileInfo* info) {
@@ -184,6 +212,21 @@ int tilemap_clean_tile_info(tilemap_t* t) {
   return 1;
 }
 
+void tilemap_set_tile_info_idx_for_tile(const tilemap_t* t,
+                                        int layer,
+                                        uint64_t x,
+                                        uint64_t y,
+                                        uint16_t idx) {
+  Tile16* tile = get_tile_ptr(t, layer, x, y);
+  if (tile) {
+    uint16_t mask = mask16[t->tile_bits];
+    uint16_t mask_inv = mask ^ 0xffff;
+    uint16_t masked_idx = idx & mask;
+    tile->byte0 = (tile->byte0 & (mask_inv >> 8)) | (masked_idx >> 8);
+    tile->byte1 = (tile->byte1 & mask_inv) | (masked_idx & 0xff);
+  }
+}
+
 TileInfo* tilemap_get_tile_info(const tilemap_t* t,
                                 int layer,
                                 uint64_t x,
@@ -203,6 +246,14 @@ void tilemap_increment_clock(tilemap_t* t) {
 
 int tilemap_get_flags(const tilemap_t* t, int layer, uint64_t x, uint64_t y) {
   return tilemap_get_tile_info(t, layer, x, y)->flags;
+}
+
+int tilemap_get_tile_data(const tilemap_t* t,
+                          int layer,
+                          uint64_t x,
+                          uint64_t y) {
+  // TODO rename to get_data or something
+  return get_flags(t, get_tile(t, layer, x, y));
 }
 
 /*

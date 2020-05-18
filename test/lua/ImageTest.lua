@@ -30,6 +30,7 @@ function ImageTest:testThings()
   self:expectEquals(0, pixel.b)
 end
 
+--[[ disabled until needed
 function ImageTest:testSavePng()
   local img = loadTestImage(self.engine)
   local tempfile = '/tmp/savepngtest.png'
@@ -53,5 +54,6 @@ function ImageTest:testSavePng()
 
   --require 'os'.execute('rm '..tempfile)
 end
+--]]
 
 return ImageTest

@@ -1,8 +1,12 @@
 // TODO license
 
+// for strndup
+#define _POSIX_C_SOURCE 200809L
+
 #include "tilemap_bridge.h"
 
 #include <lua.h>
+#include <string.h>
 
 #include "lua_helpers.h"
 #include "tilemap.h"
@@ -241,13 +245,132 @@ int l_tilemap_set_underwater(lua_State* L) {
   return 0;
 }
 
+int l_tilemap_get_tile_info(lua_State* L) {
+  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+  int layer = luaL_checkinteger(L, 2);
+  uint64_t x = luaL_checkinteger(L, 3);
+  uint64_t y = luaL_checkinteger(L, 4);
+  TileInfo* info = tilemap_get_tile_info(t, layer, x, y);
+
+  // Populate table with everything but the image.
+  lua_createtable(L, 3, 0);
+  char* name = info->name;
+  if (!name)
+    name = "";
+  lua_pushstring(L, name);
+  lua_setfield(L, -2, "name");
+  lua_pushinteger(L, info->flags);
+  lua_setfield(L, -2, "flags");
+
+  // Animation frames
+  lua_createtable(L, 0, info->frame_count);
+  for (int i = 0; i < info->frame_count; ++i) {
+    lua_createtable(L, 2, 0);
+    lua_pushinteger(L, info->frames[i].tile_x);
+    lua_setfield(L, -2, "tileX");
+    lua_pushinteger(L, info->frames[i].duration);
+    lua_setfield(L, -2, "duration");
+    lua_seti(L, -2, i + 1);
+  }
+  lua_setfield(L, -2, "frames");
+
+  // Get tile-specific flags
+  lua_pushinteger(L, tilemap_get_tile_data(t, layer, x, y));
+  return 2;
+}
+
+static int set_tile_info(lua_State* L, tilemap_t* t, TileInfo* info) {
+  // Last arg should be tile info table
+  luaL_checktype(L, -1, LUA_TTABLE);
+
+  if (lua_getfield(L, -1, "name") == LUA_TSTRING) {
+    size_t name_len = 0;
+    const char* name = lua_tolstring(L, -1, &name_len);
+    if (!info->name || strcmp(info->name, name) != 0) {
+      if (info->name)
+        free(info->name);
+      info->name = strndup(name, name_len + 1);
+    }
+  }
+  lua_pop(L, 1);
+
+  if (lua_getfield(L, -1, "flags") == LUA_TNUMBER)
+    info->flags = lua_tointeger(L, -1);
+  lua_pop(L, 1);
+
+  if (lua_getfield(L, -1, "frames") == LUA_TTABLE) {
+    int frame_count = luaL_len(L, -1);
+    if (tile_info_replace_frames(info, frame_count)) {
+      int start_time = 0;
+      for (int i = 0; i < frame_count; ++i) {
+        // get AnimationFrame
+        if (lua_geti(L, -1, i + 1) == LUA_TTABLE) {
+          lua_getfield(L, -1, "tileX");
+          info->frames[i].tile_x = luaL_optinteger(L, -1, /*default=*/0);
+          lua_pop(L, 1);
+
+          lua_getfield(L, -1, "duration");
+          int duration = luaL_optinteger(L, -1, /*default=*/0);
+          lua_pop(L, 1);
+
+          info->frames[i].duration = duration;
+          info->frames[i].start_time = start_time;
+          start_time += duration;
+        }
+        lua_pop(L, 1);
+      }
+    }
+  }
+  lua_pop(L, 1);
+
+  if (lua_getfield(L, -1, "image") == LUA_TTABLE) {
+    // We just need the image_t
+    if (lua_getfield(L, -1, "_image") == LUA_TUSERDATA)
+      info->image = (image_t*)luaL_checkudata(L, -1, "image_t");
+    lua_pop(L, 1);
+  }
+  lua_pop(L, 1);
+
+  lua_pushboolean(L, true);
+  return 1;
+}
+
+int l_tilemap_set_tile_info(lua_State* L) {
+  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+  int tile_info_idx = luaL_checkinteger(L, 2);
+
+  if (tile_info_idx < 0 || tile_info_idx >= t->tile_info_count)
+    return 0;
+  TileInfo* info = t->tile_info + tile_info_idx;
+
+  return set_tile_info(L, t, info);
+}
+
+int l_tilemap_add_tile_info(lua_State* L) {
+  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+  TileInfo info;
+  memset(&info, 0, sizeof(TileInfo));
+  int ret = set_tile_info(L, t, &info);
+  tilemap_add_tile_info(t, &info);
+  return ret;
+}
+
+int l_tilemap_set_tile_info_idx_for_tile(lua_State* L) {
+  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+  int layer = luaL_checkinteger(L, 2);
+  uint64_t x = luaL_checkinteger(L, 3);
+  uint64_t y = luaL_checkinteger(L, 4);
+  int idx = luaL_checkinteger(L, 5);
+
+  tilemap_set_tile_info_idx_for_tile(t, layer, x, y, idx);
+  return 0;
+}
+
 void load_tilemap_bridge(lua_State* L) {
   const luaL_Reg tilemaplib[] = {
       {"read", l_tilemap_read},
       {"write", l_tilemap_write},
       {"createEmpty", l_tilemap_create_empty},
-      {"getDrawFlags", l_tilemap_get_draw_flags},
-      {"setDrawFlags", l_tilemap_set_draw_flags},
       {"drawLayer", l_tilemap_draw_layer},
       {"drawLayerObjects", l_tilemap_draw_layer_objects},
       {"get", l_tilemap_get},
@@ -264,6 +387,11 @@ void load_tilemap_bridge(lua_State* L) {
       {"setUnderwaterColor", l_tilemap_set_underwater},
 
       {"abortUpdateObjects", l_tilemap_abort_update_objects},
+
+      {"getTileInfo", l_tilemap_get_tile_info},
+      {"setTileInfo", l_tilemap_set_tile_info},
+      {"addTileInfo", l_tilemap_add_tile_info},
+      {"setTileInfoIdxForTile", l_tilemap_set_tile_info_idx_for_tile},
 
       {NULL, NULL}};
 

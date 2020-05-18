@@ -50,7 +50,6 @@ function TestBase:runTests(path, filter)
   end
 end
 
-
 function TestBase:runTest(name, fn)
   log.info('Running %s...', name)
 
@@ -82,7 +81,6 @@ function TestBase:runTest(name, fn)
   end
 end
 
-
 function TestBase:expect(condition, msg, ...)
   if not condition then
     log.error('Expectation failed: '..msg, ...)
@@ -91,7 +89,6 @@ function TestBase:expect(condition, msg, ...)
   end
   return true
 end
-
 
 function TestBase:expectEquals(a, b)
   self:expect(a == b, 'expected %s but got %s', tostring(a), tostring(b))
@@ -104,7 +101,6 @@ end
 function TestBase:assertEquals(a, b)
   assert(a == b, string.format('expected %s but got %s', tostring(a), tostring(b)))
 end
-
 
 function TestBase:logSummary()
   local nSuccess, nFail, nCrash, nTimeout = 0, 0, 0, 0
