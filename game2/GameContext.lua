@@ -138,10 +138,10 @@ function GameContext:init(opt)
   self:changeMap(self.state.hero.mapName, {x=self.hero.x, y=self.hero.y})
 end
 
-function GameContext:redrawMap(counter)
-  local image, vw, vh = self.tileImage, self.engine.vw, self.engine.vh
-  self.map:drawLayerAtCameraObject(image, 0, vw, vh, counter)
-  self.map:drawObjectsAtCameraObject(image, 1, vw, vh, counter)
+function GameContext:redrawMap()
+  self.map:drawLayerAtCameraObject(0)
+  self.map:drawObjectsAtCameraObject(1)
+  self.map:advanceClock();
 
   -- TODO map overlays should draw here
 end
@@ -174,6 +174,8 @@ function GameContext:changeMap(newMapName, heroPos)
         to = dark,
         frames = 32
       }:takeControlFrom(self)
+
+      -- TODO: loading animation?
     end
 
     local mapInfo = resourceInfo.maps[newMapName]
@@ -199,6 +201,7 @@ function GameContext:changeMap(newMapName, heroPos)
         resourceMan = self.resourceMan
       })
 
+      -- TODO load images here
     else
       self.map = self.resourceMan:get(newMapName)
     end
@@ -315,7 +318,7 @@ function GameContext:quit(keyState)
   end
 end
 
-function GameContext:draw(time, elapsed, counter)
+function GameContext:draw(time, elapsed)
   if self.parentContext then
     self.parentContext:draw()
   end
@@ -324,7 +327,7 @@ function GameContext:draw(time, elapsed, counter)
   self.engine:clear()
 
   -- Redraw
-  self:redrawMap(counter)
+  self:redrawMap()
 
   -- Draw menus
   for _, v in ipairs(self.menuStack) do

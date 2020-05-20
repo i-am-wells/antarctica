@@ -102,6 +102,10 @@ function TestBase:assertEquals(a, b)
   assert(a == b, string.format('expected %s but got %s', tostring(a), tostring(b)))
 end
 
+function TestBase:assertTrue(a)
+  self:assertEquals(true, a)
+end
+
 function TestBase:logSummary()
   local nSuccess, nFail, nCrash, nTimeout = 0, 0, 0, 0
   for testName, result in pairs(self.results) do

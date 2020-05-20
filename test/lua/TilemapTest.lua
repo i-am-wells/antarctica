@@ -35,11 +35,37 @@ function TilemapTest:testGetAndSetTileInfo()
 
   map:setTileInfoIdxForTile(0, 0, 0, --[[idx=]]1)
 
-  -- TODO test tile data
-  local tileInfo, data = map:getTileInfo(0, 0, 0)
+  local tileInfo = map:getTileInfo(0, 0, 0)
 
-  print("printing tile info")
-  for k, v in pairs(tileInfo) do print(k, v) end
+  self:assertEquals("table", type(tileInfo))
+  self:expectEquals(42, tileInfo.flags)
+  self:expectEquals("some name", tileInfo.name)
+  self:assertEquals("table", type(tileInfo.frames))
+  self:assertEquals(2, #tileInfo.frames)
+  self:expectEquals(2, tileInfo.frames[1].tileX)
+  self:expectEquals(500, tileInfo.frames[1].duration)
+  self:expectEquals(3, tileInfo.frames[2].tileX)
+  self:expectEquals(400, tileInfo.frames[2].duration)
+end
+
+function TilemapTest:testSaveAndLoad()
+  local map = Tilemap{w=2, h=1, nlayers=1}
+  map:addTileInfo{
+    flags = 42,
+    name = "some name",
+    frames = {
+      Tilemap.AnimationFrame{tileX = 2, duration = 500},
+      Tilemap.AnimationFrame{tileX = 3, duration = 400}
+    }
+  }
+
+  map:setTileInfoIdxForTile(0, 1, 0, --[[idx=]]1)
+
+  local mapfile = require 'os'.tmpname()
+  self:assertTrue(map:write(mapfile))
+
+  local loaded = Tilemap{file=mapfile}
+  local tileInfo = loaded:getTileInfo(0, 1, 0)
 
   self:assertEquals("table", type(tileInfo))
   self:expectEquals(42, tileInfo.flags)

@@ -1110,8 +1110,8 @@ static bool read_v2(tilemap_t* t, char* buffer, const char* path, FILE* f) {
   if (!t->tile_info)
     return read_failure(t, path, error_memory, f);
 
-  for (TileInfo* info = t->tile_info; info < t->tile_info + t->tile_info_count;
-       ++info) {
+  for (TileInfo* info = t->tile_info + 1;
+       info < t->tile_info + t->tile_info_count; ++info) {
     if (!fread(buffer, 10, 1, f))
       return read_failure(t, path, error_eof, f);
 
@@ -1216,8 +1216,8 @@ bool tilemap_write_to_file(const tilemap_t* t, const char* path) {
     return write_failure(path, "couldn't write header bytes", f);
 
   // Write tile info
-  for (TileInfo* info = t->tile_info; info < t->tile_info + t->tile_info_count;
-       ++info) {
+  for (TileInfo* info = t->tile_info + 1;
+       info < t->tile_info + t->tile_info_count; ++info) {
     cursor = buffer;
     put32(&cursor, info->flags);
     put32(&cursor, info->frame_count);
