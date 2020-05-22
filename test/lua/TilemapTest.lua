@@ -27,6 +27,7 @@ function TilemapTest:testGetAndSetTileInfo()
   map:addTileInfo{
     flags = 42,
     name = "some name",
+    w = 1, h = 2, sx = 3, sy = 4, dx = 5, dy = 6,
     frames = {
       Tilemap.AnimationFrame{tileX = 2, duration = 500},
       Tilemap.AnimationFrame{tileX = 3, duration = 400}
@@ -46,6 +47,13 @@ function TilemapTest:testGetAndSetTileInfo()
   self:expectEquals(500, tileInfo.frames[1].duration)
   self:expectEquals(3, tileInfo.frames[2].tileX)
   self:expectEquals(400, tileInfo.frames[2].duration)
+
+  self:expectEquals(1, tileInfo.w)
+  self:expectEquals(2, tileInfo.h)
+  self:expectEquals(3, tileInfo.sx)
+  self:expectEquals(4, tileInfo.sy)
+  self:expectEquals(5, tileInfo.dx)
+  self:expectEquals(6, tileInfo.dy)
 end
 
 function TilemapTest:testSaveAndLoad()
@@ -53,6 +61,7 @@ function TilemapTest:testSaveAndLoad()
   map:addTileInfo{
     flags = 42,
     name = "some name",
+    w = 1, h = 2, sx = 3, sy = 4, dx = 5, dy = 6,
     frames = {
       Tilemap.AnimationFrame{tileX = 2, duration = 500},
       Tilemap.AnimationFrame{tileX = 3, duration = 400}
@@ -76,6 +85,13 @@ function TilemapTest:testSaveAndLoad()
   self:expectEquals(500, tileInfo.frames[1].duration)
   self:expectEquals(3, tileInfo.frames[2].tileX)
   self:expectEquals(400, tileInfo.frames[2].duration)
+
+  self:expectEquals(1, tileInfo.w)
+  self:expectEquals(2, tileInfo.h)
+  self:expectEquals(3, tileInfo.sx)
+  self:expectEquals(4, tileInfo.sy)
+  self:expectEquals(5, tileInfo.dx)
+  self:expectEquals(6, tileInfo.dy)
 end
 
 return TilemapTest

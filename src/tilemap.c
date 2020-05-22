@@ -842,7 +842,8 @@ static void draw_tile(const tilemap_t* t, Tile16 tile, int dx, int dy) {
   if (t->clock >= frame->start_time + frame->duration)
     frame = info->frames + (++info->current_frame);
 
-  image_draw_tile(info->image, frame->tile_x, 0, dx, dy);
+  image_draw(info->image, info->sx + frame->tile_x, info->sy, info->w, info->h,
+             dx, dy, info->w, info->h);
 
   if (t->draw_flags) {
     tilemap_draw_flags(t, info->image->renderer, info->flags,
@@ -1112,13 +1113,19 @@ static bool read_v2(tilemap_t* t, char* buffer, const char* path, FILE* f) {
 
   for (TileInfo* info = t->tile_info + 1;
        info < t->tile_info + t->tile_info_count; ++info) {
-    if (!fread(buffer, 10, 1, f))
+    if (!fread(buffer, 34, 1, f))
       return read_failure(t, path, error_eof, f);
 
     cursor = buffer;
-    info->flags = get32(&cursor);
-    info->frame_count = get32(&cursor);
-    uint16_t image_name_len = get16(&cursor);
+    info->flags = get32(&cursor);              // 4 bytes so far
+    info->w = get32(&cursor);                  // 8
+    info->h = get32(&cursor);                  // 12
+    info->sx = get32(&cursor);                 // 16
+    info->sy = get32(&cursor);                 // 20
+    info->dx = get32(&cursor);                 // 24
+    info->dy = get32(&cursor);                 // 28
+    info->frame_count = get32(&cursor);        // 32
+    uint16_t image_name_len = get16(&cursor);  // 34
 
     // Don't load images here; just get the file names.
     info->name = malloc(image_name_len + 1);
@@ -1220,6 +1227,12 @@ bool tilemap_write_to_file(const tilemap_t* t, const char* path) {
        info < t->tile_info + t->tile_info_count; ++info) {
     cursor = buffer;
     put32(&cursor, info->flags);
+    put32(&cursor, info->w);
+    put32(&cursor, info->h);
+    put32(&cursor, info->sx);
+    put32(&cursor, info->sy);
+    put32(&cursor, info->dx);
+    put32(&cursor, info->dy);
     put32(&cursor, info->frame_count);
 
     size_t image_name_len = strlen(info->name);

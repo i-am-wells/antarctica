@@ -15,6 +15,8 @@ typedef struct AnimationFrame {
 typedef struct TileInfo {
   image_t* image;  // unowned
   int flags;
+  int w, h;
+  int sx, sy, dx, dy;
 
   // animation
   int frame_count;
