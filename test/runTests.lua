@@ -5,6 +5,7 @@ local testModules = {
   'test.lua.SerializerTest',
   'test.lua.ImageTest',
   'test.lua.TilemapTest',
+  'test.maptools.ColorMapTest'
 }
 
 local log = require 'log'

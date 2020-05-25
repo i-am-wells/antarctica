@@ -100,7 +100,12 @@ void tilemap_deinit(tilemap_t* t) {
 }
 
 // Make an empty map
-int tilemap_init(tilemap_t* t, int nlayers, uint64_t w, uint64_t h) {
+int tilemap_init(tilemap_t* t,
+                 int nlayers,
+                 uint64_t w,
+                 uint64_t h,
+                 int tw,
+                 int th) {
   assert(t);
   memset(t, 0, sizeof(tilemap_t));
 
@@ -117,6 +122,8 @@ int tilemap_init(tilemap_t* t, int nlayers, uint64_t w, uint64_t h) {
 
   t->w = w;
   t->h = h;
+  t->tw = tw;
+  t->th = th;
   t->nlayers = nlayers;
   // TODO pass this in?
   t->tile_bits = 16;
@@ -240,7 +247,8 @@ static int tilemap_empty(const tilemap_t* t, int layer, uint64_t x, uint64_t y)
 }
 */
 
-void tilemap_increment_clock(tilemap_t* t) {
+// Don't worry about wrapping
+void tilemap_advance_clock(tilemap_t* t) {
   ++t->clock;
 }
 
@@ -292,8 +300,8 @@ void tilemap_get_camera_draw_location(const tilemap_t* t,
   uint64_t px = 0;
   uint64_t py = 0;
   if (t->cameraobject) {
-    int px = MAX(0, t->cameraobject->x - (t->screen_w / 2));
-    int py = MAX(0, t->cameraobject->y - (t->screen_h / 2));
+    px = MAX(0, t->cameraobject->x - (t->screen_w / 2));
+    py = MAX(0, t->cameraobject->y - (t->screen_h / 2));
     px = MIN(px, t->w * t->cameraobject->image->tw - t->screen_w);
     py = MIN(py, t->h * t->cameraobject->image->th - t->screen_h);
   }
@@ -838,12 +846,20 @@ static void tilemap_draw_flags(const tilemap_t* t,
 
 static void draw_tile(const tilemap_t* t, Tile16 tile, int dx, int dy) {
   TileInfo* info = get_tile_info(t, tile);
-  AnimationFrame* frame = info->frames + info->current_frame;
-  if (t->clock >= frame->start_time + frame->duration)
-    frame = info->frames + (++info->current_frame);
+  int anim_x = 0;
+  if (info->frame_count) {
+    AnimationFrame* frame = info->frames + info->current_frame;
+    if (t->clock >= frame->start_time + frame->duration) {
+      frame = info->frames + (++info->current_frame);
+      if (info->current_frame == info->frame_count)
+        info->current_frame = 0;
+    }
+  }
 
-  image_draw(info->image, info->sx + frame->tile_x, info->sy, info->w, info->h,
-             dx, dy, info->w, info->h);
+  if (info->image) {
+    image_draw(info->image, info->sx + anim_x, info->sy, info->w, info->h, dx,
+               dy, info->w, info->h);
+  }
 
   if (t->draw_flags) {
     tilemap_draw_flags(t, info->image->renderer, info->flags,
@@ -1171,7 +1187,7 @@ static bool read_v2(tilemap_t* t, char* buffer, const char* path, FILE* f) {
 
 bool tilemap_read_from_file(tilemap_t* t, const char* path) {
   assert(t);
-  tilemap_init(t, 0, 0ul, 0ul);
+  tilemap_init(t, 0, 0ul, 0ul, 0, 0);
 
   FILE* f = fopen(path, "rb");
   if (!f)

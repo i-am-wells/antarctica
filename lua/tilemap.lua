@@ -31,14 +31,20 @@ function TileInfo:init(arg)
   self.image = arg.image
   self.name = arg.name
   self.flags = arg.flags or 0
-  self.frames = tablecopy(args.frames)
+  self.w = arg.w
+  self.h = arg.h
+  self.sx = arg.sx or 0
+  self.sy = arg.sy or 0
+  self.dx = arg.dx or 0
+  self.dy = arg.dy or 0
+  self.frames = tablecopy(arg.frames or {})
 end
 
 function Tilemap:init(options)
   if options.file then
     self:read(options.file)
   elseif options.nlayers and options.w and options.h then
-    self:createEmpty(options.nlayers, options.w, options.h)
+    self:createEmpty(options.nlayers, options.w, options.h, options.tw, options.th)
   else
     return nil, 'provide either a file name or empty map dimensions (nlayers, w, h)'
   end
@@ -74,20 +80,18 @@ function Tilemap:dumpObjects()
 end
 
 function Tilemap:read(filename)
-  self._tilemap = ant.tilemap.read(filename)
+  self._tilemap = ant.tilemap.read(filename, self)
   if self._tilemap == nil then
     error('failed loading tile map')
   end
-  -- set own properties
-  ant.tilemap.get(self._tilemap, self)
 end
 
 function Tilemap:write(filename)
   return ant.tilemap.write(self._tilemap, filename)
 end
 
-function Tilemap:createEmpty(nlayers, w, h)
-  self._tilemap = ant.tilemap.createEmpty(nlayers, w, h)
+function Tilemap:createEmpty(nlayers, w, h, tw, th)
+  self._tilemap = ant.tilemap.createEmpty(nlayers, w, h, tw, th)
   self.nlayers = nlayers
   self.w = w
   self.h = h
@@ -123,8 +127,21 @@ function Tilemap:getTileInfo(layer, x, y)
   return info, flags
 end
 
-function Tilemap:setTileInfo(layer, x, y, tileInfo, flags)
-  ant.tilemap.setTileInfo(self._tilemap, layer, x, y, tileInfo, flags)
+function Tilemap:setScreenSize(screenW, screenH)
+  ant.tilemap.setScreenSize(self._tilemap, screenW, screenH)
+end
+
+-- TODO maybe move this to engine
+function Tilemap:advanceClock()
+  ant.tilemap.advanceClock(self._tilemap)
+end
+
+function Tilemap:getAllTileInfos()
+  return ant.tilemap.getAllTileInfos(self._tilemap)
+end
+
+function Tilemap:setTileInfo(idx, tileInfo)
+  ant.tilemap.setTileInfo(self._tilemap, idx, tileInfo)
 end
 
 function Tilemap:addTileInfo(tileInfo)

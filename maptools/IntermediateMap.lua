@@ -7,7 +7,7 @@ local IntermediateMap = Class()
 function IntermediateMap:init(args)
   self.w = args.w or 0
   self.h = args.h or 0
-  self.defaultGridValue = args.defaultGridValue or 1
+  self.defaultGridValue = args.defaultGridValue or 0
 
   if self.w * self.h == 0 then
     error('IntermediateMap needs non-zero dimensions')
@@ -73,8 +73,8 @@ function IntermediateMap:toBaseTilemap(tilesetInfo, nlayers)
     for x = 1, self.w do
       local key = row[x]
       if key then
-        local tile = tilesetInfo:getTile(key)
-        tilemap:setTile(0, x-1, y-1, tile.x, tile.y)
+        local info = tilesetInfo:getTile(key)
+        tilemap:setTile(0, x-1, y-1, info)
 
         -- TODO rethink?
         --[[

@@ -56,6 +56,18 @@ function TilemapTest:testGetAndSetTileInfo()
   self:expectEquals(6, tileInfo.dy)
 end
 
+function TilemapTest:testGetAllTileInfos()
+  local map = Tilemap{w=2, h=1, nlayers=1}
+  map:addTileInfo{w = 1, h = 2, name='first'}
+  map:addTileInfo{w = 3, h = 4, name='second'}
+ 
+  local infos = map:getAllTileInfos()
+  self:assertEquals('table', type(infos))
+  self:assertEquals(3, #infos)
+  self:expectEquals('first', infos[2].name)
+  self:expectEquals('second', infos[3].name)
+end
+
 function TilemapTest:testSaveAndLoad()
   local map = Tilemap{w=2, h=1, nlayers=1}
   map:addTileInfo{

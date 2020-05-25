@@ -21,10 +21,12 @@ int l_tilemap_create_empty(lua_State* L) {
   int nlayers = luaL_checkinteger(L, 1);
   uint64_t w = luaL_checkinteger(L, 2);
   uint64_t h = luaL_checkinteger(L, 3);
+  int tw = luaL_checkinteger(L, 4);
+  int th = luaL_checkinteger(L, 5);
 
   tilemap_t* t = (tilemap_t*)lua_newuserdata(L, sizeof(tilemap_t));
 
-  if (!tilemap_init(t, nlayers, w, h)) {
+  if (!tilemap_init(t, nlayers, w, h, tw, th)) {
     char buf[256];
     sprintf(buf, "failed to create empty %d-layer tilemap with size %zux%zu",
             nlayers, w, h);
@@ -45,6 +47,8 @@ int l_tilemap_create_empty(lua_State* L) {
 
 int l_tilemap_read(lua_State* L) {
   const char* filename = luaL_checkstring(L, 1);
+  // Tilemap table
+  luaL_checktype(L, 2, LUA_TTABLE);
   tilemap_t* t = (tilemap_t*)lua_newuserdata(L, sizeof(tilemap_t));
 
   if (!tilemap_read_from_file(t, filename)) {
@@ -58,7 +62,14 @@ int l_tilemap_read(lua_State* L) {
 
   set_gc_metamethod(L, "tilemap_t", l_tilemap_deinit);
 
-  // Return the tilemap
+  // Set important fields
+  lua_pushinteger(L, t->nlayers);
+  lua_setfield(L, 2, "nlayers");
+  lua_pushinteger(L, t->w);
+  lua_setfield(L, 2, "w");
+  lua_pushinteger(L, t->h);
+  lua_setfield(L, 2, "h");
+
   return 1;
 }
 
@@ -97,47 +108,6 @@ int l_tilemap_draw_layer_objects(lua_State* L) {
   uint64_t py = luaL_checkinteger(L, 4);
 
   tilemap_draw_objects(t, layer, px, py);
-  return 0;
-}
-
-// TODO update this?
-int l_tilemap_get(lua_State* L) {
-  // Arguments: engine pointer, destination table, properties table (optional)
-  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  luaL_checktype(L, 2, LUA_TTABLE);
-
-  if (lua_istable(L, 3)) {
-    // Iterate over keys
-    lua_pushnil(L); /* first key */
-    while (lua_next(L, 3) != 0) {
-      const char* name = lua_tostring(L, -1);
-
-      if (strncmp(name, "w", 2) == 0) {
-        lua_pushinteger(L, t->w);
-        lua_setfield(L, 2, "w");
-      } else if (strncmp(name, "h", 2) == 0) {
-        lua_pushinteger(L, t->h);
-        lua_setfield(L, 2, "h");
-      } else if (strncmp(name, "nlayers", 8) == 0) {
-        lua_pushinteger(L, t->nlayers);
-        lua_setfield(L, 2, "nlayers");
-      }
-
-      /* removes 'value'; keeps 'key' for next iteration */
-      lua_pop(L, 1);
-    }
-
-    // pop final key
-    lua_pop(L, 1);
-  } else {
-    lua_pushinteger(L, t->w);
-    lua_setfield(L, 2, "w");
-    lua_pushinteger(L, t->h);
-    lua_setfield(L, 2, "h");
-    lua_pushinteger(L, t->nlayers);
-    lua_setfield(L, 2, "nlayers");
-  }
-
   return 0;
 }
 
@@ -250,13 +220,8 @@ static inline void write_int_field(lua_State* L, const char* name, int val) {
   lua_setfield(L, -2, name);
 }
 
-int l_tilemap_get_tile_info(lua_State* L) {
-  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  int layer = luaL_checkinteger(L, 2);
-  uint64_t x = luaL_checkinteger(L, 3);
-  uint64_t y = luaL_checkinteger(L, 4);
-  TileInfo* info = tilemap_get_tile_info(t, layer, x, y);
-
+// Leaves the tile info table on the stack.
+static void tile_info_to_lua(lua_State* L, TileInfo* info) {
   // Populate table with everything but the image.
   lua_createtable(L, /*nrec=*/9, /*narr=*/0);
   char* name = info->name;
@@ -282,8 +247,15 @@ int l_tilemap_get_tile_info(lua_State* L) {
     lua_seti(L, -2, i + 1);
   }
   lua_setfield(L, -2, "frames");
+}
 
-  // Get tile-specific flags
+int l_tilemap_get_tile_info(lua_State* L) {
+  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+  int layer = luaL_checkinteger(L, 2);
+  uint64_t x = luaL_checkinteger(L, 3);
+  uint64_t y = luaL_checkinteger(L, 4);
+
+  tile_info_to_lua(L, tilemap_get_tile_info(t, layer, x, y));
   lua_pushinteger(L, tilemap_get_tile_data(t, layer, x, y));
   return 2;
 }
@@ -296,7 +268,7 @@ static inline int read_int_field(lua_State* L, const char* name) {
   return result;
 }
 
-static int set_tile_info(lua_State* L, tilemap_t* t, TileInfo* info) {
+static int tile_info_from_lua(lua_State* L, tilemap_t* t, TileInfo* info) {
   // Last arg should be tile info table
   luaL_checktype(L, -1, LUA_TTABLE);
 
@@ -353,20 +325,21 @@ static int set_tile_info(lua_State* L, tilemap_t* t, TileInfo* info) {
 
 int l_tilemap_set_tile_info(lua_State* L) {
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
-  int tile_info_idx = luaL_checkinteger(L, 2);
+  size_t tile_info_idx = luaL_checkinteger(L, 2);
+  luaL_checktype(L, 3, LUA_TTABLE);
 
-  if (tile_info_idx < 0 || tile_info_idx >= t->tile_info_count)
+  if (tile_info_idx < 0ul || tile_info_idx >= t->tile_info_count)
     return 0;
   TileInfo* info = t->tile_info + tile_info_idx;
 
-  return set_tile_info(L, t, info);
+  return tile_info_from_lua(L, t, info);
 }
 
 int l_tilemap_add_tile_info(lua_State* L) {
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
   TileInfo info;
   memset(&info, 0, sizeof(TileInfo));
-  int ret = set_tile_info(L, t, &info);
+  int ret = tile_info_from_lua(L, t, &info);
   tilemap_add_tile_info(t, &info);
   return ret;
 }
@@ -382,6 +355,30 @@ int l_tilemap_set_tile_info_idx_for_tile(lua_State* L) {
   return 0;
 }
 
+int l_tilemap_get_all_tile_infos(lua_State* L) {
+  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+
+  lua_createtable(L, /*nrec=*/0, /*narr=*/t->tile_info_count);
+  for (size_t i = 0; i < t->tile_info_count; ++i) {
+    tile_info_to_lua(L, t->tile_info + i);
+    lua_seti(L, -2, i + 1);
+  }
+  return 1;
+}
+
+int l_tilemap_advance_clock(lua_State* L) {
+  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+  tilemap_advance_clock(t);
+  return 0;
+}
+
+int l_tilemap_set_screen_size(lua_State* L) {
+  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+  t->screen_w = luaL_checkinteger(L, 2);
+  t->screen_h = luaL_checkinteger(L, 3);
+  return 0;
+}
+
 void load_tilemap_bridge(lua_State* L) {
   const luaL_Reg tilemaplib[] = {
       {"read", l_tilemap_read},
@@ -389,7 +386,6 @@ void load_tilemap_bridge(lua_State* L) {
       {"createEmpty", l_tilemap_create_empty},
       {"drawLayer", l_tilemap_draw_layer},
       {"drawLayerObjects", l_tilemap_draw_layer_objects},
-      {"get", l_tilemap_get},
       {"addObject", l_tilemap_add_object},
       {"removeObject", l_tilemap_remove_object},
       {"setCameraObject", l_tilemap_set_camera_object},
@@ -405,9 +401,14 @@ void load_tilemap_bridge(lua_State* L) {
       {"abortUpdateObjects", l_tilemap_abort_update_objects},
 
       {"getTileInfo", l_tilemap_get_tile_info},
+      {"getAllTileInfos", l_tilemap_get_all_tile_infos},
       {"setTileInfo", l_tilemap_set_tile_info},
       {"addTileInfo", l_tilemap_add_tile_info},
       {"setTileInfoIdxForTile", l_tilemap_set_tile_info_idx_for_tile},
+
+      // TODO get rid of these, add engine field to map
+      {"advanceClock", l_tilemap_advance_clock},
+      {"setScreenSize", l_tilemap_set_screen_size},
 
       {NULL, NULL}};
 

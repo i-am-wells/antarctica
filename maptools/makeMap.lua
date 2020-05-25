@@ -165,6 +165,7 @@ do
   tilemap:setSparseLayer(1, true)
   tilemap:setSparseLayer(2, true)
 
+  --[[
   printf('Marching squares...')
   marchingSquares(map, antarcticaTilesetInfo, tilemap)
 
@@ -174,6 +175,7 @@ do
 
   printf('Adding features...')
   featuresImg:applyFeaturesToTilemap(keyToColor, keyToFeature, tilemap)
+  --]]
 
   printf('Writing to %s...', outFile)
   tilemap:write(outFile)

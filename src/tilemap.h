@@ -97,7 +97,12 @@ enum {
 bool tile_info_replace_frames(TileInfo* info, int frames);
 
 void tilemap_deinit(tilemap_t* t);
-int tilemap_init(tilemap_t* t, int nlayers, uint64_t w, uint64_t h);
+int tilemap_init(tilemap_t* t,
+                 int nlayers,
+                 uint64_t w,
+                 uint64_t h,
+                 int tw,
+                 int th);
 
 // Note: All TileInfo fields are copied. The tilemap takes ownership of
 // info->frames.
@@ -113,7 +118,7 @@ TileInfo* tilemap_get_tile_info(const tilemap_t* t,
                                 uint64_t x,
                                 uint64_t y);
 
-void tilemap_increment_clock(tilemap_t* t);
+void tilemap_advance_clock(tilemap_t* t);
 int tilemap_get_flags(const tilemap_t* t, int layer, uint64_t x, uint64_t y);
 int tilemap_get_tile_data(const tilemap_t* t,
                           int layer,

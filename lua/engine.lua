@@ -61,8 +61,9 @@ Engine.mousebutton = {
 }
 
 -- Engine constructor
-function Engine:init(...)
-  self._engine = ant.engine.create(...)
+function Engine:init(arg)
+  arg = arg or {}
+  self._engine = ant.engine.create(arg)
   if not self._engine then
     return 'failed to create engine'
   end

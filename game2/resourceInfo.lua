@@ -1,8 +1,10 @@
 
 -- which resource goes with which map, named locations, etc.
 return {
-  mapdir = __rootdir..'/res/maps/',
   maps = {
+    demo = {
+      file = __rootdir..'/maptools/demo/demo-out.map'
+    },
     antarcticaSurface = {
       file = 'antarctica.map',
       tileImage = __rootdir..'/res/forest-16x16.png',

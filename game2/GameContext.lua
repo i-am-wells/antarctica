@@ -9,6 +9,7 @@ local Object = require 'object'
 local Engine = require 'engine'
 local Sound = require 'sound'
 local ResourceManager = require 'resourceManager'
+local log = require 'log'
 
 local showFramerate = require 'showFramerate'
 
@@ -70,8 +71,10 @@ function GameContext:init(opt)
   })
 
   self.engine = opt.engine
-  self.saveFileName = opt.saveFileName 
+  self.saveFileName = opt.saveFileName
+  -- TODO get rid of this
   self.resourceMan = ResourceManager(opt.resDirectory)
+  self.imageCache = {}
 
   self.font = opt.font
   self.bgColor = RgbaColor(0, 0, 0, 255)
@@ -139,6 +142,7 @@ function GameContext:init(opt)
 end
 
 function GameContext:redrawMap()
+  print(self.hero.x, self.hero.y)
   self.map:drawLayerAtCameraObject(0)
   self.map:drawObjectsAtCameraObject(1)
   self.map:advanceClock();
@@ -154,6 +158,22 @@ function GameContext:status(text)
     overlayStack = self.overlayStack,
     resourceMan = self.resourceMan
   }
+end
+
+function GameContext:loadImage(path)
+  local cachedImage= self.imageCache[path]
+  if cachedImage then
+    return cachedImage
+  end
+
+  local image, err = Image{file = path, engine = self.engine}
+  if not image then
+    log.error('failed to load image %s: %s', path, err)
+    return nil
+  end
+
+  self.imageCache[path] = image
+  return image
 end
 
 --- Loads a new map and places the hero on it.
@@ -201,25 +221,30 @@ function GameContext:changeMap(newMapName, heroPos)
         resourceMan = self.resourceMan
       })
 
-      -- TODO load images here
+      -- TODO combine this with clock, get directly from engine
+      local screenW, screenH = self.engine:getLogicalSize()
+      self.map:setScreenSize(screenW, screenH)
+
+      -- Load images
+      for i, info in ipairs(self.map:getAllTileInfos()) do
+        if info.name and info.name ~= '' then
+          local image = self:loadImage(info.name)
+          if image then
+            info.image = image
+            self.map:setTileInfo(i-1, info)
+          end
+        end
+      end
     else
       self.map = self.resourceMan:get(newMapName)
     end
     self.mapName = newMapName
 
-    -- get tile texture if necessary
-    self.tileImage = self.resourceMan:get(mapInfo.tileImage, Image, {
-      engine = self.engine,
-      file = mapInfo.tileImage,
-      tilew = mapInfo.tileW,
-      tileh = mapInfo.tileH
-    })
-
     -- now map is loaded and populated: we can place the hero
     self.map:addObject(self.hero)
     self.map:setCameraObject(self.hero)
 
-    self.bgColor = mapInfo.background
+    self.bgColor = mapInfo.background or {r=0, g=0, b=0}
     self.engine:setColor(self.bgColor.r, self.bgColor.g, self.bgColor.b, self.bgColor.a or 255)
   end
 
