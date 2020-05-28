@@ -57,4 +57,16 @@ function Container:getChildIndex(element)
   return nil
 end
 
+function Container:clearChildren()
+  self.children = {}
+end
+
+function Container:addChild(child)
+  self.children[#self.children+1] = child
+end
+
+function Container:sort(comp)
+  table.sort(self.children, comp)
+end
+
 return Container

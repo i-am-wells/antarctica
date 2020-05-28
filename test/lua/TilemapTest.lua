@@ -6,7 +6,7 @@ local TilemapTest = require 'class'(require 'test.TestBase')
 --
 
 function TilemapTest:testCreate()
-  local map = Tilemap{w=10, h=10, nlayers=1}
+  local map = Tilemap{w=10, h=10, nlayers=1, tw=0, th=0}
 
   -- all tiles should be 0
   for y = 0, 9 do
@@ -23,7 +23,7 @@ function TilemapTest:testCreate()
 end
 
 function TilemapTest:testGetAndSetTileInfo()
-  local map = Tilemap{w=2, h=1, nlayers=1}
+  local map = Tilemap{w=2, h=1, nlayers=1, tw=0, th=0}
   map:addTileInfo{
     flags = 42,
     name = "some name",
@@ -57,7 +57,7 @@ function TilemapTest:testGetAndSetTileInfo()
 end
 
 function TilemapTest:testGetAllTileInfos()
-  local map = Tilemap{w=2, h=1, nlayers=1}
+  local map = Tilemap{w=2, h=1, nlayers=1, tw=0, th=0}
   map:addTileInfo{w = 1, h = 2, name='first'}
   map:addTileInfo{w = 3, h = 4, name='second'}
  
@@ -69,7 +69,7 @@ function TilemapTest:testGetAllTileInfos()
 end
 
 function TilemapTest:testSaveAndLoad()
-  local map = Tilemap{w=2, h=1, nlayers=1}
+  local map = Tilemap{w=2, h=1, nlayers=1, tw=0, th=0}
   map:addTileInfo{
     flags = 42,
     name = "some name",

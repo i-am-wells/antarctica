@@ -15,7 +15,7 @@ function Text:init(argtable)
   self.wrapWidth = argtable.width
 
   self.font = argtable.font or font or error('font required')
-  self.text = argtable.text
+  self.text = argtable.text or ''
 
   if type(argtable.shadow) == 'table' then
     self.hasShadow = true

@@ -95,6 +95,8 @@ function Tilemap:createEmpty(nlayers, w, h, tw, th)
   self.nlayers = nlayers
   self.w = w
   self.h = h
+  self.tw = tw
+  self.th = th
 end
 
 function Tilemap:clean(cleanX, cleanY)
@@ -117,6 +119,10 @@ end
 
 function Tilemap:setTileInfoIdxForTile(layer, x, y, idx)
   ant.tilemap.setTileInfoIdxForTile(self._tilemap, layer, x, y, idx)
+end
+
+function Tilemap:getTileInfoIdxForTile(layer, x, y)
+  return ant.tilemap.getTileInfoIdxForTile(self._tilemap, layer, x, y)
 end
 
 function Tilemap:getTileInfo(layer, x, y)

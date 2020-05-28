@@ -8,7 +8,7 @@ local highlightColor = RgbaColor(0xc0, 0xc0, 0xc0)
 local textShadow = {x=1, y=1, color=shadowColor}
 
 return {
-  makeMakeHighlightableText = function(font, wrapWidth)
+  makeMakeHighlightableText = function(font, wrapWidth, context)
     return function(text, action)
       return HighlightableText{
         debugName = 'HighlightableText_'..text,
@@ -18,7 +18,8 @@ return {
         text = text,
         action = action,
         color = textColor,
-        highlight = highlightColor
+        highlight = highlightColor,
+        context = context
       }
     end
   end

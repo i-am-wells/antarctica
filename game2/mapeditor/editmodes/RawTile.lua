@@ -1,17 +1,11 @@
 local RawTile = require 'class'()
 
-function RawTile:init(arg)
-  if __dbg then
-    assert(type(arg.x) == 'number')
-    assert(type(arg.y) == 'number')
-    assert(type(arg.flags) == 'number')
-  end
-  
-  self.tile = arg
+function RawTile:init(idx)
+  self.idx = idx
 end
 
 function RawTile:getTileToDraw()
-  return self.tile.x, self.tile.y, self.tile.flags
+  return self.idx
 end
 
 function RawTile:setMapEditorContext(context)
@@ -19,7 +13,7 @@ function RawTile:setMapEditorContext(context)
   self.model = context.model
   if __dbg then
     assert(context)
-    assert(model)
+    assert(self.model)
   end
 end
 
@@ -31,9 +25,8 @@ function RawTile:mouseDown(mapX, mapY, x, y, button)
   local context = self.mapEditorContext
   context.tileEditInProgress = self.model:makeTileEdit()
 
-  local tx, ty, flags = self:getTileToDraw()
-  context.tileEditInProgress:addTile(
-    context.editLayer, mapX, mapY, tx, ty, flags)
+  context.tileEditInProgress:addTile(context.editLayer, mapX, mapY,
+    self:getTileToDraw())
 end
 
 function RawTile:mouseUp(mapX, mapY, x, y, button)
@@ -56,9 +49,8 @@ function RawTile:mouseMotion(mapX, mapY, x, y, dx, dy)
   if context.tileEditInProgress then
     local mapX, mapY = context:screenToMap(x, y)
     if not context.tileEditInProgress:isSameLocationAsLast(context.editLayer, mapX, mapY) then
-      local tx, ty, flags = self:getTileToDraw()
       context.tileEditInProgress:addTile(
-        context.editLayer, mapX, mapY, tx, ty, flags)
+        context.editLayer, mapX, mapY, self:getTileToDraw())
     end
   end
 end

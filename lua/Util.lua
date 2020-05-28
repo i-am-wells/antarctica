@@ -13,6 +13,17 @@ if __dbg then
   dlog = printf
 end
 
+local tableConcat = function(a, b)
+  c = {}
+  for i, v in ipairs(a) do
+    c[i] = v
+  end
+  for _, v in ipairs(b) do
+    c[#c + 1] = v
+  end
+  return c
+end
+
 return {
   printf = printf,
   errorf = errorf,
@@ -37,7 +48,7 @@ return {
   bind = function(fn, ...)
     local a = {...}
     return function(...)
-      return fn(table.unpack(a), ...)
+      return fn(table.unpack(tableConcat(a, {...})))
     end
   end,
 }

@@ -33,13 +33,12 @@ function Model.TileEdit:init(model)
   self.model = model
   self.tiles = {}
 end
-function Model.TileEdit:addTile(z, x, y, tx, ty, flags)
-  local tile = {z=z, x=x, y=y, new={tx=tx, ty=ty, flags=flags}, orig={}}
-  tile.orig.tx, tile.orig.ty = self.model.map:getTile(z, x, y)
-  tile.orig.flags = self.model.map:getFlags(z, x, y)
+function Model.TileEdit:addTile(z, x, y, newIdx)
+  local tile = {z=z, x=x, y=y, newIdx=newIdx}
+  tile.origIdx = self.model.map:getTileInfoIdxForTile(z, x, y)
   self.tiles[#self.tiles+1] = tile
 
-  self:applyTile(z, x, y, tile.new)
+  self:applyTile(z, x, y, tile.newIdx)
 end
 
 function Model.TileEdit:isSameLocationAsLast(z, x, y)
@@ -47,20 +46,19 @@ function Model.TileEdit:isSameLocationAsLast(z, x, y)
   return top and top.z == z and top.x == x and top.y == y
 end
 
-function Model.TileEdit:applyTile(z, x, y, which)
-  self.model.map:setTile(z, x, y, which.tx, which.ty)
-  self.model.map:overwriteFlags(z, x, y, which.flags)
+function Model.TileEdit:applyTile(z, x, y, idx)
+  self.model.map:setTileInfoIdxForTile(z, x, y, idx)
 end
 
 function Model.TileEdit:apply()
   for _, tile in ipairs(self.tiles) do
-    self:applyTile(tile.z, tile.x, tile.y, tile.new)
+    self:applyTile(tile.z, tile.x, tile.y, tile.newIdx)
   end
 end
 
 function Model.TileEdit:unapply()
   for _, tile in ipairs(self.tiles) do
-    self:applyTile(tile.z, tile.x, tile.y, tile.orig)
+    self:applyTile(tile.z, tile.x, tile.y, tile.origIdx)
   end
 end
 

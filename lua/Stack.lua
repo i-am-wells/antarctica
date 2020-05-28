@@ -20,4 +20,8 @@ function Stack:empty()
   return #self.data == 0
 end
 
+function Stack:size()
+  return #self.data
+end
+
 return Stack

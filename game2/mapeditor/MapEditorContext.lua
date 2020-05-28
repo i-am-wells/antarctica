@@ -7,29 +7,50 @@ local Object = require 'object'
 local Engine = require 'engine'
 
 local Model = require 'game2.mapeditor.Model'
+local SearchBar = require 'game2.mapeditor.SearchBar'
+
+-- TODO
+local getTileInfos = function(map)
+  local infos = map:getAllTileInfos()
+end
 
 local MapEditorContext = Class(Context)
+
+MapEditorContext.tileInfoModules = {
+  'res.tiles.waves',
+  'res.tiles.demo.demo',
+}
 
 function MapEditorContext:init(arg)
   if __dbg then
     assert(arg.engine)
     assert(arg.font)
     assert(arg.map)
-    assert(arg.tileset)
   end
 
   self.engine = arg.engine
-  self.font = arg.font
+  self.imageCache = arg.imageCache
   self.map = arg.map
-  self.tileset = arg.tileset
 
-  self.smallFont = Image{file='res/text-5x9.png', w=5, h=9}
+  self.font = self.imageCache:get{
+    file = __rootdir .. '/res/textbold-9x15.png',
+    engine = self.engine,
+    tilew = 9,
+    tileh = 15,
+  }
+  self.smallFont = self.imageCache:get{
+    file = __rootdir .. '/res/text-5x9.png',
+    engine = self.engine,
+    tilew = 5,
+    tileh = 9
+  }
 
   self.model = Model{map=arg.map}
-  self.editLayer = 1
+  -- TODO how should this be set?
+  self.editLayer = 0
 
-  self.stepSizeX = arg.tileset.tw
-  self.stepSizeY = arg.tileset.th
+  self.stepSizeX = arg.map.tw
+  self.stepSizeY = arg.map.th
 
   self.mouseX = 0
   self.mouseY = 0
@@ -46,7 +67,7 @@ function MapEditorContext:init(arg)
           goEast = bind(self.goEast, self),
           undo = bind(self.undo, self),
           redo = bind(self.redo, self),
-          quit = bind(self.returnControlToParent, self),
+          quit = bind(self.quit, self),
           focusSearchBar = bind(self.focusSearchBar, self)
         },
         keys = {
@@ -65,7 +86,7 @@ function MapEditorContext:init(arg)
       }
     })
 
-    -- TODO implement search bar
+    self.searchBar = SearchBar{imageCache = self.imageCache}
   end)
 end
 
@@ -106,7 +127,16 @@ function MapEditorContext:redo(keyState, key, mod)
   end
 end
 
+function MapEditorContext:quit(keyState)
+  if keyState == 'down' then
+    self:returnControlToParent()
+  end
+end
+
 function MapEditorContext:takeControlFrom(parent)
+  print('open map editor')
+  self.tileInfos = getTileInfos(self.map)
+
   -- TODO parent should implement getCameraObject or something
   self.originalCameraObject = parent.hero
   if not self.camera then
@@ -131,13 +161,13 @@ end
 function MapEditorContext:screenToMap(x, y)
   local screenW, screenH = self.engine:getLogicalSize()
   local cornerX, cornerY = self.map:getCameraDrawLocation(screenW, screenH)
-  return (x + cornerX) // self.tileset.tw, (y + cornerY) // self.tileset.th
+  return (x + cornerX) // self.map.tw, (y + cornerY) // self.map.th
 end
 
 function MapEditorContext:mapToScreen(x, y)
   local screenW, screenH = self.engine:getLogicalSize()
   local cornerX, cornerY = self.map:getCameraDrawLocation(screenW, screenH)
-  return (x * self.tileset.tw) - cornerX, (y * self.tileset.th) - cornerY
+  return (x * self.map.tw) - cornerX, (y * self.map.th) - cornerY
 end
 
 function MapEditorContext:mouseDown(x, y, button)
@@ -170,16 +200,14 @@ function MapEditorContext:mouseMotion(x, y, dx, dy)
   self:updateMouseMapCoords()
 end
 
-function MapEditorContext:draw(...)
+function MapEditorContext:draw()
   if self.parentContext then
-    self.parentContext:draw(...)
+    self.parentContext:draw()
   end
 
   if self.editMode then
-    self.editMode:draw(...)
+    self.editMode:draw()
   end
-
-  self.font:drawText('editing', 0, 0, 200)
 end
 
 return MapEditorContext

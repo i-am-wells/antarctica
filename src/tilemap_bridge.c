@@ -69,6 +69,10 @@ int l_tilemap_read(lua_State* L) {
   lua_setfield(L, 2, "w");
   lua_pushinteger(L, t->h);
   lua_setfield(L, 2, "h");
+  lua_pushinteger(L, t->tw);
+  lua_setfield(L, 2, "tw");
+  lua_pushinteger(L, t->th);
+  lua_setfield(L, 2, "th");
 
   return 1;
 }
@@ -355,6 +359,16 @@ int l_tilemap_set_tile_info_idx_for_tile(lua_State* L) {
   return 0;
 }
 
+int l_tilemap_get_tile_info_idx_for_tile(lua_State* L) {
+  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+  int layer = luaL_checkinteger(L, 2);
+  uint64_t x = luaL_checkinteger(L, 3);
+  uint64_t y = luaL_checkinteger(L, 4);
+
+  lua_pushinteger(L, tilemap_get_tile_info_idx_for_tile(t, layer, x, y));
+  return 1;
+}
+
 int l_tilemap_get_all_tile_infos(lua_State* L) {
   tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
 
@@ -405,6 +419,7 @@ void load_tilemap_bridge(lua_State* L) {
       {"setTileInfo", l_tilemap_set_tile_info},
       {"addTileInfo", l_tilemap_add_tile_info},
       {"setTileInfoIdxForTile", l_tilemap_set_tile_info_idx_for_tile},
+      {"getTileInfoIdxForTile", l_tilemap_get_tile_info_idx_for_tile},
 
       // TODO get rid of these, add engine field to map
       {"advanceClock", l_tilemap_advance_clock},

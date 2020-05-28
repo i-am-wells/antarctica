@@ -241,6 +241,13 @@ TileInfo* tilemap_get_tile_info(const tilemap_t* t,
   return get_tile_info(t, get_tile(t, layer, x, y));
 }
 
+uint16_t tilemap_get_tile_info_idx_for_tile(const tilemap_t* t,
+                                            int layer,
+                                            uint64_t x,
+                                            uint64_t y) {
+  return get_tile_info_idx(t, get_tile(t, layer, x, y));
+}
+
 /*
 static int tilemap_empty(const tilemap_t* t, int layer, uint64_t x, uint64_t y)
 { return get_tile_info_idx(t, get_tile(t, layer, x, y)) == 0;

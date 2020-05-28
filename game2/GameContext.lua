@@ -20,6 +20,7 @@ local resourceInfo = require 'game2.resourceInfo'
 local StatusText = require 'game.statusText'
 
 local FadeContext = require 'game2.FadeContext'
+local ImageCache = require 'game2.ImageCache'
 
 -- TODO remove for release
 local DevSession = require 'devtools.devSession'
@@ -29,6 +30,8 @@ local InputHandler = require 'ui.InputHandler'
 local GameContext = require 'class'(Context)
 
 function GameContext:init(opt)
+  self.imageCache = ImageCache()
+
   Context.init(self, {
     engine = opt.engine,
     draw = bind(self.draw, self),
@@ -47,9 +50,8 @@ function GameContext:init(opt)
         devtools = function()
           require 'game2.mapeditor.MapEditorContext'{
             engine = opt.engine,
-            font = opt.font,
+            imageCache = self.imageCache,
             map = self.map,
-            tileset = self.tileImage
           }:takeControlFrom(self)
         end
       },
@@ -74,7 +76,6 @@ function GameContext:init(opt)
   self.saveFileName = opt.saveFileName
   -- TODO get rid of this
   self.resourceMan = ResourceManager(opt.resDirectory)
-  self.imageCache = {}
 
   self.font = opt.font
   self.bgColor = RgbaColor(0, 0, 0, 255)
@@ -142,7 +143,6 @@ function GameContext:init(opt)
 end
 
 function GameContext:redrawMap()
-  print(self.hero.x, self.hero.y)
   self.map:drawLayerAtCameraObject(0)
   self.map:drawObjectsAtCameraObject(1)
   self.map:advanceClock();
@@ -158,22 +158,6 @@ function GameContext:status(text)
     overlayStack = self.overlayStack,
     resourceMan = self.resourceMan
   }
-end
-
-function GameContext:loadImage(path)
-  local cachedImage= self.imageCache[path]
-  if cachedImage then
-    return cachedImage
-  end
-
-  local image, err = Image{file = path, engine = self.engine}
-  if not image then
-    log.error('failed to load image %s: %s', path, err)
-    return nil
-  end
-
-  self.imageCache[path] = image
-  return image
 end
 
 --- Loads a new map and places the hero on it.
@@ -228,7 +212,10 @@ function GameContext:changeMap(newMapName, heroPos)
       -- Load images
       for i, info in ipairs(self.map:getAllTileInfos()) do
         if info.name and info.name ~= '' then
-          local image = self:loadImage(info.name)
+          local image = self.imageCache:get{
+            file = info.name,
+            engine = self.engine,
+          }
           if image then
             info.image = image
             self.map:setTileInfo(i-1, info)
@@ -260,7 +247,7 @@ function GameContext:changeMap(newMapName, heroPos)
 end
 
 -- Actions
-function GameContext:goEast(keyState)
+function GameContext:goEast(keyState, key, mod, isRepeat)
   if keyState == 'down' then
     self.hero:pushDirection('east')
     self.hero:updateMovement()
@@ -343,7 +330,7 @@ function GameContext:quit(keyState)
   end
 end
 
-function GameContext:draw(time, elapsed)
+function GameContext:draw()
   if self.parentContext then
     self.parentContext:draw()
   end

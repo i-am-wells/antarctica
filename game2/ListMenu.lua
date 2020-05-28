@@ -14,12 +14,23 @@ function ListMenu:init(argtable)
     enclosingW = argtable.enclosingW or 0,
     enclosingH = argtable.enclosingH or 0
   }
-  self.choice = 0
-  self:getChoice():gainFocus()
+
+  self:setChoice(0)
 end
 
 function ListMenu:getChoice()
   return self.container.children[self.choice+1]
+end
+
+function ListMenu:setChoice(idx)
+  if __dbg then
+    assert(idx >= 0)
+    assert(idx < #self.container.children)
+  end
+  self.choice = idx
+  if self:getChoice() then
+    self:getChoice():gainFocus()
+  end
 end
 
 function ListMenu:prev()

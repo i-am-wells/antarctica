@@ -117,6 +117,10 @@ TileInfo* tilemap_get_tile_info(const tilemap_t* t,
                                 int layer,
                                 uint64_t x,
                                 uint64_t y);
+uint16_t tilemap_get_tile_info_idx_for_tile(const tilemap_t* t,
+                                            int layer,
+                                            uint64_t x,
+                                            uint64_t y);
 
 void tilemap_advance_clock(tilemap_t* t);
 int tilemap_get_flags(const tilemap_t* t, int layer, uint64_t x, uint64_t y);

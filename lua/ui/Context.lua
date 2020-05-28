@@ -26,6 +26,8 @@ function Context:registerHandlers(engine)
       mousebuttondown = self.inputHandler.mouseDown,
       mousebuttonup = self.inputHandler.mouseUp,
       mousemotion = self.inputHandler.mouseMotion,
+      textinput = self.inputHandler.textInput,
+      textediting = self.inputHandler.textEditing,
     }
   else
     self.engine:on{
@@ -35,6 +37,8 @@ function Context:registerHandlers(engine)
       mousebuttondown = self.parentContext.inputHandler.mouseDown,
       mousebuttonup = self.parentContext.inputHandler.mouseUp,
       mousemotion = self.parentContext.inputHandler.mouseMotion,
+      textinput = self.parentContext.inputHandler.textInput,
+      textediting = self.parentContext.inputHandler.textEditing,
     }
   end
 end
