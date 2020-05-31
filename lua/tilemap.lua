@@ -20,7 +20,8 @@ local AnimationFrame = Class()
 Tilemap.AnimationFrame = AnimationFrame
 
 function AnimationFrame:init(arg)
-  self.tileX = arg.tileX or 0
+  self.x = arg.x or 0
+  self.y = arg.y or 0
   self.duration = arg.duration or -1
 end
 
@@ -29,6 +30,7 @@ Tilemap.TileInfo = TileInfo
 
 function TileInfo:init(arg)
   self.image = arg.image
+  self.imagePath = arg.imagePath
   self.name = arg.name
   self.flags = arg.flags or 0
   self.w = arg.w
@@ -38,6 +40,10 @@ function TileInfo:init(arg)
   self.dx = arg.dx or 0
   self.dy = arg.dy or 0
   self.frames = tablecopy(arg.frames or {})
+
+  -- For map editing only; not copied to tilemap
+  self.eraseW = arg.eraseW
+  self.eraseH = arg.eraseH
 end
 
 function Tilemap:init(options)
@@ -254,6 +260,10 @@ function Tilemap:print(selX, selY)
       print(row)
     end
   end
+end
+
+function Tilemap:synchronizeAnimation()
+  ant.tilemap.synchronizeAnimation(self._tilemap)
 end
 
 return Tilemap

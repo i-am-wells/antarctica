@@ -9,7 +9,7 @@
 #include "vec.h"
 
 typedef struct AnimationFrame {
-  uint32_t tile_x, start_time, duration;
+  uint32_t x, y, start_time, duration;
 } AnimationFrame;
 
 typedef struct TileInfo {
@@ -23,9 +23,12 @@ typedef struct TileInfo {
   AnimationFrame* frames;
   // keep track of current frame between draws
   int current_frame;
+  uint32_t last_cycle_start;
 
-  // File name for image.
+  // Used to identify the tile for editing and image loading.
   char* name;
+  // Image file path
+  char* image_path;
 } TileInfo;
 
 /* new flags:
@@ -121,6 +124,7 @@ uint16_t tilemap_get_tile_info_idx_for_tile(const tilemap_t* t,
                                             int layer,
                                             uint64_t x,
                                             uint64_t y);
+void tilemap_synchronize_animation(tilemap_t* t);
 
 void tilemap_advance_clock(tilemap_t* t);
 int tilemap_get_flags(const tilemap_t* t, int layer, uint64_t x, uint64_t y);

@@ -1,11 +1,12 @@
-local filename = 'res/tiles/demo/demo.png'
+
+local imagePath = 'res/tiles/demo/demo.png'
 
 local TileInfo = require 'tilemap'.TileInfo
 local Info16 = require 'class'(TileInfo)
 function Info16:init(arg)
   arg.w = 16
   arg.h = 16
-  arg.name = filename
+  arg.imagePath = imagePath
   TileInfo.init(self, arg)
 end
 

@@ -3,6 +3,24 @@ local Tilemap = require 'tilemap'
 local Set = require 'Set'
 local log = require 'log'
 
+local makeTileInfoName = function(moduleName, key)
+  return string.format('%s#%s', moduleName, key)
+end
+
+local splitTileInfoName = function(infoName)
+  local _, __, moduleName, key = string.find(infoName, '^(.*)#(.*)$')
+  return moduleName, key
+end
+
+local loadTileInfo = function(moduleName)
+  local module = require(moduleName)
+  assert(module)
+  for key, info in pairs(module) do
+    info.name = makeTileInfoName(moduleName, key)
+  end
+  return module
+end
+
 return {
   -- want imagePath, colorToTileinfo, layers, tw, th
   createTilemapFromImage = function(arg) 
@@ -47,5 +65,17 @@ return {
     end
 
     return tilemap
-  end
+  end,
+
+  makeTileInfoName = makeTileInfoName,
+  splitTileInfoName = splitTileInfoName,
+
+  loadTileInfo = loadTileInfo,
+  loadTileInfos = function(moduleNameList)
+    local result = {}
+    for _, moduleName in ipairs(moduleNameList) do
+      result[moduleName] = loadTileInfo(moduleName)
+    end
+    return result
+  end,
 }

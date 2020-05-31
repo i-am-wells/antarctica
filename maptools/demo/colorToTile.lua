@@ -1,4 +1,9 @@
-local demoTiles = require 'res.tiles.demo.demo'
+local TilemapUtils = require 'maptools.TilemapUtils'
+
+local tileInfos = TilemapUtils.loadTileInfos{'res.tiles.demo.demo'}
+local demoTiles = tileInfos['res.tiles.demo.demo']
+
+for k, v in pairs(demoTiles) do print(k, v) end
 
 return require 'maptools.ColorMap'{
   [0xfee4b3] = demoTiles.sand,

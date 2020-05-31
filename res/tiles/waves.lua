@@ -1,6 +1,6 @@
 local Tilemap = require 'tilemap'
 
-local filename = __rootdir .. '/res/tiles/waves.png'
+local imagePath = __rootdir .. '/res/tiles/waves.png'
 local tw, th = 16, 16
 
 local frameData = {
@@ -19,8 +19,8 @@ local makeFrames = function(info)
   for i, frame in ipairs(frameData) do
     frames[i] = Tilemap.AnimationFrame{
       duration = frame.duration,
-      x = info.sx + frame.x * tw,
-      y = info.sy + frame.y * th,
+      x = frame.x * tw,
+      y = frame.y * th,
     }
   end
   return frames
@@ -28,11 +28,14 @@ end
 
 local makeTileInfo = function(sx, sy, w, h)
   local info = Tilemap.TileInfo{
-    name = filename,
+    imagePath = imagePath,
     w = tw * w,
     h = th * h,
     sx = tw * sx,
-    sy = th * sy 
+    sy = th * sy,
+
+    eraseW = w,
+    eraseH = h,
   }
   info.frames = makeFrames(info)
   return info

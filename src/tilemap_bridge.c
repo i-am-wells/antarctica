@@ -234,6 +234,12 @@ static void tile_info_to_lua(lua_State* L, TileInfo* info) {
   lua_pushstring(L, name);
   lua_setfield(L, -2, "name");
 
+  char* image_path = info->image_path;
+  if (!image_path)
+    image_path = "";
+  lua_pushstring(L, image_path);
+  lua_setfield(L, -2, "imagePath");
+
   write_int_field(L, "flags", info->flags);
   write_int_field(L, "w", info->w);
   write_int_field(L, "h", info->h);
@@ -246,7 +252,8 @@ static void tile_info_to_lua(lua_State* L, TileInfo* info) {
   lua_createtable(L, 0, info->frame_count);
   for (int i = 0; i < info->frame_count; ++i) {
     lua_createtable(L, /*nrec=*/2, /*narr=*/0);
-    write_int_field(L, "tileX", info->frames[i].tile_x);
+    write_int_field(L, "x", info->frames[i].x);
+    write_int_field(L, "y", info->frames[i].y);
     write_int_field(L, "duration", info->frames[i].duration);
     lua_seti(L, -2, i + 1);
   }
@@ -287,6 +294,17 @@ static int tile_info_from_lua(lua_State* L, tilemap_t* t, TileInfo* info) {
   }
   lua_pop(L, 1);
 
+  if (lua_getfield(L, -1, "imagePath") == LUA_TSTRING) {
+    size_t len = 0;
+    const char* path = lua_tolstring(L, -1, &len);
+    if (!info->image_path || strcmp(info->image_path, path) != 0) {
+      if (info->image_path)
+        free(info->image_path);
+      info->image_path = strndup(path, len + 1);
+    }
+  }
+  lua_pop(L, 1);
+
   info->flags = read_int_field(L, "flags");
   info->w = read_int_field(L, "w");
   info->h = read_int_field(L, "h");
@@ -302,7 +320,8 @@ static int tile_info_from_lua(lua_State* L, tilemap_t* t, TileInfo* info) {
       for (int i = 0; i < frame_count; ++i) {
         // get AnimationFrame
         if (lua_geti(L, -1, i + 1) == LUA_TTABLE) {
-          info->frames[i].tile_x = read_int_field(L, "tileX");
+          info->frames[i].x = read_int_field(L, "x");
+          info->frames[i].y = read_int_field(L, "y");
           int duration = read_int_field(L, "duration");
 
           info->frames[i].duration = duration;
@@ -393,6 +412,11 @@ int l_tilemap_set_screen_size(lua_State* L) {
   return 0;
 }
 
+int l_tilemap_synchronize_animation(lua_State* L) {
+  tilemap_synchronize_animation((tilemap_t*)luaL_checkudata(L, 1, "tilemap_t"));
+  return 0;
+}
+
 void load_tilemap_bridge(lua_State* L) {
   const luaL_Reg tilemaplib[] = {
       {"read", l_tilemap_read},
@@ -420,6 +444,7 @@ void load_tilemap_bridge(lua_State* L) {
       {"addTileInfo", l_tilemap_add_tile_info},
       {"setTileInfoIdxForTile", l_tilemap_set_tile_info_idx_for_tile},
       {"getTileInfoIdxForTile", l_tilemap_get_tile_info_idx_for_tile},
+      {"synchronizeAnimation", l_tilemap_synchronize_animation},
 
       // TODO get rid of these, add engine field to map
       {"advanceClock", l_tilemap_advance_clock},

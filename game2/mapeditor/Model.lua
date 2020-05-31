@@ -38,7 +38,7 @@ function Model.TileEdit:addTile(z, x, y, newIdx)
   tile.origIdx = self.model.map:getTileInfoIdxForTile(z, x, y)
   self.tiles[#self.tiles+1] = tile
 
-  self:applyTile(z, x, y, tile.newIdx)
+  self:applyTile(z, x, y, newIdx)
 end
 
 function Model.TileEdit:isSameLocationAsLast(z, x, y)
@@ -74,11 +74,6 @@ function Model:init(arg)
   if __dbg then
     assert(self.map)
   end
-end
-
-function Model:getTileToDraw()
-  -- TODO
-  return 2, 6, 0 -- penguin head in forest-16x16.png
 end
 
 function Model:makeTileEdit()

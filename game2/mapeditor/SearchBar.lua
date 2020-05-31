@@ -9,6 +9,8 @@ local CursorText = require 'ui.elements.CursorText'
 local HighlightableText = require 'game2.HighlightableText'
 local ListMenu = require 'game2.ListMenu'
 local RgbaColor = require 'RgbaColor'
+local RawTile = require 'game2.mapeditor.editmodes.RawTile'
+local TilemapUtils = require 'maptools.TilemapUtils'
 
 local SearchBar = Class(Context)
 
@@ -26,8 +28,10 @@ function SearchBar:init(arg)
   if __dbg then
     assert(self.engine)
     assert(arg.imageCache)
+    assert(arg.mapEditor)
   end
  
+  self.mapEditor = arg.mapEditor
   self.imageCache = arg.imageCache
   self.font = self.imageCache:get{
     file = fontPath,
@@ -94,23 +98,13 @@ function SearchBar:bind(method)
   return Util.bind(method, self)
 end
 
-local makeInfoName = function(moduleName, key)
-  return string.format('%s#%s', moduleName, key)
-end
-
-local splitInfoName = function(infoName)
-  local _, __, moduleName, key = string.find(infoName, '^(.*)#(.*)$')
-  return moduleName, key
-end
-
 function SearchBar:buildTrie(modules)
   self.trie = Trie()
 
   for _, moduleName in ipairs(modules) do
-    local module = require(moduleName)
+    local module = TilemapUtils.loadTileInfo(moduleName)
     for key, info in pairs(module) do
-      -- TODO load image here?
-      self.trie:set(makeInfoName(moduleName, key), info)
+      self.trie:set(TilemapUtils.makeTileInfoName(moduleName, key), info)
     end
   end
 end
@@ -182,11 +176,17 @@ function SearchBar:choose(keyState)
 end
 
 function SearchBar:chooseTile(name, tileInfo)
-  -- TODO replace this
-  print('chose '..name..':')
-  for k, v in pairs(tileInfo) do
-    print(k, v)
+  -- If tile isn't included in the map yet, add it now.
+  if self.mapEditor:getTileInfoIdx(name) == nil then
+    self.mapEditor:addTileInfo(tileInfo)
   end
+
+  -- Set up map editor to draw this tile
+  self.mapEditor:setEditMode(RawTile{
+    mapEditor = self.mapEditor,
+    idx = self.mapEditor:getTileInfoIdx(name),
+    tileInfo = tileInfo,
+  })
 end
 
 function SearchBar:banish(keyState)

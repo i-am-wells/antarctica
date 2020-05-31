@@ -1,20 +1,14 @@
 local RawTile = require 'class'()
 
-function RawTile:init(idx)
-  self.idx = idx
+function RawTile:init(arg)
+  self.mapEditorContext = arg.mapEditor
+  self.model = arg.mapEditor.model
+  self.idx = arg.idx
+  self.tileInfo = arg.tileInfo
 end
 
 function RawTile:getTileToDraw()
   return self.idx
-end
-
-function RawTile:setMapEditorContext(context)
-  self.mapEditorContext = context
-  self.model = context.model
-  if __dbg then
-    assert(context)
-    assert(self.model)
-  end
 end
 
 function RawTile:mouseDown(mapX, mapY, x, y, button)
@@ -25,8 +19,21 @@ function RawTile:mouseDown(mapX, mapY, x, y, button)
   local context = self.mapEditorContext
   context.tileEditInProgress = self.model:makeTileEdit()
 
-  context.tileEditInProgress:addTile(context.editLayer, mapX, mapY,
-    self:getTileToDraw())
+  self:addTile(mapX, mapY)
+end
+
+function RawTile:addTile(mapX, mapY)
+  local context = self.mapEditorContext
+  if self.tileInfo.eraseW and self.tileInfo.eraseH then
+    for y = mapY, mapY + self.tileInfo.eraseH - 1 do
+      for x = mapX, mapX + self.tileInfo.eraseW - 1 do
+        context.tileEditInProgress:addTile(
+          context.editLayer, x, y, --[[idx=]]0)
+      end
+    end
+  end
+  context.tileEditInProgress:addTile(context.editLayer, mapX, mapY, self.idx)
+  context.map:synchronizeAnimation()
 end
 
 function RawTile:mouseUp(mapX, mapY, x, y, button)
@@ -35,6 +42,7 @@ function RawTile:mouseUp(mapX, mapY, x, y, button)
   end
 
   if self.mapEditorContext.tileEditInProgress then
+    -- Commit edit
     self.model:update(self.mapEditorContext.tileEditInProgress)
     self.mapEditorContext.tileEditInProgress = nil
   end
@@ -49,8 +57,7 @@ function RawTile:mouseMotion(mapX, mapY, x, y, dx, dy)
   if context.tileEditInProgress then
     local mapX, mapY = context:screenToMap(x, y)
     if not context.tileEditInProgress:isSameLocationAsLast(context.editLayer, mapX, mapY) then
-      context.tileEditInProgress:addTile(
-        context.editLayer, mapX, mapY, self:getTileToDraw())
+      self:addTile(mapX, mapY)
     end
   end
 end
@@ -61,10 +68,24 @@ function RawTile:draw()
   end
 
   local context = self.mapEditorContext
-  -- Tile under cursor.
-  context.engine:setColor(0, 255, 0, 255)
   local rectX, rectY = context:mapToScreen(context.mouseMapX, context.mouseMapY)
-  context.engine:drawRect(rectX, rectY, context.tileset.tw, context.tileset.th)
+  local tileInfo = self.tileInfo
+
+  -- Tile under cursor.
+  if tileInfo.image then
+    tileInfo.image:draw(
+      tileInfo.sx,
+      tileInfo.sy,
+      tileInfo.w,
+      tileInfo.h,
+      rectX + tileInfo.dx,
+      rectY + tileInfo.dy,
+      tileInfo.w,
+      tileInfo.h)
+  end
+
+  context.engine:setColor(0, 255, 0, 255)
+  context.engine:drawRect(rectX, rectY, self.tileInfo.w, self.tileInfo.h)
 end
 
 return RawTile

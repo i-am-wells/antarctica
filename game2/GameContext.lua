@@ -213,7 +213,7 @@ function GameContext:changeMap(newMapName, heroPos)
       for i, info in ipairs(self.map:getAllTileInfos()) do
         if info.name and info.name ~= '' then
           local image = self.imageCache:get{
-            file = info.name,
+            file = info.imagePath,
             engine = self.engine,
           }
           if image then

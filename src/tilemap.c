@@ -176,7 +176,6 @@ int tilemap_add_tile_info(tilemap_t* t, TileInfo* info) {
   // info->frames will be freed by tilemap_deinit.
   memcpy(t->tile_info + t->tile_info_count, info, sizeof(TileInfo));
   t->tile_info_count++;
-
   return 1;
 }
 
@@ -217,6 +216,12 @@ int tilemap_clean_tile_info(tilemap_t* t) {
   }
   free(infos_found);
   return 1;
+}
+
+void tilemap_synchronize_animation(tilemap_t* t) {
+  for (size_t i = 0; i < t->tile_info_count; ++i) {
+    t->tile_info[i].last_cycle_start = t->clock;
+  }
 }
 
 void tilemap_set_tile_info_idx_for_tile(const tilemap_t* t,
@@ -854,18 +859,25 @@ static void tilemap_draw_flags(const tilemap_t* t,
 static void draw_tile(const tilemap_t* t, Tile16 tile, int dx, int dy) {
   TileInfo* info = get_tile_info(t, tile);
   int anim_x = 0;
+  int anim_y = 0;
   if (info->frame_count) {
     AnimationFrame* frame = info->frames + info->current_frame;
-    if (t->clock >= frame->start_time + frame->duration) {
-      frame = info->frames + (++info->current_frame);
-      if (info->current_frame == info->frame_count)
+    if ((t->clock - info->last_cycle_start) >=
+        frame->start_time + frame->duration) {
+      ++info->current_frame;
+      if (info->current_frame == info->frame_count) {
         info->current_frame = 0;
+        info->last_cycle_start = t->clock;
+      }
+      frame = info->frames + info->current_frame;
     }
+    anim_x = frame->x;
+    anim_y = frame->y;
   }
 
   if (info->image) {
-    image_draw(info->image, info->sx + anim_x, info->sy, info->w, info->h, dx,
-               dy, info->w, info->h);
+    image_draw(info->image, info->sx + anim_x, info->sy + anim_y, info->w,
+               info->h, dx, dy, info->w, info->h);
   }
 
   if (t->draw_flags) {
@@ -1043,9 +1055,11 @@ void tilemap_set_underwater(tilemap_t* t,
 //    - (52): begin repeated tile info
 //      - (info+0):  flags, 4 bytes
 //      - (info+4):  frame count, 4 bytes
-//      - (info+8):  image name length, 2 bytes
-//      - (info+10): image file name
-//      - (info+10+name): begin repeated frames
+//      - (info+8):  name length, 2 bytes
+//      - (info+10+name): image path length, 2 bytes
+//      - (info+10): name
+//      - (info+10+name+2): image path
+//      - (info+10+name+10): begin repeated frames
 //        - (frame+0): tile x, 4 bytes
 //        - (frame+4): duration, 4 bytes
 //    - (??): tile data, (w * h * nlayers * 2) bytes
@@ -1136,7 +1150,7 @@ static bool read_v2(tilemap_t* t, char* buffer, const char* path, FILE* f) {
 
   for (TileInfo* info = t->tile_info + 1;
        info < t->tile_info + t->tile_info_count; ++info) {
-    if (!fread(buffer, 34, 1, f))
+    if (!fread(buffer, 36, 1, f))
       return read_failure(t, path, error_eof, f);
 
     cursor = buffer;
@@ -1148,16 +1162,23 @@ static bool read_v2(tilemap_t* t, char* buffer, const char* path, FILE* f) {
     info->dx = get32(&cursor);                 // 24
     info->dy = get32(&cursor);                 // 28
     info->frame_count = get32(&cursor);        // 32
-    uint16_t image_name_len = get16(&cursor);  // 34
+    uint16_t name_len = get16(&cursor);        // 34
+    uint16_t image_path_len = get16(&cursor);  // 36
 
-    // Don't load images here; just get the file names.
-    info->name = malloc(image_name_len + 1);
+    info->name = malloc(name_len + 1);
     if (!info->name)
       return read_failure(t, path, error_memory, f);
 
-    if (!fread(info->name, image_name_len, 1, f))
+    if (!fread(info->name, name_len, 1, f))
       return read_failure(t, path, error_eof, f);
-    info->name[image_name_len] = '\0';
+    info->name[name_len] = '\0';
+
+    info->image_path = malloc(image_path_len + 1);
+    if (!info->image_path)
+      return read_failure(t, path, error_memory, f);
+
+    if (!fread(info->image_path, image_path_len, 1, f))
+      return read_failure(t, path, error_eof, f);
 
     // Read animation frames
     info->frames =
@@ -1168,11 +1189,12 @@ static bool read_v2(tilemap_t* t, char* buffer, const char* path, FILE* f) {
     uint32_t start_time = 0;
     for (AnimationFrame* frame = info->frames;
          frame < info->frames + info->frame_count; ++frame) {
-      if (!fread(buffer, 8, 1, f))
+      if (!fread(buffer, 12, 1, f))
         return read_failure(t, path, error_eof, f);
 
       cursor = buffer;
-      frame->tile_x = get32(&cursor);
+      frame->x = get32(&cursor);
+      frame->y = get32(&cursor);
       frame->duration = get32(&cursor);
       frame->start_time = start_time;
       start_time += frame->duration;
@@ -1258,19 +1280,30 @@ bool tilemap_write_to_file(const tilemap_t* t, const char* path) {
     put32(&cursor, info->dy);
     put32(&cursor, info->frame_count);
 
-    size_t image_name_len = strlen(info->name);
-    put16(&cursor, (uint16_t)image_name_len);
+    size_t name_len = 0;
+    if (info->name)
+      name_len = strlen(info->name);
+    put16(&cursor, (uint16_t)name_len);
+
+    size_t image_path_len = 0;
+    if (info->image_path)
+      image_path_len = strlen(info->image_path);
+    put16(&cursor, (uint16_t)image_path_len);
 
     if (!fwrite(buffer, cursor - buffer, 1, f))
       return write_failure(path, "couldn't write tile info", f);
 
-    if (!fwrite(info->name, image_name_len, 1, f))
-      return write_failure(path, "couldn't write tile image name", f);
+    if (!fwrite(info->name, name_len, 1, f))
+      return write_failure(path, "couldn't write tile name", f);
+
+    if (!fwrite(info->image_path, image_path_len, 1, f))
+      return write_failure(path, "couldn't write image path", f);
 
     for (AnimationFrame* frame = info->frames;
          frame < info->frames + info->frame_count; ++frame) {
       cursor = buffer;
-      put32(&cursor, frame->tile_x);
+      put32(&cursor, frame->x);
+      put32(&cursor, frame->y);
       put32(&cursor, frame->duration);
       if (!fwrite(buffer, cursor - buffer, 1, f))
         return write_failure(path, "couldn't write animation info", f);

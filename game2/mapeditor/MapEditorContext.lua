@@ -9,11 +9,6 @@ local Engine = require 'engine'
 local Model = require 'game2.mapeditor.Model'
 local SearchBar = require 'game2.mapeditor.SearchBar'
 
--- TODO
-local getTileInfos = function(map)
-  local infos = map:getAllTileInfos()
-end
-
 local MapEditorContext = Class(Context)
 
 MapEditorContext.tileInfoModules = {
@@ -86,7 +81,10 @@ function MapEditorContext:init(arg)
       }
     })
 
-    self.searchBar = SearchBar{imageCache = self.imageCache}
+    self.searchBar = SearchBar{
+      mapEditor = self,
+      imageCache = self.imageCache
+    }
   end)
 end
 
@@ -134,8 +132,7 @@ function MapEditorContext:quit(keyState)
 end
 
 function MapEditorContext:takeControlFrom(parent)
-  print('open map editor')
-  self.tileInfos = getTileInfos(self.map)
+  self.tileInfos = self.map:getAllTileInfos()
 
   -- TODO parent should implement getCameraObject or something
   self.originalCameraObject = parent.hero
@@ -152,6 +149,31 @@ function MapEditorContext:returnControlToParent()
   self.map:removeObject(self.camera)
   self.map:setCameraObject(self.originalCameraObject)
   Context.returnControlToParent(self)
+end
+
+function MapEditorContext:getTileInfoIdx(tileName)
+  for i, info in ipairs(self.tileInfos) do
+    if info.name == tileName then
+      return i - 1
+    end
+  end
+  return nil
+end
+
+function MapEditorContext:addTileInfo(info)
+  if not info.image then
+    info.image = self.imageCache:get{
+      engine = self.engine,
+      file = info.imagePath,
+    }
+  end
+
+  self.map:addTileInfo(info)
+  self.tileInfos[#self.tileInfos + 1] = info
+end
+
+function MapEditorContext:setEditMode(editMode)
+  self.editMode = editMode
 end
 
 function MapEditorContext:focusSearchBar()
@@ -191,13 +213,13 @@ function MapEditorContext:updateMouseMapCoords()
 end
 
 function MapEditorContext:mouseMotion(x, y, dx, dy)
-  if self.editMode then
-    self.editMode:mouseMotion(x, y, dx, dy)
-  end
-
   self.mouseX = x
   self.mouseY = y
   self:updateMouseMapCoords()
+
+  if self.editMode then
+    self.editMode:mouseMotion(self.mouseMapX, self.mouseMapY, x, y, dx, dy)
+  end
 end
 
 function MapEditorContext:draw()
