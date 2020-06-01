@@ -61,7 +61,7 @@ function MapEditorContext:init(arg)
         actions = {
           goNorth = bind(self.goNorth, self),
           goWest = bind(self.goWest, self),
-          goSouth = bind(self.goSouth, self),
+          goSouthOrSave = bind(self.goSouthOrSave, self),
           goEast = bind(self.goEast, self),
           undo = bind(self.undo, self),
           redo = bind(self.redo, self),
@@ -73,7 +73,7 @@ function MapEditorContext:init(arg)
         keys = {
           W = 'goNorth',
           A = 'goWest',
-          S = 'goSouth',
+          S = 'goSouthOrSave',
           D = 'goEast',
           Z = 'undo',
           Y = 'redo',
@@ -96,6 +96,14 @@ function MapEditorContext:init(arg)
       imageCache = self.imageCache
     }
   end)
+end
+
+function MapEditorContext:save()
+  if self.map:write(self.map.name) then
+    print('saved')
+  else
+    log.error('failed to write %s', self.map.name)
+  end
 end
 
 function MapEditorContext:floodFill(keyState)
@@ -133,8 +141,13 @@ function MapEditorContext:goWest(keyState)
     self:updateMouseMapCoords()
   end
 end
-function MapEditorContext:goSouth(keyState)
+function MapEditorContext:goSouthOrSave(keyState, key, mod)
   if keyState == 'down' then
+    if mod & Engine.keymod.ctrl ~= 0 then
+      self:save()
+      return
+    end
+
     self.camera:move(0, self.stepSizeY)
     self:updateMouseMapCoords()
   end
