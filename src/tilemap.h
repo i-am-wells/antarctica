@@ -29,6 +29,8 @@ typedef struct TileInfo {
   char* name;
   // Image file path
   char* image_path;
+  // Scale drawing operations by this factor.
+  double draw_scale;
 } TileInfo;
 
 /* new flags:

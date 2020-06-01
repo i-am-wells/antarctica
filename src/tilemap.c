@@ -127,6 +127,7 @@ int tilemap_init(tilemap_t* t,
   t->nlayers = nlayers;
   // TODO pass this in?
   t->tile_bits = 16;
+  t->draw_scale = 1.0;
 
   tilemap_set_underwater_color(t, 0, 0, 0, SDL_ALPHA_OPAQUE);
 

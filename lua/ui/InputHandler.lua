@@ -28,6 +28,7 @@ function InputHandler:init(argtable)
   self.mouseDown = argtable.mouseDown
   self.mouseUp = argtable.mouseUp
   self.mouseMotion = argtable.mouseMotion
+  self.mouseWheel = argtable.mouseWheel
 
   self.textInput = argtable.textInput
   self.textEditing = argtable.textEditing

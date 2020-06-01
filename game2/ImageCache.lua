@@ -22,4 +22,10 @@ function ImageCache:get(arg)
   return image
 end
 
+function ImageCache:forEach(callback)
+  for key, image in pairs(self.cache) do
+    callback(key, image)
+  end
+end
+
 return ImageCache

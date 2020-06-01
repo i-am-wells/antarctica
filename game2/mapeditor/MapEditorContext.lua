@@ -8,6 +8,7 @@ local Engine = require 'engine'
 
 local Model = require 'game2.mapeditor.Model'
 local SearchBar = require 'game2.mapeditor.SearchBar'
+local Eyedropper = require 'game2.mapeditor.editmodes.Eyedropper'
 
 local MapEditorContext = Class(Context)
 
@@ -15,6 +16,8 @@ MapEditorContext.tileInfoModules = {
   'res.tiles.waves',
   'res.tiles.demo.demo',
 }
+
+local minScale, maxScale = 0.125, 4
 
 function MapEditorContext:init(arg)
   if __dbg then
@@ -41,8 +44,8 @@ function MapEditorContext:init(arg)
   }
 
   self.model = Model{map=arg.map}
-  -- TODO how should this be set?
   self.editLayer = 0
+  self.isEyedropperActive = false
 
   self.stepSizeX = arg.map.tw
   self.stepSizeY = arg.map.th
@@ -63,7 +66,9 @@ function MapEditorContext:init(arg)
           undo = bind(self.undo, self),
           redo = bind(self.redo, self),
           quit = bind(self.quit, self),
-          focusSearchBar = bind(self.focusSearchBar, self)
+          focusSearchBar = bind(self.focusSearchBar, self),
+          eyedropper = bind(self.eyedropper, self),
+          floodFill = bind(self.floodFill, self),
         },
         keys = {
           W = 'goNorth',
@@ -72,12 +77,17 @@ function MapEditorContext:init(arg)
           D = 'goEast',
           Z = 'undo',
           Y = 'redo',
+          F = 'floodFill',
           Escape = 'quit',
           ['/'] = 'focusSearchBar',
+          ['Left Ctrl'] = 'eyedropper',
+          ['Right Ctrl'] = 'eyedropper',
         },
+        allowKeyRepeat = true,
         mouseDown = bind(self.mouseDown, self),
         mouseUp = bind(self.mouseUp, self),
         mouseMotion = bind(self.mouseMotion, self),
+        mouseWheel = bind(self.mouseWheel, self),
       }
     })
 
@@ -86,6 +96,29 @@ function MapEditorContext:init(arg)
       imageCache = self.imageCache
     }
   end)
+end
+
+function MapEditorContext:floodFill(keyState)
+  if keyState == 'down' then
+    if self.editMode then
+      self.editMode.isFloodFill = true
+    end
+  elseif keyState == 'up' then
+    if self.editMode then
+      self.editMode.isFloodFill = false
+    end
+  end
+end
+
+function MapEditorContext:eyedropper(keyState)
+  -- Activate eyedropper mode when eyedropper key is held
+  if keyState == 'down' and not self.isEyedropperActive then
+    self.isEyedropperActive = true
+    self.editMode = Eyedropper{mapEditor = self}
+  elseif keyState == 'up' and self.isEyedropperActive then
+    self.isEyedropperActive = false
+    self.editMode = self.editMode:getFinalEditMode()
+  end
 end
 
 function MapEditorContext:goNorth(keyState)
@@ -133,6 +166,8 @@ end
 
 function MapEditorContext:takeControlFrom(parent)
   self.tileInfos = self.map:getAllTileInfos()
+  self.origScreenW, self.origScreenH = self.engine:getLogicalSize()
+  self.scale = 1
 
   -- TODO parent should implement getCameraObject or something
   self.originalCameraObject = parent.hero
@@ -146,6 +181,7 @@ function MapEditorContext:takeControlFrom(parent)
 end
 
 function MapEditorContext:returnControlToParent()
+  self:zoom(1)
   self.map:removeObject(self.camera)
   self.map:setCameraObject(self.originalCameraObject)
   Context.returnControlToParent(self)
@@ -192,6 +228,18 @@ function MapEditorContext:mapToScreen(x, y)
   return (x * self.map.tw) - cornerX, (y * self.map.th) - cornerY
 end
 
+function MapEditorContext:zoom(scale)
+  self.scale = scale
+  -- Scale images
+  -- TODO skip UI images, if any
+  --self.imageCache:forEach(function(key, image)
+  --  image:scale(scale)
+  --end)
+  local newScreenW, newScreenH = self.origScreenW * scale, self.origScreenH * scale
+  self.engine:setLogicalSize(newScreenW, newScreenH)
+  self.map:setScreenSize(newScreenW, newScreenH)
+end
+
 function MapEditorContext:mouseDown(x, y, button)
   -- TODO pass mouse down to UI
 
@@ -220,6 +268,22 @@ function MapEditorContext:mouseMotion(x, y, dx, dy)
   if self.editMode then
     self.editMode:mouseMotion(self.mouseMapX, self.mouseMapY, x, y, dx, dy)
   end
+end
+
+function MapEditorContext:mouseWheel(wheelX, wheelY)
+  -- Zoom in or out
+  if wheelY < 0 then
+    self.scale = self.scale / 2
+    if self.scale < minScale then
+      self.scale = minScale
+    end
+  elseif wheelY > 0 then
+    self.scale = self.scale * 2
+    if self.scale > maxScale then
+      self.scale = maxScale
+    end
+  end
+  self:zoom(self.scale)
 end
 
 function MapEditorContext:draw()

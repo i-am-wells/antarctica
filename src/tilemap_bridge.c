@@ -417,6 +417,12 @@ int l_tilemap_synchronize_animation(lua_State* L) {
   return 0;
 }
 
+int l_tilemap_set_draw_scale(lua_State* L) {
+  tilemap_t* t = (tilemap_t*)luaL_checkudata(L, 1, "tilemap_t");
+  t->draw_scale = luaL_checknumber(L, 2);
+  return 0;
+}
+
 void load_tilemap_bridge(lua_State* L) {
   const luaL_Reg tilemaplib[] = {
       {"read", l_tilemap_read},
@@ -449,6 +455,7 @@ void load_tilemap_bridge(lua_State* L) {
       // TODO get rid of these, add engine field to map
       {"advanceClock", l_tilemap_advance_clock},
       {"setScreenSize", l_tilemap_set_screen_size},
+      {"setDrawScale", l_tilemap_set_draw_scale},
 
       {NULL, NULL}};
 

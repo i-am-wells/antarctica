@@ -1,24 +1,41 @@
-local RawTile = require 'class'()
+local Stack = require 'Stack'
+local EditMode = require 'game2.mapeditor.editmodes.EditMode'
+local RawTile = require 'class'(EditMode)
 
 function RawTile:init(arg)
-  self.mapEditorContext = arg.mapEditor
-  self.model = arg.mapEditor.model
+  EditMode.init(self, arg)
   self.idx = arg.idx
   self.tileInfo = arg.tileInfo
 end
 
-function RawTile:getTileToDraw()
-  return self.idx
+function RawTile:getIdx(mapX, mapY)
+  return self.mapEditorContext.map:getTileInfoIdxForTile(
+    self.mapEditorContext.editLayer, mapX, mapY)
+end
+
+function RawTile:startEdit()
+  self.mapEditorContext.tileEditInProgress = self.model:makeTileEdit()
+end
+
+function RawTile:commitEdit()
+  if self.mapEditorContext.tileEditInProgress then
+    self.model:update(self.mapEditorContext.tileEditInProgress)
+    self.mapEditorContext.tileEditInProgress = nil
+  end
+  self.mapEditorContext.map:synchronizeAnimation()
 end
 
 function RawTile:mouseDown(mapX, mapY, x, y, button)
+  if self.isFloodFill then
+    self:floodFill(mapX, mapY)
+    return
+  end
+
   if __dbg then
     assert(self.mapEditorContext)
     assert(self.mapEditorContext.tileEditInProgress == nil)
   end
-  local context = self.mapEditorContext
-  context.tileEditInProgress = self.model:makeTileEdit()
-
+  self:startEdit()
   self:addTile(mapX, mapY)
 end
 
@@ -33,7 +50,34 @@ function RawTile:addTile(mapX, mapY)
     end
   end
   context.tileEditInProgress:addTile(context.editLayer, mapX, mapY, self.idx)
-  context.map:synchronizeAnimation()
+end
+
+function RawTile:floodFill(mapX, mapY)
+  self:startEdit()
+  local toReplace = self:getIdx(mapX, mapY)
+  local eraseW, eraseH = self.tileInfo.eraseW or 1, self.tileInfo.eraseH or 1
+  local stack = Stack()
+  stack:push{x=mapX, y=mapY}
+  while not stack:empty() do
+    local p = stack:pop()
+    if self:getIdx(p.x, p.y) == toReplace then
+      self:addTile(p.x, p.y)
+
+      if (p.x - eraseW) >= 0 then
+        stack:push{x=p.x-eraseW, y=p.y}
+      end
+      if (p.x + eraseW) < self.mapEditorContext.map.w then
+        stack:push{x=p.x+eraseW, y=p.y}
+      end
+      if (p.y - eraseH) >= 0 then
+        stack:push{x=p.x, y=p.y-eraseH}
+      end
+      if (p.y + eraseH) < self.mapEditorContext.map.h then
+        stack:push{x=p.x, y=p.y+eraseH}
+      end
+    end
+  end
+  self:commitEdit()
 end
 
 function RawTile:mouseUp(mapX, mapY, x, y, button)
@@ -41,11 +85,7 @@ function RawTile:mouseUp(mapX, mapY, x, y, button)
     assert(self.mapEditorContext)
   end
 
-  if self.mapEditorContext.tileEditInProgress then
-    -- Commit edit
-    self.model:update(self.mapEditorContext.tileEditInProgress)
-    self.mapEditorContext.tileEditInProgress = nil
-  end
+  self:commitEdit()
 end
 
 function RawTile:mouseMotion(mapX, mapY, x, y, dx, dy)
