@@ -127,7 +127,6 @@ int tilemap_init(tilemap_t* t,
   t->nlayers = nlayers;
   // TODO pass this in?
   t->tile_bits = 16;
-  t->draw_scale = 1.0;
 
   tilemap_set_underwater_color(t, 0, 0, 0, SDL_ALPHA_OPAQUE);
 
@@ -221,7 +220,8 @@ int tilemap_clean_tile_info(tilemap_t* t) {
 
 void tilemap_synchronize_animation(tilemap_t* t) {
   for (size_t i = 0; i < t->tile_info_count; ++i) {
-    t->tile_info[i].last_cycle_start = t->clock;
+    t->tile_info[i].last_frame_start = 0;
+    t->tile_info[i].current_frame = 0;
   }
 }
 
@@ -260,9 +260,21 @@ static int tilemap_empty(const tilemap_t* t, int layer, uint64_t x, uint64_t y)
 }
 */
 
-// Don't worry about wrapping
+// Update animated tiles. Don't worry about clock value wrapping.
 void tilemap_advance_clock(tilemap_t* t) {
   ++t->clock;
+
+  for (TileInfo* info = t->tile_info; info < t->tile_info + t->tile_info_count;
+       ++info) {
+    AnimationFrame* frame = info->frames + info->current_frame;
+    if (frame && (t->clock - info->last_frame_start) >= frame->duration) {
+      ++info->current_frame;
+      info->last_frame_start = t->clock;
+      if (info->current_frame == info->frame_count) {
+        info->current_frame = 0;
+      }
+    }
+  }
 }
 
 int tilemap_get_flags(const tilemap_t* t, int layer, uint64_t x, uint64_t y) {
@@ -863,15 +875,6 @@ static void draw_tile(const tilemap_t* t, Tile16 tile, int dx, int dy) {
   int anim_y = 0;
   if (info->frame_count) {
     AnimationFrame* frame = info->frames + info->current_frame;
-    if ((t->clock - info->last_cycle_start) >=
-        frame->start_time + frame->duration) {
-      ++info->current_frame;
-      if (info->current_frame == info->frame_count) {
-        info->current_frame = 0;
-        info->last_cycle_start = t->clock;
-      }
-      frame = info->frames + info->current_frame;
-    }
     anim_x = frame->x;
     anim_y = frame->y;
   }
@@ -1180,6 +1183,7 @@ static bool read_v2(tilemap_t* t, char* buffer, const char* path, FILE* f) {
 
     if (!fread(info->image_path, image_path_len, 1, f))
       return read_failure(t, path, error_eof, f);
+    info->image_path[image_path_len] = '\0';
 
     // Read animation frames
     info->frames =

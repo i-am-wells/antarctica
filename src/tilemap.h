@@ -23,7 +23,7 @@ typedef struct TileInfo {
   AnimationFrame* frames;
   // keep track of current frame between draws
   int current_frame;
-  uint32_t last_cycle_start;
+  uint32_t last_frame_start;
 
   // Used to identify the tile for editing and image loading.
   char* name;

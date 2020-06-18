@@ -5,6 +5,7 @@ local Util = require 'Util'
 local bind = Util.bind
 local Object = require 'object'
 local Engine = require 'engine'
+local log = require 'log'
 
 local Model = require 'game2.mapeditor.Model'
 local SearchBar = require 'game2.mapeditor.SearchBar'
@@ -100,9 +101,10 @@ end
 
 function MapEditorContext:save()
   if self.map:write(self.map.name) then
-    print('saved')
+    self.statusText = string.format('Saved to %s.', self.map.name)
   else
-    log.error('failed to write %s', self.map.name)
+    self.statusText = string.format('Failed to save %s, check logs.', self.map.name)
+    log.error(self.statusText)
   end
 end
 
@@ -123,9 +125,12 @@ function MapEditorContext:eyedropper(keyState)
   if keyState == 'down' and not self.isEyedropperActive then
     self.isEyedropperActive = true
     self.editMode = Eyedropper{mapEditor = self}
+    self.savedStatusText = self.statusText
+    self.statusText = 'Eyedropper tool'
   elseif keyState == 'up' and self.isEyedropperActive then
     self.isEyedropperActive = false
     self.editMode = self.editMode:getFinalEditMode()
+    self.statusText = self.savedStatusText
   end
 end
 
@@ -181,6 +186,7 @@ function MapEditorContext:takeControlFrom(parent)
   self.tileInfos = self.map:getAllTileInfos()
   self.origScreenW, self.origScreenH = self.engine:getLogicalSize()
   self.scale = 1
+  self.statusText = string.format('Editing %s.', self.map.name)
 
   -- TODO parent should implement getCameraObject or something
   self.originalCameraObject = parent.hero
@@ -306,6 +312,15 @@ function MapEditorContext:draw()
 
   if self.editMode then
     self.editMode:draw()
+  end
+
+  self.smallFont:drawText(
+    string.format('Layer: %s   Tile: %s, %s',
+      self.editLayer, self.mouseMapX, self.mouseMapY),
+    5, self.engine.vh - 15, 300)
+
+  if self.statusText then
+    self.smallFont:drawText(self.statusText, self.engine.vw / 2, 5, --[[wrap=]]300)
   end
 end
 
