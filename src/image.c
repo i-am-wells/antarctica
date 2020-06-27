@@ -87,6 +87,7 @@ int image_init_blank(image_t* i, engine_t* e, int w, int h, int tw, int th) {
     i->tw = tw;
     i->th = th;
     i->pixel_format = texformat;
+    i->surface = NULL;
 
     // Target new texture
     SDL_SetRenderTarget(i->renderer, tex);

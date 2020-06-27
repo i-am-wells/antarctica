@@ -11,7 +11,7 @@ AudioSource.audibleRadius = 320
 
 
 function AudioSource:init(opt)
-    self.channel = opt.channel or nil
+    self.channel = opt.channel or 0
 
     self.sameSideCoef = self.sameSideCoef or opt.sameSideCoef
     self.oppositeSideCoef = self.oppositeSideCoef or opt.oppositeSideCoef

@@ -216,9 +216,6 @@ void tilemap_draw_layer(const tilemap_t* t, const image_t* i, int l, int px, int
     int nx = (pw / i->tw) + 2;
     int ny = (ph / i->th) + 2;
   
-    int underwater = is_underwater(t, l, startx
-    
-
     int offx = px % i->tw;
     int offy = py % i->th;
 
