@@ -1,3 +1,11 @@
+fix animation update: how to limit update to minimal set of tile types?
+  - idea: each tile type has a big table (harmonic?) with one entry for each tick
+    - pros: very fast lookup, no cost to update
+    - cons: takes a lot of space
+  - idea: only update visible tiles; check and record visibility on draw
+    - pros: minimal space
+    - cons: more complex; O(wh + w log f)
+
 maps:
   - row-by-row image to intermediate step
   - fix edges
