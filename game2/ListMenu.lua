@@ -25,7 +25,9 @@ end
 function ListMenu:setChoice(idx)
   if __dbg then
     assert(idx >= 0)
-    assert(idx < #self.container.children)
+    if #self.container.children > 0 then
+      assert(idx < #self.container.children)
+    end
   end
   self.choice = idx
   if self:getChoice() then

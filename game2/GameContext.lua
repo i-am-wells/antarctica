@@ -52,6 +52,7 @@ function GameContext:init(opt)
             engine = opt.engine,
             imageCache = self.imageCache,
             map = self.map,
+            font = self.font,
           }:takeControlFrom(self)
         end
       },
